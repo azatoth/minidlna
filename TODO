@@ -9,6 +9,7 @@ Things left to do:
 * DLNA Profile Name (DLNA.ORG_PN) support for audio files besides MP3
 * Video metadata support
 * SortCriteria support
-* Upload support
+* Completely redo the logging scheme.
 * Update scan support (do not require removing the database)
 * Inotify support
+* Upload support
