@@ -1,0 +1,14 @@
+MiniDLNA project.
+(c) 2008 Justin Maggard
+Parts (c) 2006-2008 Thomas Bernard
+Homepage : http://sourceforge.net/projects/minidlna/
+
+Prerequisites :
+
+- taglib
+- libexif
+- sqlite3
+
+To Build and install :
+
+- Just run make, and hope it works. :)
