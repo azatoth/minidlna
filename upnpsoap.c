@@ -1,10 +1,15 @@
-/* $Id$ */
-/* MiniUPnP project
- * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
- * (c) 2006-2008 Thomas Bernard 
+/* MiniDLNA project
+ * http://minidlna.sourceforge.net/
+ * (c) 2008 Justin Maggard
+ *
  * This software is subject to the conditions detailed
- * in the LICENCE file provided within the distribution */
-
+ * in the LICENCE file provided within the distribution 
+ *
+ * Portions of the code from the MiniUPnP Project
+ * (c) Thomas Bernard licensed under BSD revised license
+ * detailed in the LICENSE.miniupnpd file provided within
+ * the distribution.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

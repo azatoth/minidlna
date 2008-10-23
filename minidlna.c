@@ -645,7 +645,6 @@ main(int argc, char * * argv)
 	{
 		sqlite3_open("/tmp/files.db", &db);
 		ScanDirectory(media_dir, NULL);
-		return 0;
 	}
 	else
 	{
