@@ -1,46 +1,11 @@
-/* MiniDLNA project
- * http://minidlna.sourceforge.net/
- *
- * MiniDLNA media server
- * Copyright (C) 2008-2009  Justin Maggard
- *
- * This file is part of MiniDLNA.
- *
- * MiniDLNA is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * MiniDLNA is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MiniDLNA. If not, see <http://www.gnu.org/licenses/>.
- */
+/* MiniUPnP project
+ * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
+ * (c) 2006 Thomas Bernard 
+ * This software is subject to the conditions detailed
+ * in the LICENCE file provided within the distribution */
+
 #ifndef __UPNPSOAP_H__
 #define __UPNPSOAP_H__
-
-#define DEFAULT_RESP_SIZE 131072
-#define MAX_RESPONSE_SIZE 2097152
-
-#define CONTENT_DIRECTORY_SCHEMAS \
-	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"" \
-	" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"" \
-	" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
-#define DLNA_NAMESPACE \
-	" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\""
-
-struct Response
-{
-	struct string_s *str;
-	int start;
-	int returned;
-	int requested;
-	uint32_t filter;
-	uint32_t flags;
-	enum client_types client;
-};
 
 /* ExecuteSoapAction():
  * this method executes the requested Soap Action */

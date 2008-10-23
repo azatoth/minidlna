@@ -1,53 +1,13 @@
-/* MiniDLNA project
- * http://minidlna.sourceforge.net/
- *
- * MiniDLNA media server
- * Copyright (C) 2008-2009  Justin Maggard
- *
- * This file is part of MiniDLNA.
- *
- * MiniDLNA is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * MiniDLNA is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MiniDLNA. If not, see <http://www.gnu.org/licenses/>.
- *
- * Portions of the code from the MiniUPnP project:
- *
- * Copyright (c) 2006-2007, Thomas Bernard
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * The name of the author may not be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/* $Id$ */
+/* MiniUPnP project
+ * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
+ * (c) 2008 Thomas Bernard
+ * This software is subject to the conditions detailed
+ * in the LICENCE file provided within the distribution */
+
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <syslog.h>
 #include <sys/queue.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -58,14 +18,18 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <errno.h>
-
 #include "config.h"
 #include "upnpevents.h"
-#include "minidlnapath.h"
+#include "miniupnpdpath.h"
 #include "upnpglobalvars.h"
 #include "upnpdescgen.h"
-#include "uuid.h"
-#include "log.h"
+
+#ifdef ENABLE_EVENTS
+/*enum subscriber_service_enum {
+ EWanCFG = 1,
+ EWanIPC,
+ EL3F
+};*/
 
 /* stuctures definitions */
 struct subscriber {
@@ -116,12 +80,18 @@ newSubscriber(const char * eventurl, const char * callback, int callbacklen)
 	if(!eventurl || !callback || !callbacklen)
 		return NULL;
 	tmp = calloc(1, sizeof(struct subscriber)+callbacklen+1);
-	if(strcmp(eventurl, CONTENTDIRECTORY_EVENTURL)==0)
+	if(strcmp(eventurl, WANCFG_EVENTURL)==0)
+		tmp->service = EWanCFG;
+	else if(strcmp(eventurl, CONTENTDIRECTORY_EVENTURL)==0)
 		tmp->service = EContentDirectory;
 	else if(strcmp(eventurl, CONNECTIONMGR_EVENTURL)==0)
 		tmp->service = EConnectionManager;
-	else if(strcmp(eventurl, X_MS_MEDIARECEIVERREGISTRAR_EVENTURL)==0)
-		tmp->service = EMSMediaReceiverRegistrar;
+	else if(strcmp(eventurl, WANIPC_EVENTURL)==0)
+		tmp->service = EWanIPC;
+#ifdef ENABLE_L3F_SERVICE
+	else if(strcmp(eventurl, L3F_EVENTURL)==0)
+		tmp->service = EL3F;
+#endif
 	else {
 		free(tmp);
 		return NULL;
@@ -129,13 +99,10 @@ newSubscriber(const char * eventurl, const char * callback, int callbacklen)
 	memcpy(tmp->callback, callback, callbacklen);
 	tmp->callback[callbacklen] = '\0';
 	/* make a dummy uuid */
+	/* TODO: improve that */
 	strncpy(tmp->uuid, uuidvalue, sizeof(tmp->uuid));
-	if( get_uuid_string(tmp->uuid+5) != 0 )
-	{
-		tmp->uuid[sizeof(tmp->uuid)-1] = '\0';
-		snprintf(tmp->uuid+37, 5, "%04lx", random() & 0xffff);
-	}
-
+	tmp->uuid[sizeof(tmp->uuid)-1] = '\0';
+	snprintf(tmp->uuid+37, 5, "%04lx", random() & 0xffff);
 	return tmp;
 }
 
@@ -149,7 +116,7 @@ upnpevents_addSubscriber(const char * eventurl,
 	struct subscriber * tmp;
 	/*static char uuid[42];*/
 	/* "uuid:00000000-0000-0000-0000-000000000000"; 5+36+1=42bytes */
-	DPRINTF(E_DEBUG, L_HTTP, "addSubscriber(%s, %.*s, %d)\n",
+	syslog(LOG_DEBUG, "addSubscriber(%s, %.*s, %d)",
 	       eventurl, callbacklen, callback, timeout);
 	/*strncpy(uuid, uuidvalue, sizeof(uuid));
 	uuid[sizeof(uuid)-1] = '\0';*/
@@ -169,7 +136,7 @@ renewSubscription(const char * sid, int sidlen, int timeout)
 {
 	struct subscriber * sub;
 	for(sub = subscriberlist.lh_first; sub != NULL; sub = sub->entries.le_next) {
-		if(memcmp(sid, sub->uuid, 41) == 0) {
+		if(memcmp(sid, sub->uuid, 41)) {
 			sub->timeout = (timeout ? time(NULL) + timeout : 0);
 			return 0;
 		}
@@ -183,10 +150,8 @@ upnpevents_removeSubscriber(const char * sid, int sidlen)
 	struct subscriber * sub;
 	if(!sid)
 		return -1;
-	DPRINTF(E_DEBUG, L_HTTP, "removeSubscriber(%.*s)\n",
-	       sidlen, sid);
 	for(sub = subscriberlist.lh_first; sub != NULL; sub = sub->entries.le_next) {
-		if(memcmp(sid, sub->uuid, 41) == 0) {
+		if(memcmp(sid, sub->uuid, 41)) {
 			if(sub->notify) {
 				sub->notify->sub = NULL;
 			}
@@ -218,24 +183,24 @@ upnp_event_create_notify(struct subscriber * sub)
 	int flags;
 	obj = calloc(1, sizeof(struct upnp_event_notify));
 	if(!obj) {
-		DPRINTF(E_ERROR, L_HTTP, "%s: calloc(): %s\n", "upnp_event_create_notify", strerror(errno));
+		syslog(LOG_ERR, "%s: calloc(): %m", "upnp_event_create_notify");
 		return;
 	}
 	obj->sub = sub;
 	obj->state = ECreated;
 	obj->s = socket(PF_INET, SOCK_STREAM, 0);
 	if(obj->s<0) {
-		DPRINTF(E_ERROR, L_HTTP, "%s: socket(): %s\n", "upnp_event_create_notify", strerror(errno));
+		syslog(LOG_ERR, "%s: socket(): %m", "upnp_event_create_notify");
 		goto error;
 	}
 	if((flags = fcntl(obj->s, F_GETFL, 0)) < 0) {
-		DPRINTF(E_ERROR, L_HTTP, "%s: fcntl(..F_GETFL..): %s\n",
-		       "upnp_event_create_notify", strerror(errno));
+		syslog(LOG_ERR, "%s: fcntl(..F_GETFL..): %m",
+		       "upnp_event_create_notify");
 		goto error;
 	}
 	if(fcntl(obj->s, F_SETFL, flags | O_NONBLOCK) < 0) {
-		DPRINTF(E_ERROR, L_HTTP, "%s: fcntl(..F_SETFL..): %s\n",
-		       "upnp_event_create_notify", strerror(errno));
+		syslog(LOG_ERR, "%s: fcntl(..F_SETFL..): %m",
+		       "upnp_event_create_notify");
 		goto error;
 	}
 	if(sub)
@@ -273,7 +238,7 @@ upnp_event_notify_connect(struct upnp_event_notify * obj)
 		i = 1;
 		p++;
 		port = (unsigned short)atoi(p);
-		while(*p != '/' && *p != '\0') {
+		while(*p != '/') {
 			if(i<7) obj->portstr[i++] = *p;
 			p++;
 		}
@@ -282,19 +247,16 @@ upnp_event_notify_connect(struct upnp_event_notify * obj)
 		port = 80;
 		obj->portstr[0] = '\0';
 	}
-	if( *p )
-		obj->path = p;
-	else
-		obj->path = "/";
+	obj->path = p;
 	addr.sin_family = AF_INET;
 	inet_aton(obj->addrstr, &addr.sin_addr);
 	addr.sin_port = htons(port);
-	DPRINTF(E_DEBUG, L_HTTP, "%s: '%s' %hu '%s'\n", "upnp_event_notify_connect",
+	syslog(LOG_DEBUG, "%s: '%s' %hu '%s'", "upnp_event_notify_connect",
 	       obj->addrstr, port, obj->path);
 	obj->state = EConnecting;
 	if(connect(obj->s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		if(errno != EINPROGRESS && errno != EWOULDBLOCK) {
-			DPRINTF(E_ERROR, L_HTTP, "%s: connect(): %s\n", "upnp_event_notify_connect", strerror(errno));
+			syslog(LOG_ERR, "%s: connect(): %m", "upnp_event_notify_connect");
 			obj->state = EError;
 		}
 	}
@@ -328,38 +290,37 @@ static void upnp_event_prepare(struct upnp_event_notify * obj)
 	case EConnectionManager:
 		xml = getVarsConnectionManager(&l);
 		break;
-	case EMSMediaReceiverRegistrar:
-		xml = getVarsX_MS_MediaReceiverRegistrar(&l);
-		break;
 	default:
 		xml = NULL;
 		l = 0;
 	}
-	obj->tosend = asprintf(&(obj->buffer), notifymsg,
+	obj->buffersize = 1536;
+	obj->buffer = malloc(obj->buffersize);
+	/*if(!obj->buffer) {
+	}*/
+	obj->tosend = snprintf(obj->buffer, obj->buffersize, notifymsg,
 	                       obj->path, obj->addrstr, obj->portstr, l+2,
 	                       obj->sub->uuid, obj->sub->seq,
 	                       l, xml);
-	obj->buffersize = obj->tosend;
 	if(xml) {
 		free(xml);
 		xml = NULL;
 	}
-	DPRINTF(E_DEBUG, L_HTTP, "Sending UPnP Event response:\n%s\n", obj->buffer);
+	//DEBUG printf("Preparing buffer:\n%s\n", obj->buffer);
 	obj->state = ESending;
 }
 
 static void upnp_event_send(struct upnp_event_notify * obj)
 {
 	int i;
-	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "Sending UPnP Event:\n%s", obj->buffer+obj->sent);
 	i = send(obj->s, obj->buffer + obj->sent, obj->tosend - obj->sent, 0);
 	if(i<0) {
-		DPRINTF(E_WARN, L_HTTP, "%s: send(): %s\n", "upnp_event_send", strerror(errno));
+		syslog(LOG_NOTICE, "%s: send(): %m", "upnp_event_send");
 		obj->state = EError;
 		return;
 	}
 	else if(i != (obj->tosend - obj->sent))
-		DPRINTF(E_WARN, L_HTTP, "%s: %d bytes send out of %d\n",
+		syslog(LOG_NOTICE, "%s: %d bytes send out of %d",
 		       "upnp_event_send", i, obj->tosend - obj->sent);
 	obj->sent += i;
 	if(obj->sent == obj->tosend)
@@ -371,11 +332,11 @@ static void upnp_event_recv(struct upnp_event_notify * obj)
 	int n;
 	n = recv(obj->s, obj->buffer, obj->buffersize, 0);
 	if(n<0) {
-		DPRINTF(E_ERROR, L_HTTP, "%s: recv(): %s\n", "upnp_event_recv", strerror(errno));
+		syslog(LOG_ERR, "%s: recv(): %m", "upnp_event_recv");
 		obj->state = EError;
 		return;
 	}
-	DPRINTF(E_DEBUG, L_HTTP, "%s: (%dbytes) %.*s\n", "upnp_event_recv",
+	syslog(LOG_DEBUG, "%s: (%dbytes) %.*s", "upnp_event_recv",
 	       n, n, obj->buffer);
 	obj->state = EFinished;
 	if(obj->sub)
@@ -402,7 +363,7 @@ upnp_event_process_notify(struct upnp_event_notify * obj)
 		obj->s = -1;
 		break;
 	default:
-		DPRINTF(E_ERROR, L_HTTP, "upnp_event_process_notify: unknown state\n");
+		syslog(LOG_ERR, "upnp_event_process_notify: unknown state");
 	}
 }
 
@@ -410,7 +371,7 @@ void upnpevents_selectfds(fd_set *readset, fd_set *writeset, int * max_fd)
 {
 	struct upnp_event_notify * obj;
 	for(obj = notifylist.lh_first; obj != NULL; obj = obj->entries.le_next) {
-		DPRINTF(E_DEBUG, L_HTTP, "upnpevents_selectfds: %p %d %d\n",
+		syslog(LOG_DEBUG, "upnpevents_selectfds: %p %d %d",
 		       obj, obj->state, obj->s);
 		if(obj->s >= 0) {
 			switch(obj->state) {
@@ -444,7 +405,7 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 	struct subscriber * subnext;
 	time_t curtime;
 	for(obj = notifylist.lh_first; obj != NULL; obj = obj->entries.le_next) {
-		DPRINTF(E_DEBUG, L_HTTP, "%s: %p %d %d %d %d\n",
+		syslog(LOG_DEBUG, "%s: %p %d %d %d %d",
 		       "upnpevents_processfds", obj, obj->state, obj->s,
 		       FD_ISSET(obj->s, readset), FD_ISSET(obj->s, writeset));
 		if(obj->s >= 0) {
@@ -461,13 +422,11 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 			}
 			if(obj->sub)
 				obj->sub->notify = NULL;
-#if 0 /* Just let it time out instead of explicitly removing the subscriber */
 			/* remove also the subscriber from the list if there was an error */
 			if(obj->state == EError && obj->sub) {
 				LIST_REMOVE(obj->sub, entries);
 				free(obj->sub);
 			}
-#endif
 			if(obj->buffer) {
 				free(obj->buffer);
 			}
@@ -488,7 +447,7 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 	}
 }
 
-#ifdef USE_MINIDLNACTL
+#ifdef USE_MINIUPNPDCTL
 void write_events_details(int s) {
 	int n;
 	char buff[80];
@@ -514,3 +473,6 @@ void write_events_details(int s) {
 	}
 }
 #endif
+
+#endif
+
