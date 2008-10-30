@@ -195,7 +195,7 @@ printf("Range Start-End: %lld-%lld\n", h->req_RangeStart, h->req_RangeEnd);
 				p = colon + 1;
 				while(isspace(*p))
 					p++;
-				if( strcmp(p, "1") != 0 )
+				if( (*p != '1') || !isspace(p[1]) )
 					h->reqflags |= FLAG_INVALID_REQ;
 			}
 			else if(strncasecmp(line, "TimeSeekRange.dlna.org", 22)==0)
@@ -549,6 +549,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 	HttpVer[i] = '\0';
 	syslog(LOG_INFO, "HTTP REQUEST : %s %s (%s)",
 	       HttpCommand, HttpUrl, HttpVer);
+	//DEBUG printf("HTTP REQUEST:\n%s\n", h->req_buf);
 	ParseHttpHeaders(h);
 
 	if( (h->reqflags & FLAG_CHUNKED) && (h->req_chunklen > (h->req_buflen - h->req_contentoff) || h->req_chunklen < 0) )
@@ -567,7 +568,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 	{
 		if( ((strcmp(h->HttpVer, "HTTP/1.1")==0) && !(h->reqflags & FLAG_HOST)) || (h->reqflags & FLAG_INVALID_REQ) )
 		{
-			syslog(LOG_NOTICE, "No Host specified in HTTP headers, responding ERROR 400");
+			syslog(LOG_NOTICE, "Invalid request, responding ERROR 400.  (No Host specified in HTTP headers?)");
 			Send400(h);
 		}
 		else if( h->reqflags & FLAG_TIMESEEK )
@@ -1181,7 +1182,11 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	}
 	else //if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
-		strcat(header, "transferMode.dlna.org: Interactive\r\n");
+		if( (strncmp(mime, "vide", 4) == 0) ||
+		    (strncmp(mime, "audi", 4) == 0) )
+			strcat(header, "transferMode.dlna.org: Streaming\r\n");
+		else
+			strcat(header, "transferMode.dlna.org: Interactive\r\n");
 	}
 
 	sprintf(hdr_buf, "Accept-Ranges: bytes\r\n"

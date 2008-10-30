@@ -30,7 +30,7 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
 #LIBS = -liptc
-LIBS = -lexif -ltag_c -lsqlite3 #-lgd
+LIBS = -lexif -ltag_c -lsqlite3 -ldlna #-lgd
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 

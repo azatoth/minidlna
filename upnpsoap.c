@@ -22,6 +22,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <ctype.h>
 
 #include "config.h"
 #include "upnpglobalvars.h"
@@ -30,9 +31,8 @@
 #include "upnpreplyparse.h"
 #include "getifaddr.h"
 
-#include <ctype.h>
 #include "metadata.h"
-#include <sqlite3.h>
+#include "sql.h"
 
 static void
 BuildSendAndCloseSoapResp(struct upnphttp * h,
@@ -254,14 +254,12 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 static int callback(void *args, int argc, char **argv, char **azColName)
 {
 	struct Response { char *resp; int returned; int requested; int total; char *filter; } *passed_args = (struct Response *)args;
-	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *name = argv[7], *size = argv[9],
-	     *title = argv[10], *duration = argv[11], *bitrate = argv[12], *sampleFrequency = argv[13],
-	     *artist = argv[14], *album = argv[15], *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18],
-	     *track = argv[19], *date = argv[20], *width = argv[21], *height = argv[22], *tn = argv[23],
-	     *creator = argv[24], *dlna_pn = argv[25], *mime = argv[26];
+	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *size = argv[9], *title = argv[10],
+	     *duration = argv[11], *bitrate = argv[12], *sampleFrequency = argv[13], *artist = argv[14], *album = argv[15],
+	     *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18], *track = argv[19], *date = argv[20],
+	     *resolution = argv[21], *tn = argv[22], *creator = argv[23], *dlna_pn = argv[24], *mime = argv[25];
 	char dlna_buf[64];
 	char str_buf[4096];
-	//char * str_buf = malloc(4096);
 	char **result;
 	int ret;
 
@@ -269,20 +267,13 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 
 	if( passed_args->requested && (passed_args->returned >= passed_args->requested) )
 		return 0;
-	//if( (strncmp(class, "item", 4) == 0) && !mime ) // Useless listing if there is no MIME type
-	//	return 0;
 	passed_args->returned++;
 
 	if( dlna_pn )
-		//sprintf(dlna_buf, "DLNA.ORG_PN=%s;DLNA.ORG_OP=01", dlna_pn);
 		sprintf(dlna_buf, "DLNA.ORG_PN=%s", dlna_pn);
 	else
 		strcpy(dlna_buf, "*");
 
-	/*for(i=0; i<argc; i++){
-		printf("%s = %s\n", azColName[i], argv[i]);
-	}*/
-	//printf("\n");
 	if( strncmp(class, "item", 4) == 0 )
 	{
 		sprintf(str_buf, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
@@ -294,7 +285,7 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 		sprintf(str_buf, "&gt;"
 				 "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
 				 "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
-				 title?title:name, class);
+				 title, class);
 		strcat(passed_args->resp, str_buf);
 		if( comment && (!passed_args->filter || strstr(passed_args->filter, "dc:description")) ) {
 			sprintf(str_buf, "&lt;dc:description&gt;%s&lt;/dc:description&gt;", comment);
@@ -346,8 +337,8 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 				sprintf(str_buf, "nrAudioChannels=\"%s\" ", nrAudioChannels);
 				strcat(passed_args->resp, str_buf);
 			}
-			if( width && height && (!passed_args->filter || strstr(passed_args->filter, "res@resolution")) ) {
-				sprintf(str_buf, "resolution=\"%sx%s\" ", width, height);
+			if( resolution && (!passed_args->filter || strstr(passed_args->filter, "res@resolution")) ) {
+				sprintf(str_buf, "resolution=\"%s\" ", resolution);
 				strcat(passed_args->resp, str_buf);
 			}
 			sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
@@ -382,15 +373,24 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 		ret = sqlite3_get_table(db, str_buf, &result, 0, 0, 0);
 		sprintf(str_buf, "&lt;container id=\"%s\" parentID=\"%s\" restricted=\"1\" ", id, parent);
 		strcat(passed_args->resp, str_buf);
-		if( !passed_args->filter || strstr(passed_args->filter, "@childCount")) {
+		if( !passed_args->filter || strstr(passed_args->filter, "@childCount"))
+		{
 			sprintf(str_buf, "childCount=\"%s\"", result[1]);
 			strcat(passed_args->resp, str_buf);
+		}
+		/* If the client calls for BrowseMetadata on root, we have to include our "upnp:searchClass"'s */
+		if( (passed_args->requested == 1) && (strcmp(id, "0") == 0) )
+		{
+			strcat(passed_args->resp, "&gt;"
+						  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.audioItem&lt;/upnp:searchClass&gt;"
+						  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.imageItem&lt;/upnp:searchClass&gt;"
+						  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.videoItem&lt;/upnp:searchClass");
 		}
 		sprintf(str_buf, "&gt;"
 				 "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
 				 "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;"
 				 "&lt;/container&gt;",
-				 name, class);
+				 title, class);
 		sqlite3_free_table(result);
 	}
 	strcat(passed_args->resp, str_buf);
@@ -410,15 +410,10 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
         static const char resp2[] = "<UpdateID>0</UpdateID></u:BrowseResponse>";
 
 	char *resp = calloc(1, 1048576);
-	strcpy(resp, resp0);
-
 	char str_buf[4096];
-	char str_buf2[4096];
-	memset(str_buf, '\0', sizeof(str_buf));
-	memset(str_buf2, '\0', sizeof(str_buf2));
 	char *zErrMsg = 0;
+	char *sql;
 	int ret;
-	char sql_buf[4096];
 	struct Response { char *resp; int returned; int requested; int total; char *filter; } args;
 
 	struct NameValueParserData data;
@@ -432,8 +427,11 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	if( !ObjectId )
 		ObjectId = GetValueFromNameValueList(&data, "ContainerID");
 
+	memset(str_buf, '\0', sizeof(str_buf));
 	memset(&args, 0, sizeof(args));
-	args.total = 0;
+	strcpy(resp, resp0);
+
+	args.total = StartingIndex;
 	args.returned = 0;
 	args.requested = RequestedCount;
 	args.resp = NULL;
@@ -458,16 +456,17 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	if( strcmp(BrowseFlag, "BrowseMetadata") == 0 )
 	{
 		args.requested = 1;
-		sprintf(sql_buf, "SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where OBJECT_ID = '%s';", ObjectId);
-		ret = sqlite3_exec(db, sql_buf, callback, (void *) &args, &zErrMsg);
+		sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where OBJECT_ID = '%s';", ObjectId);
+		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
 	else
 	{
-		sprintf(sql_buf, "SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-				 " where PARENT_ID = '%s' order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
-				 ObjectId, StartingIndex);
-		ret = sqlite3_exec(db, sql_buf, callback, (void *) &args, &zErrMsg);
+		sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+				      " where PARENT_ID = '%s' order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
+				      ObjectId, StartingIndex);
+		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
+	sqlite3_free(sql);
 	if( ret != SQLITE_OK ){
 		printf("SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
@@ -492,13 +491,11 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
         static const char resp2[] = "<UpdateID>0</UpdateID></u:SearchResponse>";
 
-	char *resp = calloc(8, 16384);
-	strcpy(resp, resp0);
-
+	char *resp = calloc(1, 1048576);
+	char *zErrMsg = 0;
+	char sql_buf[4096];
 	char str_buf[4096];
-	char str_buf2[4096];
-	memset(str_buf, '\0', sizeof(str_buf));
-	memset(str_buf2, '\0', sizeof(str_buf2));
+	int ret;
 	struct Response { char *resp; int returned; int requested; int total; char *filter; } args;
 
 	struct NameValueParserData data;
@@ -510,7 +507,9 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char * SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
 
+	memset(str_buf, '\0', sizeof(str_buf));
 	memset(&args, 0, sizeof(args));
+
 	args.total = 0;
 	args.returned = 0;
 	args.requested = RequestedCount;
@@ -522,6 +521,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	printf("Asked for SearchCriteria: %s\n", SearchCriteria);
 	printf("Asked for Filter: %s\n", Filter);
 	if( SortCriteria ) printf("Asked for SortCriteria: %s\n", SortCriteria);
+
+	strcpy(resp, resp0);
 
 	if( !Filter )
 	{
@@ -553,11 +554,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "@refID", "REF_ID", 0);
 		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
 	}
-	printf("Asked for SearchCriteria: %s\n", SearchCriteria);
+	printf("Translated SearchCriteria: %s\n", SearchCriteria);
 
-	char *zErrMsg = 0;
-	int ret;
-	char sql_buf[4096];
 	args.resp = resp;
 	sprintf(sql_buf, "SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 			 " where OBJECT_ID like '%s$%%' and (%s) order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",

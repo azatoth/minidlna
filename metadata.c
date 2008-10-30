@@ -24,9 +24,11 @@
 #include <sqlite3.h>
 #include <taglib/tag_c.h>
 #include <libexif/exif-loader.h>
+#include <dlna.h>
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
+#include "sql.h"
 
 #define FLAG_ARTIST 0x01
 
@@ -96,6 +98,27 @@ strip_ext(char * name)
 {
 	if( rindex(name, '.') )
 		*rindex(name, '.') = '\0';
+}
+
+sqlite_int64
+GetFolderMetadata(const char * name, const char * artist)
+{
+	char * sql;
+	int ret;
+
+	sql = sqlite3_mprintf(	"INSERT into DETAILS"
+				" (TITLE, ARTIST) "
+				"VALUES"
+				" ('%q', %Q);",
+				name, artist);
+
+	if( sql_exec(db, sql) != SQLITE_OK )
+		ret = 0;
+	else
+		ret = sqlite3_last_insert_rowid(db);
+	sqlite3_free(sql);
+
+	return ret;
 }
 
 sqlite_int64
@@ -258,16 +281,17 @@ GetImageMetadata(const char * path, char * name)
 	ExifTag tag;
 	int width=0, height=0, thumb=0;
 	size_t size;
-	char date[64], make[32], model[64], dlna_pn[64];
+	char date[64], make[32], model[64];
 	char b[1024];
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
 	char *zErrMsg = NULL;
+	metadata_t m;
+	memset(&m, '\0', sizeof(metadata_t));
 
 	date[0] = '\0';
 	model[0] = '\0';
-	dlna_pn[0] = '\0';
 
 	//DEBUG printf("Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
@@ -276,6 +300,9 @@ GetImageMetadata(const char * path, char * name)
 		return 0;
 	strip_ext(name);
 	//DEBUG printf(" * size: %d\n", size);
+
+	/* MIME hard-coded to JPEG for now, until we add PNG support */
+	asprintf(&m.mime, "image/jpeg");
 
 	ExifLoader * l = exif_loader_new();
 	exif_loader_write_file(l, path);
@@ -340,19 +367,20 @@ GetImageMetadata(const char * path, char * name)
 	exif_data_unref(ed);
 
 	if( width <= 640 && height <= 480 )
-		strcpy(dlna_pn, "JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		asprintf(&m.dlna_pn, "JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	else if( width <= 1024 && height <= 768 )
-		strcpy(dlna_pn, "JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		asprintf(&m.dlna_pn, "JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	else if( width <= 4096 && height <= 4096 )
-		strcpy(dlna_pn, "JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		asprintf(&m.dlna_pn, "JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	else
-		strcpy(dlna_pn, "JPEG_XL");
+		asprintf(&m.dlna_pn, "JPEG_XL");
+	asprintf(&m.resolution, "%dx%d", width, height);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, SIZE, DATE, WIDTH, HEIGHT, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
+				" (TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
-				" ('%q', %d, '%s', %d, %d, %d, '%q', '%s', '%s');",
-				name, size, date, width, height, thumb, model, dlna_pn, "image/jpeg");
+				" ('%q', %d, '%s', %Q, %d, '%q', %Q, %Q);",
+				name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
 	{
@@ -366,6 +394,12 @@ GetImageMetadata(const char * path, char * name)
 		ret = sqlite3_last_insert_rowid(db);
 	}
 	sqlite3_free(sql);
+	if( m.resolution )
+		free(m.resolution);
+	if( m.dlna_pn )
+		free(m.dlna_pn);
+	if( m.mime )
+		free(m.mime);
 	return ret;
 }
 
@@ -374,9 +408,14 @@ GetVideoMetadata(const char * path, char * name)
 {
 	size_t size = 0;
 	struct stat file;
+	dlna_t *dlna;
+	dlna_profile_t *p;
+	dlna_item_t *item;
 	char *sql;
 	char *zErrMsg = NULL;
 	int ret;
+	metadata_t m;
+	memset(&m, '\0', sizeof(m));
 
 	//DEBUG printf("Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
@@ -384,11 +423,53 @@ GetVideoMetadata(const char * path, char * name)
 	strip_ext(name);
 	//DEBUG printf(" * size: %d\n", size);
 
+	dlna = dlna_init();
+	dlna_register_all_media_profiles(dlna);
+
+	item = dlna_item_new (dlna, path);
+	if (item)
+	{
+		if (item->properties)
+		{
+			if( strlen(item->properties->duration) )
+				m.duration = item->properties->duration;
+			if( item->properties->bitrate )
+				asprintf(&m.bitrate, "%d", item->properties->bitrate);
+			if( item->properties->sample_frequency )
+				asprintf(&m.frequency, "%d", item->properties->sample_frequency);
+			if( item->properties->bps )
+				asprintf(&m.bps, "%d", item->properties->bps);
+			if( item->properties->channels )
+				asprintf(&m.channels, "%d", item->properties->channels);
+			m.resolution = item->properties->resolution;
+		}
+	}
+  
+	p = dlna_guess_media_profile (dlna, path);
+	if (p)
+	{
+		m.mime = (char *)p->mime;
+		asprintf(&m.dlna_pn, "%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", p->id);
+	}
+	else
+		printf ("Unknown format [%s]\n", path);
+
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
+				" (SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
+				"  TITLE, DLNA_PN, MIME) "
+				"VALUES"
+				" (%d, %Q, %d, %d, %d, %Q, '%q', %Q, '%q');",
+				size, m.duration,
+				item->properties ? item->properties->channels : 0,
+				item->properties ? item->properties->bitrate : 0,
+				item->properties ? item->properties->sample_frequency : 0,
+				m.resolution, name,
+				m.dlna_pn, m.mime);
+/*	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (TITLE, SIZE, MIME) "
 				"VALUES"
 				" ('%q', %d, %Q);",
-				name, size, "video/mpeg");
+				name, size, "video/mpeg");*/
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
 	{
@@ -402,5 +483,18 @@ GetVideoMetadata(const char * path, char * name)
 		ret = sqlite3_last_insert_rowid(db);
 	}
 	sqlite3_free(sql);
+	dlna_item_free(item);
+	dlna_uninit(dlna);
+	if( m.dlna_pn )
+		free(m.dlna_pn);
+	if( m.bitrate )
+		free(m.bitrate);
+	if( m.frequency )
+		free(m.frequency);
+	if( m.bps )
+		free(m.bps);
+	if( m.channels )
+		free(m.channels);
+
 	return ret;
 }
