@@ -15,6 +15,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#define LIBDLNA_SUPPORT 1
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -24,13 +26,22 @@
 #include <sqlite3.h>
 #include <taglib/tag_c.h>
 #include <libexif/exif-loader.h>
+#if LIBDLNA_SUPPORT
 #include <dlna.h>
+#endif
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
 #include "sql.h"
 
 #define FLAG_ARTIST 0x01
+
+int
+ends_with(const char * haystack, const char * needle)
+{
+	const char *found = strcasestr(haystack, needle);
+	return (found && found[strlen(needle)] == '\0');
+}
 
 char *
 trim(char *str)
@@ -124,7 +135,7 @@ GetFolderMetadata(const char * name, const char * artist)
 sqlite_int64
 GetAudioMetadata(const char * path, char * name)
 {
-	size_t size = 0;
+	off_t size = 0;
 	char date[16], duration[16], dlna_pn[24], mime[16];
 	struct stat file;
 	int seconds, minutes;
@@ -238,7 +249,7 @@ GetAudioMetadata(const char * path, char * name)
 				" (SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
 				"  TITLE, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME) "
 				"VALUES"
-				" (%d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s');",
+				" (%llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s');",
 				size, duration, taglib_audioproperties_channels(properties),
 				taglib_audioproperties_bitrate(properties)*1024,
 				taglib_audioproperties_samplerate(properties),
@@ -280,7 +291,7 @@ GetImageMetadata(const char * path, char * name)
 	ExifEntry *e = NULL;
 	ExifTag tag;
 	int width=0, height=0, thumb=0;
-	size_t size;
+	off_t size;
 	char date[64], make[32], model[64];
 	char b[1024];
 	struct stat file;
@@ -379,7 +390,7 @@ GetImageMetadata(const char * path, char * name)
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
-				" ('%q', %d, '%s', %Q, %d, '%q', %Q, %Q);",
+				" ('%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
 				name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
@@ -406,11 +417,8 @@ GetImageMetadata(const char * path, char * name)
 sqlite_int64
 GetVideoMetadata(const char * path, char * name)
 {
-	size_t size = 0;
+	off_t size = 0;
 	struct stat file;
-	dlna_t *dlna;
-	dlna_profile_t *p;
-	dlna_item_t *item;
 	char *sql;
 	char *zErrMsg = NULL;
 	int ret;
@@ -423,16 +431,21 @@ GetVideoMetadata(const char * path, char * name)
 	strip_ext(name);
 	//DEBUG printf(" * size: %d\n", size);
 
+#if LIBDLNA_SUPPORT
+	dlna_t *dlna;
+	dlna_profile_t *p;
+	dlna_item_t *item;
+
 	dlna = dlna_init();
 	dlna_register_all_media_profiles(dlna);
 
-	item = dlna_item_new (dlna, path);
+	item = dlna_item_new(dlna, path);
 	if (item)
 	{
 		if (item->properties)
 		{
 			if( strlen(item->properties->duration) )
-				m.duration = item->properties->duration;
+				m.duration = strdup(item->properties->duration);
 			if( item->properties->bitrate )
 				asprintf(&m.bitrate, "%d", item->properties->bitrate);
 			if( item->properties->sample_frequency )
@@ -445,31 +458,41 @@ GetVideoMetadata(const char * path, char * name)
 		}
 	}
   
-	p = dlna_guess_media_profile (dlna, path);
+	p = dlna_guess_media_profile(dlna, path);
 	if (p)
 	{
-		m.mime = (char *)p->mime;
+		m.mime = strdup(p->mime);
 		asprintf(&m.dlna_pn, "%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", p->id);
 	}
 	else
+	{
 		printf ("Unknown format [%s]\n", path);
+		if( ends_with(path, ".mpg") || ends_with(path, ".mpeg") || ends_with(path, ".ts") )
+			asprintf(&m.mime, "video/mpeg");
+		else if( ends_with(path, ".avi") || ends_with(path, ".divx") )
+			asprintf(&m.mime, "video/divx");
+	}
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 				"  TITLE, DLNA_PN, MIME) "
 				"VALUES"
-				" (%d, %Q, %d, %d, %d, %Q, '%q', %Q, '%q');",
+				" (%lld, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
 				size, m.duration,
-				item->properties ? item->properties->channels : 0,
-				item->properties ? item->properties->bitrate : 0,
-				item->properties ? item->properties->sample_frequency : 0,
-				m.resolution, name,
-				m.dlna_pn, m.mime);
-/*	sql = sqlite3_mprintf(	"INSERT into DETAILS"
+				m.channels,
+				m.bitrate,
+				m.frequency,
+				m.resolution,
+				name, m.dlna_pn, m.mime);
+	dlna_item_free(item);
+	dlna_uninit(dlna);
+#else // LIBDLNA_SUPPORT
+	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (TITLE, SIZE, MIME) "
 				"VALUES"
 				" ('%q', %d, %Q);",
 				name, size, "video/mpeg");*/
+#endif // LIBDLNA_SUPPORT
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
 	{
@@ -483,10 +506,12 @@ GetVideoMetadata(const char * path, char * name)
 		ret = sqlite3_last_insert_rowid(db);
 	}
 	sqlite3_free(sql);
-	dlna_item_free(item);
-	dlna_uninit(dlna);
 	if( m.dlna_pn )
 		free(m.dlna_pn);
+	if( m.mime )
+		free(m.mime);
+	if( m.duration )
+		free(m.duration);
 	if( m.bitrate )
 		free(m.bitrate);
 	if( m.frequency )

@@ -26,6 +26,9 @@ typedef struct metadata_s {
 	char *dlna_pn;
 } metadata_t;
 
+int
+ends_with(const char * haystack, const char * needle);
+
 char *
 modifyString(char * string, const char * before, const char * after, short like);
 

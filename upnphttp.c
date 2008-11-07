@@ -38,6 +38,8 @@
 #if 0 //JPEG_RESIZE
 #include <gd.h>
 #endif
+//#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
+#define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 
 struct upnphttp * 
 New_upnphttp(int s)
@@ -173,7 +175,7 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_RANGE;
 					h->req_RangeEnd = atoll(index(p+6, '-')+1);
 					h->req_RangeStart = atoll(p+6);
-printf("Range Start-End: %lld-%lld\n", h->req_RangeStart, h->req_RangeEnd);
+printf("Range Start-End: %lld - %lld\n", h->req_RangeStart, h->req_RangeEnd?h->req_RangeEnd:-1);
 				}
 			}
 			else if(strncasecmp(line, "Host", 4)==0)
@@ -1069,7 +1071,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	int rows;
 	char date[30];
 	time_t curtime = time(NULL);
-	off_t total;
+	off_t total, send_size;
 	char *path, *mime, *dlna;
 	
 	memset(header, 0, 1500);
@@ -1125,6 +1127,8 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 
 	if( h->reqflags & FLAG_RANGE )
 	{
+		if( !h->req_RangeEnd )
+			h->req_RangeEnd = size;
 		if( (h->req_RangeStart > h->req_RangeEnd) || (h->req_RangeStart < 0) )
 		{
 			syslog(LOG_NOTICE, "Specified range was invalid!");
@@ -1217,19 +1221,23 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	}
 	else if( sendfh > 0 )
 	{
-          while( offset < h->req_RangeEnd ) {
-            int ret = sendfile(h->socket, sendfh, &offset, (h->req_RangeEnd - offset + 1));
-            if( ret == -1 ) {
-                printf("sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
-                if( errno == 32 || errno == 9 || errno == 54 || errno == 104 )
-                        break;
-            }
-            else {
-                printf("sent %d bytes to %d. offset is now %d.\n", ret, h->socket, (int)offset);
-            }
-	  }
-          close(sendfh);
-        }
+		while( offset < h->req_RangeEnd )
+		{
+			send_size = (( (h->req_RangeEnd - offset) < MAX_BUFFER_SIZE ) ? (h->req_RangeEnd - offset + 1) : MAX_BUFFER_SIZE);
+			off_t ret = sendfile(h->socket, sendfh, &offset, send_size);
+			if( ret == -1 )
+			{
+				printf("sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+				if( errno == 32 || errno == 9 || errno == 54 || errno == 104 )
+					break;
+			}
+			/*else
+			{
+				printf("sent %lld bytes to %d. offset is now %lld.\n", ret, h->socket, offset);
+			}*/
+		}
+		close(sendfh);
+	}
 	error:
 	sqlite3_free_table(result);
 }

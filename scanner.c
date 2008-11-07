@@ -31,13 +31,6 @@
 #include "scanner.h"
 
 int
-ends_with(const char * haystack, const char * needle)
-{
-	const char *found = strcasestr(haystack, needle);
-	return (found && found[strlen(needle)] == '\0');
-}
-
-int
 is_video(const char * file)
 {
 	return (ends_with(file, ".mpg") || ends_with(file, ".mpeg") ||
@@ -487,6 +480,7 @@ ScanDirectory(const char * dir, const char * parent)
 	setlocale(LC_COLLATE, "");
 	if( chdir(dir) != 0 )
 		return;
+printf("\nScanning %s\n", dir);
 	n = scandir(".", &namelist, filter_media, alphasort);
 	if (n < 0) {
 		fprintf(stderr, "Error scanning %s [scandir]\n", dir);
