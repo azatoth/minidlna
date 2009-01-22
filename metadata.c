@@ -29,6 +29,8 @@
 #include <sqlite3.h>
 #include <taglib/tag_c.h>
 #include <libexif/exif-loader.h>
+#include <jpeglib.h>
+#include <setjmp.h>
 #include <avutil.h>
 #include <avcodec.h>
 #include <avformat.h>
@@ -342,12 +344,26 @@ GetAudioMetadata(const char * path, char * name)
 	return ret;
 }
 
+/* For libjpeg error handling */
+jmp_buf setjmp_buffer;
+static void
+libjpeg_error_handler(j_common_ptr cinfo)
+{
+	cinfo->err->output_message (cinfo);
+	longjmp(setjmp_buffer, 1);
+	return;
+}
+
 sqlite_int64
 GetImageMetadata(const char * path, char * name)
 {
 	ExifData *ed;
 	ExifEntry *e = NULL;
+	ExifLoader *l;
 	ExifTag tag;
+	struct jpeg_decompress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	FILE *infile;
 	int width=0, height=0, thumb=0;
 	off_t size;
 	char date[64], make[32], model[64];
@@ -373,7 +389,7 @@ GetImageMetadata(const char * path, char * name)
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
 	asprintf(&m.mime, "image/jpeg");
 
-	ExifLoader * l = exif_loader_new();
+	l = exif_loader_new();
 	exif_loader_write_file(l, path);
 	ed = exif_loader_get_data(l);
 	exif_loader_unref(l);
@@ -434,6 +450,25 @@ GetImageMetadata(const char * path, char * name)
 	//DEBUG printf(" * thumbnail: %d\n", thumb);
 
 	exif_data_unref(ed);
+
+	/* If EXIF parsing fails, then fall through to reading the JPEG data with libjpeg to get the resolution */
+	if( !width || !height )
+	{
+		infile = fopen(path, "r");
+		cinfo.err = jpeg_std_error(&jerr);
+		jerr.error_exit = libjpeg_error_handler;
+		jpeg_create_decompress(&cinfo);
+		if( setjmp(setjmp_buffer) )
+			goto error;
+		jpeg_stdio_src(&cinfo, infile);
+		jpeg_read_header(&cinfo, TRUE);
+		jpeg_start_decompress(&cinfo);
+		width = cinfo.output_width;
+		height = cinfo.output_height;
+		error:
+		jpeg_destroy_decompress(&cinfo);
+		fclose(infile);
+	}
 
 	if( width <= 640 && height <= 480 )
 		asprintf(&m.dlna_pn, "JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
