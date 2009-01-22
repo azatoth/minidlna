@@ -324,12 +324,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 			case UPNPPORT:
 				v->port = atoi(ary_options[i].value);
 				break;
-			case UPNPBITRATE_UP:
-				upstream_bitrate = strtoul(ary_options[i].value, 0, 0);
-				break;
-			case UPNPBITRATE_DOWN:
-				downstream_bitrate = strtoul(ary_options[i].value, 0, 0);
-				break;
 			case UPNPPRESENTATIONURL:
 				presurl = ary_options[i].value;
 				break;
@@ -446,15 +440,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				presurl = argv[++i];
 			else
 				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
-			break;
-		case 'B':
-			if(i+2<argc)
-			{
-				downstream_bitrate = strtoul(argv[++i], 0, 0);
-				upstream_bitrate = strtoul(argv[++i], 0, 0);
-			}
-			else
-				fprintf(stderr, "Option -%c takes two arguments.\n", argv[i][1]);
 			break;
 		case 'a':
 			if(i+1 < argc)

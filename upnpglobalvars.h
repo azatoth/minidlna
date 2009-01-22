@@ -25,10 +25,6 @@ extern const char * lease_file;
  * when NULL, getifaddr() is used */
 extern const char * use_ext_ip_addr;
 
-/* parameters to return to upnp client when asked */
-extern unsigned long downstream_bitrate;
-extern unsigned long upstream_bitrate;
-
 /* statup time */
 extern time_t startup_time;
 

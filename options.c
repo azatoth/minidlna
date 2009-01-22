@@ -25,8 +25,6 @@ static const struct {
 	{ UPNPEXT_IP,	"ext_ip" },
 	{ UPNPLISTENING_IP, "listening_ip" },
 	{ UPNPPORT, "port" },
-	{ UPNPBITRATE_UP, "bitrate_up" },
-	{ UPNPBITRATE_DOWN, "bitrate_down" },
 	{ UPNPPRESENTATIONURL, "presentation_url" },
 	{ UPNPNOTIFY_INTERVAL, "notify_interval" },
 	{ UPNPSYSTEM_UPTIME, "system_uptime" },

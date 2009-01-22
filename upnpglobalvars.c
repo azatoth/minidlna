@@ -23,9 +23,6 @@ const char * use_ext_ip_addr = 0;
 /* LAN address */
 /*const char * listen_addr = 0;*/
 
-unsigned long downstream_bitrate = 0;
-unsigned long upstream_bitrate = 0;
-
 /* startup time */
 time_t startup_time = 0;
 
