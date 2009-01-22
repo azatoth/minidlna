@@ -13,8 +13,8 @@
 
 #include <sqlite3.h>
 
-/* name of the network interface used to acces internet */
-extern const char * ext_if_name;
+#define USE_FORK 1
+#define DB_VERSION 1
 
 /* file to store all leases */
 #ifdef ENABLE_LEASEFILE
@@ -36,15 +36,8 @@ extern time_t startup_time;
 extern int runtime_flags;
 #define LOGPACKETSMASK		0x0001
 #define SYSUPTIMEMASK		0x0002
-#ifdef ENABLE_NATPMP
-#define ENABLENATPMPMASK	0x0004
-#endif
 #define CHECKCLIENTIPMASK	0x0008
 #define SECUREMODEMASK		0x0010
-
-#ifdef PF_ENABLE_FILTER_RULES
-#define PFNOQUICKRULESMASK	0x0040
-#endif
 
 #define SETFLAG(mask)	runtime_flags |= mask
 #define GETFLAG(mask)	runtime_flags & mask
@@ -67,19 +60,6 @@ extern char presentationurl[];
 extern struct upnpperm * upnppermlist;
 extern unsigned int num_upnpperm;
 
-#ifdef ENABLE_NATPMP
-/* NAT-PMP */
-extern unsigned int nextnatpmptoclean_timestamp;
-extern unsigned short nextnatpmptoclean_eport;
-extern unsigned short nextnatpmptoclean_proto;
-#endif
-
-#ifdef USE_PF
-/* queue and tag for PF rules */
-extern const char * queue;
-extern const char * tag;
-#endif
-
 /* lan addresses */
 /* MAX_LAN_ADDR : maximum number of interfaces
  * to listen to SSDP traffic */
@@ -91,5 +71,7 @@ extern struct lan_addr_s lan_addr[];
 extern sqlite3 *db;
 #define MEDIADIR_MAX_LEN (256)
 extern char media_dir[];
+#define FRIENDLYNAME_MAX_LEN (64)
+extern char friendly_name[];
 
 #endif

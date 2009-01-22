@@ -13,7 +13,9 @@ CONFIGMACRO="__CONFIG_H__"
 # version reported in XML descriptions
 UPNP_VERSION=20070827
 # Facility to syslog
-LOG_MINIUPNPD="LOG_DAEMON"
+LOG_MINIDLNA="LOG_DAEMON"
+# Database path
+DB_PATH="/tmp/files.db"
 
 # detecting the OS name and version
 OS_NAME=`uname -s`
@@ -52,7 +54,6 @@ case $OS_NAME in
 		if [ \( $MAJORVER -ge 4 \) -o \( $MAJORVER -eq 3 -a $MINORVER -ge 8 \) ]; then
 			echo "#define PFRULE_INOUT_COUNTS" >> ${CONFIGFILE}
 		fi
-		echo "#define USE_PF 1" >> ${CONFIGFILE}
 		OS_URL=http://www.openbsd.org/
 		;;
 	FreeBSD)
@@ -60,25 +61,14 @@ case $OS_NAME in
 		if [ $VER -ge 700049 ]; then
 			echo "#define PFRULE_INOUT_COUNTS" >> ${CONFIGFILE}
 		fi
-		if [ -f /usr/include/net/pfvar.h ] ; then
-			echo "#define USE_PF 1" >> ${CONFIGFILE}
-		else
-			echo "#define USE_IPF 1" >> ${CONFIGFILE}
-		fi
 		OS_URL=http://www.freebsd.org/
 		;;
 	pfSense)
 		# we need to detect if PFRULE_INOUT_COUNTS macro is needed
-		echo "#define USE_PF 1" >> ${CONFIGFILE}
 		OS_URL=http://www.pfsense.com/
 		;;
 	NetBSD)
 		OS_URL=http://www.netbsd.org/
-		if [ -f /usr/include/net/pfvar.h ] ; then
-			echo "#define USE_PF 1" >> ${CONFIGFILE}
-		else
-			echo "#define USE_IPF 1" >> ${CONFIGFILE}
-		fi
 		;;
 	SunOS)
 		echo "#define USE_IPF 1" >> ${CONFIGFILE}
@@ -104,7 +94,7 @@ case $OS_NAME in
 			OS_URL=http://www.debian.org/
 		fi
 		# use lsb_release (Linux Standard Base) when available
-		LSB_RELEASE=`which lsb_release`
+		LSB_RELEASE=`which lsb_release 2>/dev/null`
 		if [ 0 -eq $? ]; then
 			OS_NAME=`${LSB_RELEASE} -i -s`
 			OS_VERSION=`${LSB_RELEASE} -r -s`
@@ -123,22 +113,17 @@ echo "#define OS_VERSION	\"$OS_NAME/$OS_VERSION\"" >> ${CONFIGFILE}
 echo "#define OS_URL		\"${OS_URL}\"" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
+echo "/* full path of the file database */" >> ${CONFIGFILE}
+echo "#define DB_PATH		\"${DB_PATH}\"" >> ${CONFIGFILE}
+echo "" >> ${CONFIGFILE}
+
 echo "/* syslog facility to be used by miniupnpd */" >> ${CONFIGFILE}
-echo "#define LOG_MINIUPNPD		 ${LOG_MINIUPNPD}" >> ${CONFIGFILE}
+echo "#define LOG_MINIDLNA		 ${LOG_MINIDLNA}" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* Uncomment the following line to allow miniupnpd to be" >> ${CONFIGFILE}
 echo " * controlled by miniupnpdctl */" >> ${CONFIGFILE}
 echo "/*#define USE_MINIUPNPDCTL*/" >> ${CONFIGFILE}
-echo "" >> ${CONFIGFILE}
-
-echo "/* Comment the following line to disable NAT-PMP operations */" >> ${CONFIGFILE}
-echo "#define ENABLE_NATPMP" >> ${CONFIGFILE}
-echo "" >> ${CONFIGFILE}
-
-echo "/* Uncomment the following line to enable generation of" >> ${CONFIGFILE}
-echo " * filter rules with pf */" >> ${CONFIGFILE}
-echo "/*#define PF_ENABLE_FILTER_RULES*/">> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* Uncomment the following line to enable caching of results of" >> ${CONFIGFILE}
@@ -162,16 +147,12 @@ echo "/* Uncomment the following line to enable lease file support */" >> ${CONF
 echo "/*#define ENABLE_LEASEFILE*/" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
-echo "/* Define one or none of the two following macros in order to make some" >> ${CONFIGFILE}
-echo " * clients happy. It will change the XML Root Description of the IGD." >> ${CONFIGFILE}
-echo " * Enabling the Layer3Forwarding Service seems to be the more compatible" >> ${CONFIGFILE}
-echo " * option. */" >> ${CONFIGFILE}
-echo "/*#define HAS_DUMMY_SERVICE*/" >> ${CONFIGFILE}
-echo "#define ENABLE_L3F_SERVICE" >> ${CONFIGFILE}
+echo "/* Experimental UPnP Events support. */" >> ${CONFIGFILE}
+echo "#define ENABLE_EVENTS" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
-echo "/* Experimental UPnP Events support. */" >> ${CONFIGFILE}
-echo "/*#define ENABLE_EVENTS*/" >> ${CONFIGFILE}
+echo "/* Enable NETGEAR ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
+echo "/*#define READYNAS*/" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "#endif" >> ${CONFIGFILE}

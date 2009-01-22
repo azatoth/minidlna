@@ -15,26 +15,40 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#define LIBDLNA_SUPPORT 1
-
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include <sqlite3.h>
 #include <taglib/tag_c.h>
 #include <libexif/exif-loader.h>
-#if LIBDLNA_SUPPORT
-#include <dlna.h>
-#endif
+#include <avutil.h>
+#include <avcodec.h>
+#include <avformat.h>
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
 #include "sql.h"
 
 #define FLAG_ARTIST 0x01
+
+/* Audio profile flags */
+#define MP3		0x00000001
+#define AC3		0x00000002
+#define WMA_BASE	0x00000004
+#define WMA_FULL	0x00000008
+#define WMA_PRO		0x00000010
+#define MP2		0x00000020
+#define PCM		0x00000040
+#define AAC		0x00000100
+#define AAC_MULT5	0x00000200
 
 int
 ends_with(const char * haystack, const char * needle)
@@ -109,6 +123,40 @@ strip_ext(char * name)
 {
 	if( rindex(name, '.') )
 		*rindex(name, '.') = '\0';
+}
+
+/* This function shamelessly copied from libdlna */
+#define MPEG_TS_SYNC_CODE 0x47
+#define MPEG_TS_PACKET_LENGTH_DLNA 192 /* prepends 4 bytes to TS packet */
+int
+dlna_timestamp_is_present(const char * filename)
+{
+	unsigned char buffer[2*MPEG_TS_PACKET_LENGTH_DLNA+1];
+	int fd, i;
+
+	/* read file header */
+	fd = open(filename, O_RDONLY);
+	read(fd, buffer, MPEG_TS_PACKET_LENGTH_DLNA*2);
+	close(fd);
+	for( i=0; i < MPEG_TS_PACKET_LENGTH_DLNA; i++ )
+	{
+		if( buffer[i] == MPEG_TS_SYNC_CODE )
+		{
+			if (buffer[i + MPEG_TS_PACKET_LENGTH_DLNA] == MPEG_TS_SYNC_CODE)
+			{
+				if (buffer[i] == 0x00 && buffer [i+1] == 0x00 &&
+				    buffer [i+2] == 0x00 && buffer [i+3] == 0x00)
+				{
+					break;
+				}
+				else
+				{
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
 }
 
 sqlite_int64
@@ -239,23 +287,33 @@ GetAudioMetadata(const char * path, char * name)
 	}
 		
 
-	if( 1 ) // Switch on audio file type
+	/* Switch on audio file type */
+	if( ends_with(path, ".mp3") )
 	{
 		strcpy(dlna_pn, "MP3;DLNA.ORG_OP=01");
 		strcpy(mime, "audio/mpeg");
 	}
+	else if( ends_with(path, ".flac") || ends_with(path, ".fla") || ends_with(path, ".flc") )
+	{
+		strcpy(mime, "audio/x-flac");
+	}
+	else if( ends_with(path, ".m4a") || ends_with(path, ".aac") )
+	{
+		//strcpy(dlna_pn, "MP3;DLNA.ORG_OP=01");
+		strcpy(mime, "audio/mp4");
+	}
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
-				"  TITLE, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME) "
+				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
+				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME) "
 				"VALUES"
-				" (%llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s');",
-				size, duration, taglib_audioproperties_channels(properties),
+				" (%Q, %llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s');",
+				path, size, duration, taglib_audioproperties_channels(properties),
 				taglib_audioproperties_bitrate(properties)*1024,
 				taglib_audioproperties_samplerate(properties),
 				strlen(date) ? date : NULL,
 				title,
-				artist,
+				artist, artist,
 				album,
 				genre,
 				comment,
@@ -388,10 +446,10 @@ GetImageMetadata(const char * path, char * name)
 	asprintf(&m.resolution, "%dx%d", width, height);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
+				" (PATH, TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
-				" ('%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
-				name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
+				" (%Q, '%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
+				path, name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
 	{
@@ -414,6 +472,36 @@ GetImageMetadata(const char * path, char * name)
 	return ret;
 }
 
+typedef enum {
+  AAC_INVALID   =  0,
+  AAC_MAIN      =  1, /* AAC Main */
+  AAC_LC        =  2, /* AAC Low complexity */
+  AAC_SSR       =  3, /* AAC SSR */
+  AAC_LTP       =  4, /* AAC Long term prediction */
+  AAC_HE        =  5, /* AAC High efficiency (SBR) */
+  AAC_SCALE     =  6, /* Scalable */
+  AAC_TWINVQ    =  7, /* TwinVQ */
+  AAC_CELP      =  8, /* CELP */
+  AAC_HVXC      =  9, /* HVXC */
+  AAC_TTSI      = 12, /* TTSI */
+  AAC_MS        = 13, /* Main synthetic */
+  AAC_WAVE      = 14, /* Wavetable synthesis */
+  AAC_MIDI      = 15, /* General MIDI */
+  AAC_FX        = 16, /* Algorithmic Synthesis and Audio FX */
+  AAC_LC_ER     = 17, /* AAC Low complexity with error recovery */
+  AAC_LTP_ER    = 19, /* AAC Long term prediction with error recovery */
+  AAC_SCALE_ER  = 20, /* AAC scalable with error recovery */
+  AAC_TWINVQ_ER = 21, /* TwinVQ with error recovery */
+  AAC_BSAC_ER   = 22, /* BSAC with error recovery */
+  AAC_LD_ER     = 23, /* AAC LD with error recovery */
+  AAC_CELP_ER   = 24, /* CELP with error recovery */
+  AAC_HXVC_ER   = 25, /* HXVC with error recovery */
+  AAC_HILN_ER   = 26, /* HILN with error recovery */
+  AAC_PARAM_ER  = 27, /* Parametric with error recovery */
+  AAC_SSC       = 28, /* AAC SSC */
+  AAC_HE_L3     = 31, /* Reserved : seems to be HeAAC L3 */
+} aac_object_type_t;
+
 sqlite_int64
 GetVideoMetadata(const char * path, char * name)
 {
@@ -421,78 +509,373 @@ GetVideoMetadata(const char * path, char * name)
 	struct stat file;
 	char *sql;
 	char *zErrMsg = NULL;
-	int ret;
+	int ret, i;
+	struct tm *modtime;
+	char date[20];
+	AVFormatContext *ctx;
+	int audio_stream = -1, video_stream = -1;
+	int audio_profile = 0;
+	ts_timestamp_t ts_timestamp = NONE;
+	int duration, hours, min, sec, ms;
+	aac_object_type_t aac_type = 0;
 	metadata_t m;
 	memset(&m, '\0', sizeof(m));
+	date[0] = '\0';
 
 	//DEBUG printf("Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
+	{
+		modtime = localtime(&file.st_mtime);
+		strftime(date, sizeof(date), "%FT%T", modtime);
 		size = file.st_size;
+	}
 	strip_ext(name);
 	//DEBUG printf(" * size: %d\n", size);
 
-#if LIBDLNA_SUPPORT
-	dlna_t *dlna;
-	dlna_profile_t *p;
-	dlna_item_t *item;
-
-	dlna = dlna_init();
-	dlna_register_all_media_profiles(dlna);
-
-	item = dlna_item_new(dlna, path);
-	if (item)
+	av_register_all();
+	if( av_open_input_file(&ctx, path, NULL, 0, NULL) == 0 )
 	{
-		if (item->properties)
+		av_find_stream_info(ctx);
+		//dump_format(ctx, 0, NULL, 0);
+		for( i=0; i<ctx->nb_streams; i++)
 		{
-			if( strlen(item->properties->duration) )
-				m.duration = strdup(item->properties->duration);
-			if( item->properties->bitrate )
-				asprintf(&m.bitrate, "%d", item->properties->bitrate);
-			if( item->properties->sample_frequency )
-				asprintf(&m.frequency, "%d", item->properties->sample_frequency);
-			if( item->properties->bps )
-				asprintf(&m.bps, "%d", item->properties->bps);
-			if( item->properties->channels )
-				asprintf(&m.channels, "%d", item->properties->channels);
-			m.resolution = item->properties->resolution;
+			if( audio_stream == -1 &&
+			    ctx->streams[i]->codec->codec_type == CODEC_TYPE_AUDIO )
+			{
+				audio_stream = i;
+				continue;
+			}
+			else if( video_stream == -1 &&
+				 ctx->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
+			{
+				video_stream = i;
+				continue;
+			}
 		}
-	}
-  
-	p = dlna_guess_media_profile(dlna, path);
-	if (p)
-	{
-		m.mime = strdup(p->mime);
-		asprintf(&m.dlna_pn, "%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", p->id);
+		if( audio_stream >= 0 )
+		{
+			switch( ctx->streams[audio_stream]->codec->codec_id )
+			{
+				case CODEC_ID_MP3:
+					audio_profile = MP3;
+					break;
+				case CODEC_ID_AAC:
+					if( !ctx->streams[audio_stream]->codec->extradata_size ||
+					    !ctx->streams[audio_stream]->codec->extradata )
+						printf("No AAC type\n");
+					else
+						aac_type = ctx->streams[audio_stream]->codec->extradata[0] >> 3;
+					switch( aac_type )
+					{
+						/* AAC Low Complexity variants */
+						case AAC_LC:
+						case AAC_LC_ER:
+							if( ctx->streams[audio_stream]->codec->sample_rate < 8000 ||
+							    ctx->streams[audio_stream]->codec->sample_rate > 48000 )
+							{
+								printf("Unsupported AAC: sample rate is not 8000 < %d < 48000\n",
+									ctx->streams[audio_stream]->codec->sample_rate);
+								break;
+							}
+							/* AAC @ Level 1/2 */
+							if( ctx->streams[audio_stream]->codec->channels <= 2 &&
+							    ctx->streams[audio_stream]->codec->bit_rate <= 576000 )
+								audio_profile = AAC;
+							else if( ctx->streams[audio_stream]->codec->channels <= 6 &&
+								 ctx->streams[audio_stream]->codec->bit_rate <= 1440000 )
+								audio_profile = AAC_MULT5;
+							else
+								printf("Unhandled AAC: %d channels, %d bitrate\n",
+									ctx->streams[audio_stream]->codec->channels,
+									ctx->streams[audio_stream]->codec->bit_rate);
+							break;
+						default:
+							printf("Unhandled AAC type [%d]\n", aac_type);
+							break;
+					}
+					break;
+				case CODEC_ID_AC3:
+				case CODEC_ID_DTS:
+					audio_profile = AC3;
+					break;
+				case CODEC_ID_WMAV1:
+				case CODEC_ID_WMAV2:
+					/* WMA Baseline: stereo, up to 48 KHz, up to 192,999 bps */
+					if ( ctx->streams[audio_stream]->codec->bit_rate <= 193000 )
+						audio_profile = WMA_BASE;
+					/* WMA Full: stereo, up to 48 KHz, up to 385 Kbps */
+					else if ( ctx->streams[audio_stream]->codec->bit_rate <= 385000 )
+						audio_profile = WMA_FULL;
+					break;
+				case CODEC_ID_WMAPRO:
+					audio_profile = WMA_PRO;
+					break;
+				case CODEC_ID_MP2:
+					audio_profile = MP2;
+					break;
+				default:
+					if( (ctx->streams[audio_stream]->codec->codec_id >= CODEC_ID_PCM_S16LE) &&
+					    (ctx->streams[audio_stream]->codec->codec_id <= CODEC_ID_PCM_F64LE) )
+						audio_profile = PCM;
+					else
+						printf("Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
+					break;
+			}
+			asprintf(&m.frequency, "%u", ctx->streams[audio_stream]->codec->sample_rate);
+			#if LIBAVCODEC_VERSION_MAJOR >= 52
+			asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_coded_sample);
+			#else
+			asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_sample);
+			#endif
+			asprintf(&m.channels, "%u", ctx->streams[audio_stream]->codec->channels);
+		}
+		if( video_stream >= 0 )
+		{
+			//DEBUG printf("Container: '%s' [%s]\n", ctx->iformat->name, path);
+			asprintf(&m.resolution, "%dx%d", ctx->streams[video_stream]->codec->width, ctx->streams[video_stream]->codec->height);
+			asprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
+			if( ctx->duration > 0 ) {
+				duration = (int)(ctx->duration / AV_TIME_BASE);
+				hours = (int)(duration / 3600);
+				min = (int)(duration / 60 % 60);
+				sec = (int)(duration % 60);
+				ms = (int)(ctx->duration / (AV_TIME_BASE/1000) % 1000);
+				asprintf(&m.duration, "%d:%02d:%02d.%03d", hours, min, sec, ms);
+			}
+			/* NOTE: The DLNA spec only provides for ASF (WMV), TS, PS, and MP4 containers -- not AVI. */
+			switch( ctx->streams[video_stream]->codec->codec_id )
+			{
+				case CODEC_ID_MPEG1VIDEO:
+					if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+					{
+						asprintf(&m.dlna_pn, "MPEG1;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						asprintf(&m.mime, "video/mpeg");
+					}
+					break;
+				case CODEC_ID_MPEG2VIDEO:
+					if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+					{
+						printf("Stream %d of %s is %s MPEG2 TS\n", video_stream, path, m.resolution);
+						char res;
+						tsinfo_t * ts = ctx->priv_data;
+						if( ts->packet_size == 192 )
+						{
+							asprintf(&m.dlna_pn, "MPEG_TS_HD_NA;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
+						}
+						else if( ts->packet_size == 188 )
+						{
+							if( (ctx->streams[video_stream]->codec->width  >= 1280) &&
+							    (ctx->streams[video_stream]->codec->height >= 720) )
+								res = 'H';
+							else
+								res = 'S';
+							asprintf(&m.dlna_pn, "MPEG_TS_%cD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0", res);
+							asprintf(&m.mime, "video/mpeg");
+						}
+					}
+					else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+					{
+						printf("Stream %d of %s is %s MPEG2 PS\n", video_stream, path, m.resolution);
+						char region[5];
+						if( (ctx->streams[video_stream]->codec->height == 576) ||
+						    (ctx->streams[video_stream]->codec->height == 288) )
+							strcpy(region, "PAL");
+						else
+							strcpy(region, "NTSC");
+						asprintf(&m.dlna_pn, "MPEG_PS_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", region);
+						asprintf(&m.mime, "video/mpeg");
+					}
+					else
+					{
+						printf("Stream %d of %s [UNKNOWN CONTAINER] is %s MPEG2\n", video_stream, path, m.resolution);
+					}
+					break;
+				case CODEC_ID_H264:
+					if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+					{
+						tsinfo_t * ts = ctx->priv_data;
+						if( ts->packet_size == 192 )
+						{
+							if( dlna_timestamp_is_present(path) )
+								ts_timestamp = VALID;
+							else
+								ts_timestamp = EMPTY;
+						}
+						char res = '\0';
+						if( ctx->streams[video_stream]->codec->width  <= 720 &&
+						    ctx->streams[video_stream]->codec->height <= 576 &&
+						    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
+							res = 'S';
+						else if( ctx->streams[video_stream]->codec->width  <= 1920 &&
+						         ctx->streams[video_stream]->codec->height <= 1152 &&
+						         ctx->streams[video_stream]->codec->bit_rate <= 20000000 )
+							res = 'H';
+						if( res )
+						{
+							switch( audio_profile )
+							{
+								case MP3:
+									asprintf(&m.dlna_pn, "AVC_TS_MP_HD_MPEG1_L3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
+										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+									break;
+								case AC3:
+									asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AC3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
+										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+									break;
+								case AAC_MULT5:
+									asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AAC_MULT5%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
+										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+									break;
+								default:
+									printf("No DLNA profile found for TS/AVC/%cD file %s\n", res, path);
+									break;
+							}
+							if( m.dlna_pn && (ts_timestamp != NONE) )
+								asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
+						}
+						else
+						{
+							printf("Unsupported h.264 video profile! [%dx%d, %dbps]\n",
+								ctx->streams[video_stream]->codec->width,
+								ctx->streams[video_stream]->codec->height,
+								ctx->streams[video_stream]->codec->bit_rate);
+						}
+					}
+					else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
+					{
+						/* AVC wrapped in MP4 only has SD profiles - 10 Mbps max */
+						if( ctx->streams[video_stream]->codec->width  <= 720 &&
+						    ctx->streams[video_stream]->codec->height <= 576 &&
+						    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
+						{
+							switch( audio_profile )
+							{
+								case AC3:
+									asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AC3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+									break;
+								case AAC_MULT5:
+									asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AAC_MULT5;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+									break;
+								default:
+									printf("No DLNA profile found for MP4/AVC/SD file %s\n", path);
+									break;
+							}
+						}
+					}
+					printf("Stream %d of %s is h.264\n", video_stream, path);
+					break;
+				case CODEC_ID_MPEG4:
+					if( ctx->streams[video_stream]->codec->codec_tag == ff_get_fourcc("XVID") )
+					{
+						printf("Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
+						asprintf(&m.mime, "video/divx");
+					}
+					else if( ctx->streams[video_stream]->codec->codec_tag == ff_get_fourcc("DX50") )
+					{
+						printf("Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
+						asprintf(&m.mime, "video/divx");
+					}
+					else if( ctx->streams[video_stream]->codec->codec_tag == ff_get_fourcc("DIVX") )
+					{
+						printf("Stream %d of %s is DiVX\n", video_stream, path);
+						asprintf(&m.mime, "video/divx");
+					}
+					else
+					{
+						printf("Stream %d of %s is MPEG4 [%X]\n", video_stream, path, ctx->streams[video_stream]->codec->codec_tag);
+					}
+					break;
+				case CODEC_ID_WMV3:
+				case CODEC_ID_VC1:
+					printf("Stream %d of %s is VC1\n", video_stream, path);
+					char profile[5]; profile[0] = '\0';
+					asprintf(&m.mime, "video/x-ms-wmv");
+					if( (ctx->streams[video_stream]->codec->width  <= 352) &&
+					    (ctx->streams[video_stream]->codec->height <= 288) &&
+					    (ctx->bit_rate/8 <= 384000) )
+					{
+						if( audio_profile == MP3 )
+							strcpy(profile, "MP3");
+						else if( audio_profile == WMA_BASE )
+							strcpy(profile, "BASE");
+						asprintf(&m.dlna_pn, "WMVSPML_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", profile);
+					}
+					else if( (ctx->streams[video_stream]->codec->width  <= 720) &&
+					         (ctx->streams[video_stream]->codec->height <= 576) &&
+					         (ctx->bit_rate/8 <= 10000000) )
+					{
+						if( audio_profile == WMA_PRO )
+							strcpy(profile, "PRO");
+						else if( audio_profile == WMA_FULL )
+							strcpy(profile, "FULL");
+						else if( audio_profile == WMA_BASE )
+							strcpy(profile, "BASE");
+						asprintf(&m.dlna_pn, "WMVMED_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", profile);
+					}
+					else if( (ctx->streams[video_stream]->codec->width  <= 1920) &&
+					         (ctx->streams[video_stream]->codec->height <= 1080) &&
+					         (ctx->bit_rate/8 <= 20000000) )
+					{
+						if( audio_profile == WMA_FULL )
+							strcpy(profile, "FULL");
+						else if( audio_profile == WMA_PRO )
+							strcpy(profile, "PRO");
+						asprintf(&m.dlna_pn, "WMVHIGH_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", profile);
+					}
+					break;
+				case CODEC_ID_XVID:
+					printf("Stream %d of %s is %s UNKNOWN XVID\n", video_stream, path, m.resolution);
+					break;
+				case CODEC_ID_MSMPEG4V1:
+					printf("Stream %d of %s is %s MS MPEG4 v1\n", video_stream, path, m.resolution);
+				case CODEC_ID_MSMPEG4V3:
+					printf("Stream %d of %s is %s MS MPEG4 v3\n", video_stream, path, m.resolution);
+					asprintf(&m.mime, "video/avi");
+					break;
+				case CODEC_ID_H263I:
+					printf("Stream %d of %s is h.263i\n", video_stream, path);
+					break;
+				case CODEC_ID_MJPEG:
+					printf("Stream %d of %s is MJPEG\n", video_stream, path);
+					break;
+				default:
+					printf("Stream %d of %s is %d\n", video_stream, path, ctx->streams[video_stream]->codec->codec_id);
+					break;
+			}
+		}
+		if( !m.mime )
+		{
+			if( strcmp(ctx->iformat->name, "avi") == 0 )
+				asprintf(&m.mime, "video/x-msvideo");
+			else if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+				asprintf(&m.mime, "video/mpeg");
+			else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+				asprintf(&m.mime, "video/mpeg");
+			else if( strcmp(ctx->iformat->name, "asf") == 0 )
+				asprintf(&m.mime, "video/x-ms-wmv");
+			else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
+				asprintf(&m.mime, "video/mp4");
+		}
+		av_close_input_file(ctx);
 	}
 	else
 	{
-		printf ("Unknown format [%s]\n", path);
-		if( ends_with(path, ".mpg") || ends_with(path, ".mpeg") || ends_with(path, ".ts") )
-			asprintf(&m.mime, "video/mpeg");
-		else if( ends_with(path, ".avi") || ends_with(path, ".divx") )
-			asprintf(&m.mime, "video/divx");
+		printf("Opening %s failed!\n", path);
 	}
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
+				" (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 				"  TITLE, DLNA_PN, MIME) "
 				"VALUES"
-				" (%lld, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
-				size, m.duration,
+				" (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
+				path, size, m.duration,
+				strlen(date) ? date : NULL,
 				m.channels,
 				m.bitrate,
 				m.frequency,
 				m.resolution,
 				name, m.dlna_pn, m.mime);
-	dlna_item_free(item);
-	dlna_uninit(dlna);
-#else // LIBDLNA_SUPPORT
-	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, SIZE, MIME) "
-				"VALUES"
-				" ('%q', %d, %Q);",
-				name, size, "video/mpeg");*/
-#endif // LIBDLNA_SUPPORT
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
 	{
@@ -512,6 +895,8 @@ GetVideoMetadata(const char * path, char * name)
 		free(m.mime);
 	if( m.duration )
 		free(m.duration);
+	if( m.resolution )
+		free(m.resolution);
 	if( m.bitrate )
 		free(m.bitrate);
 	if( m.frequency )

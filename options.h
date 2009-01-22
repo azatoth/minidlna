@@ -29,17 +29,11 @@ enum upnpconfigoptions {
 	UPNPCLEANTHRESHOLD,		/* clean_ruleset_threshold */
 	UPNPCLEANINTERVAL,		/* clean_ruleset_interval */
 	UPNPENABLENATPMP,		/* enable_natpmp */
-#ifdef USE_PF
-	UPNPQUEUE,				/* queue */
-	UPNPTAG,				/* tag */
-#endif
-#ifdef PF_ENABLE_FILTER_RULES
-	UPNPQUICKRULES,			/* quickrules */
-#endif
 	UPNPSECUREMODE,			/* secure_mode */
 #ifdef ENABLE_LEASEFILE
 	UPNPLEASEFILE,			/* lease_file */
 #endif
+	UPNPFRIENDLYNAME,		/* how the system should show up to DLNA clients */
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */
 	UPNPENABLE				/* enable_upnp */
 };

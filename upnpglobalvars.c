@@ -11,9 +11,6 @@
 #include "config.h"
 #include "upnpglobalvars.h"
 
-/* network interface for internet */
-const char * ext_if_name = 0;
-
 /* file to store leases */
 #ifdef ENABLE_LEASEFILE
 const char* lease_file = 0;
@@ -39,9 +36,6 @@ int sysuptime = 0;
 /* log packets flag */
 int logpackets = 0;
 
-#ifdef ENABLE_NATPMP
-int enablenatpmp = 0;
-#endif
 #endif
 
 int runtime_flags = 0;
@@ -61,21 +55,10 @@ char presentationurl[PRESENTATIONURL_MAX_LEN];
 struct upnpperm * upnppermlist = 0;
 unsigned int num_upnpperm = 0;
 
-#ifdef ENABLE_NATPMP
-/* NAT-PMP */
-unsigned int nextnatpmptoclean_timestamp = 0;
-unsigned short nextnatpmptoclean_eport = 0;
-unsigned short nextnatpmptoclean_proto = 0;
-#endif
-
-#ifdef USE_PF
-const char * queue = 0;
-const char * tag = 0;
-#endif
-
 int n_lan_addr = 0;
 struct lan_addr_s lan_addr[MAX_LAN_ADDR];
 
 /* UPnP-A/V [DLNA] */
 sqlite3 *db;
-char media_dir[256];
+char media_dir[MEDIADIR_MAX_LEN];
+char friendly_name[FRIENDLYNAME_MAX_LEN];

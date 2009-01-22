@@ -33,14 +33,19 @@
 int
 is_video(const char * file)
 {
-	return (ends_with(file, ".mpg") || ends_with(file, ".mpeg") ||
-		ends_with(file, ".ts")  || ends_with(file, ".avi"));
+	return (ends_with(file, ".mpg") || ends_with(file, ".mpeg")  ||
+		ends_with(file, ".asf") || ends_with(file, ".wmv")   ||
+		ends_with(file, ".mp4") || ends_with(file, ".m4v")   ||
+		ends_with(file, ".mts") || ends_with(file, ".m2ts")  ||
+		ends_with(file, ".vob") || ends_with(file, ".ts")    ||
+		ends_with(file, ".avi") || ends_with(file, ".xvid"));
 }
 
 int
 is_audio(const char * file)
 {
-	return (ends_with(file, ".mp3") ||
+	return (ends_with(file, ".mp3") || ends_with(file, ".flac") ||
+		ends_with(file, ".fla") || ends_with(file, ".flc")  ||
 		ends_with(file, ".m4a") || ends_with(file, ".aac"));
 }
 
@@ -124,21 +129,27 @@ insert_containers(const char * name, const char *path, const char * refID, const
 
 	if( strstr(class, "imageItem") )
 	{
-		char *date = result[12+cols], *cam = result[16+cols];
+		char *date = result[13+cols], *cam = result[16+cols];
 		char date_taken[11];  date_taken[10] = '\0';
 		static int last_all_objectID = 0;
 		if( date )
-			strncpy(date_taken, date, 10);
-		if( date )
 		{
+			if( strcmp(date, "0000-00-00") == 0 )
+			{
+				strcpy(date_taken, "Unknown");
+			}
+			else
+			{
+				strncpy(date_taken, date, 10);
+			}
 			container = insert_container("DATES", date_taken, "3$12", NULL, "album.photoAlbum", NULL);
 			parentID = container>>32;
 			objectID = container;
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
-						" ('3$12$%X$%X', '3$12$%X', '%s', '%s', %lu, %Q, %Q)",
-						parentID, objectID, parentID, refID, class, detailID, path, name);
+						" ('3$12$%X$%X', '3$12$%X', '%s', '%s', %lu, %Q)",
+						parentID, objectID, parentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
@@ -153,26 +164,26 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			int subParentID = subcontainer>>32;
 			int subObjectID = subcontainer;
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
-						" ('3$13$%X$%X$%X', '3$13$%X$%X', '%s', '%s', %lu, %Q, %Q)",
-						parentID, subParentID, subObjectID, parentID, subParentID, refID, class, detailID, path, name);
+						" ('3$13$%X$%X$%X', '3$13$%X$%X', '%s', '%s', %lu, %Q)",
+						parentID, subParentID, subObjectID, parentID, subParentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
 		/* All Images */
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 					"VALUES"
-					" ('3$11$%X', '3$11', '%s', '%s', %lu, %Q, %Q)",
-					last_all_objectID++, refID, class, detailID, path, name);
+					" ('3$11$%X', '3$11', '%s', '%s', %lu, %Q)",
+					last_all_objectID++, refID, class, detailID, name);
 		sql_exec(db, sql);
 		sqlite3_free(sql);
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		char *artist = result[6+cols], *album = result[7+cols], *genre = result[8+cols];
-		static char last_artist[1024];
+		char *artist = cols ? result[7+cols]:NULL, *album = cols ? result[8+cols]:NULL, *genre = cols ? result[9+cols]:NULL;
+		static char last_artist[1024] = "0";
 		static int  last_artist_parentID, last_artist_objectID;
 		static char last_album[1024];
 		static int  last_album_parentID, last_album_objectID;
@@ -197,10 +208,10 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				last_artist_parentID = parentID;
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
-						" ('1$6$%X$%X', '1$6$%X', '%s', '%s', %lu, %Q, %Q)",
-						parentID, objectID, parentID, refID, class, detailID, path, name);
+						" ('1$6$%X$%X', '1$6$%X', '%s', '%s', %lu, %Q)",
+						parentID, objectID, parentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
@@ -221,10 +232,10 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				last_album_parentID = parentID;
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
-						" ('1$7$%X$%X', '1$7$%X', '%s', '%s', %lu, %Q, %Q)",
-						parentID, objectID, parentID, refID, class, detailID, path, name);
+						" ('1$7$%X$%X', '1$7$%X', '%s', '%s', %lu, %Q)",
+						parentID, objectID, parentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
@@ -245,19 +256,19 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				last_genre_parentID = parentID;
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
-						" ('1$5$%X$%X', '1$5$%X', '%s', '%s', %lu, %Q, %Q)",
-						parentID, objectID, parentID, refID, class, detailID, path, name);
+						" ('1$5$%X$%X', '1$5$%X', '%s', '%s', %lu, %Q)",
+						parentID, objectID, parentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
 		/* All Music */
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 					"VALUES"
-					" ('1$4$%X', '1$4', '%s', '%s', %lu, %Q, %Q)",
-					last_all_objectID++, refID, class, detailID, path, name);
+					" ('1$4$%X', '1$4', '%s', '%s', %lu, %Q)",
+					last_all_objectID++, refID, class, detailID, name);
 		sql_exec(db, sql);
 		sqlite3_free(sql);
 	}
@@ -278,10 +289,10 @@ insert_directory(const char * name, const char * path, const char * parentID, in
 	for( i=0; base[i]; i++ )
 	{
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-					" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, PATH, NAME) "
+					" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
 					"VALUES"
-					" ('%s%s$%X', '%s%s', %Q, '%lld', '%s', '%q', '%q')",
-					base[i], parentID, objectID, base[i], parentID, refID, detailID, class, path, name);
+					" ('%s%s$%X', '%s%s', %Q, '%lld', '%s', '%q')",
+					base[i], parentID, objectID, base[i], parentID, refID, detailID, class, name);
 		//DEBUG printf("SQL: %s\n", sql);
 		ret = sql_exec(db, sql);
 		sqlite3_free(sql);
@@ -327,12 +338,14 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		detailID = GetVideoMetadata(path, name);
 	}
 	//DEBUG printf("Got DetailID %lu!\n", detailID);
+	if( !detailID )
+		return -1;
 
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-				" (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, PATH, NAME) "
+				" (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, NAME) "
 				"VALUES"
-				" ('%s', '%s%s', '%s', %lu, '%q', '%q')",
-				objectID, BROWSEDIR_ID, parentID, class, detailID, path, name);
+				" ('%s', '%s%s', '%s', %lu, '%q')",
+				objectID, BROWSEDIR_ID, parentID, class, detailID, name);
 	//DEBUG printf("SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
@@ -378,6 +391,10 @@ create_database(void)
 	sql_exec(db, "pragma synchronous = OFF;");
 	sql_exec(db, "pragma cache_size = 8192;");
 
+	//JM: Set up a db version number, so we know if we need to rebuild due to a new structure.
+	sprintf(sql_buf, "pragma user_version = %d;", DB_VERSION);
+	sql_exec(db, sql_buf);
+
 	ret = sql_exec(db, "CREATE TABLE OBJECTS ( "
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
 					"OBJECT_ID TEXT NOT NULL, "
@@ -385,13 +402,13 @@ create_database(void)
 					"REF_ID TEXT DEFAULT NULL, "
 					"CLASS TEXT NOT NULL, "
 					"DETAIL_ID INTEGER DEFAULT NULL, "
-					"PATH TEXT DEFAULT NULL, "
 					"NAME TEXT DEFAULT NULL"
 					");");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE DETAILS ( "
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
+					"PATH TEXT DEFAULT NULL, "
 					"SIZE INTEGER, "
 					"TITLE TEXT, "
 					"DURATION TEXT, "
@@ -433,7 +450,7 @@ create_database(void)
 	sql_exec(db, "create INDEX IDX_OBJECTS_PARENT_ID ON OBJECTS(PARENT_ID);");
 	sql_exec(db, "create INDEX IDX_OBJECTS_DETAIL_ID ON OBJECTS(DETAIL_ID);");
 	sql_exec(db, "create INDEX IDX_OBJECTS_CLASS ON OBJECTS(CLASS);");
-	sql_exec(db, "create INDEX IDX_OBJECTS_PATH ON OBJECTS(PATH);");
+	sql_exec(db, "create INDEX IDX_DETAILS_PATH ON DETAILS(PATH);");
 	sql_exec(db, "create INDEX IDX_DETAILS_ID ON DETAILS(ID);");
 
 
@@ -467,6 +484,9 @@ ScanDirectory(const char * dir, const char * parent)
 	char parent_id[PATH_MAX];
 	char full_path[PATH_MAX];
 	char * name;
+#if USE_FORK
+	pid_t newpid;
+#endif
 
 	if( !parent )
 	{
@@ -475,12 +495,17 @@ ScanDirectory(const char * dir, const char * parent)
 			fprintf(stderr, "Error creating database!\n");
 			return;
 		}
+#if USE_FORK
+		newpid = fork();
+		if( newpid )
+			return;
+#endif
 	}
 
 	setlocale(LC_COLLATE, "");
 	if( chdir(dir) != 0 )
 		return;
-printf("\nScanning %s\n", dir);
+	printf("\nScanning %s\n", dir);
 	n = scandir(".", &namelist, filter_media, alphasort);
 	if (n < 0) {
 		fprintf(stderr, "Error scanning %s [scandir]\n", dir);
@@ -512,4 +537,11 @@ printf("\nScanning %s\n", dir);
 	}
 	free(namelist);
 	chdir("..");
+	if( !parent )
+	{
+		printf("Scanning \"%s\" finished!\n", dir);
+#if USE_FORK
+		_exit(0);
+#endif
+	}
 }

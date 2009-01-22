@@ -5,6 +5,8 @@
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -53,3 +55,41 @@ getifaddr(const char * ifname, char * buf, int len)
 	return 0;
 }
 
+
+int
+getifhwaddr(const char * ifname, char * buf, int len)
+{
+	/* SIOCGIFADDR struct ifreq *  */
+	int s;
+	struct ifreq ifr;
+	int ifrlen;
+	unsigned char addr[6];
+	char mac_string[4];
+	int i;
+	ifrlen = sizeof(ifr);
+	if( len < 12 )
+	{
+		return -2;
+	}
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if(s < 0)
+	{
+		syslog(LOG_ERR, "socket(PF_INET, SOCK_DGRAM): %m");
+		return -1;
+	}
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+	if(ioctl(s, SIOCGIFHWADDR, &ifr, &ifrlen) < 0)
+	{
+		syslog(LOG_ERR, "ioctl(s, SIOCGIFHWADDR, ...): %m");
+		close(s);
+		return -1;
+	}
+	close(s);
+
+	memmove( addr, ifr.ifr_hwaddr.sa_data, 6);
+	for (i=0; i<6; ++i) {
+		sprintf(mac_string, "%2.2x", addr[i]);
+		strcat(buf, mac_string);
+	}
+	return 0;
+}

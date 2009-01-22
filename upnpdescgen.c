@@ -85,10 +85,14 @@ static const char * const upnpallowedvalues[] =
 	"STOPPED",
 	0,
 	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN,"		/* 44 */
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01,"
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED,"
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01,"
-	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC,"
+	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_PAL;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_TS_HD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:video/vnd.dlna.mpeg-tts:DLNA.ORG_PN=AVC_TS_MP_HD_AC3_T;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+	"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
 	"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01,"
 	"http-get:*:audio/x-ms-wma:*,"
 	"http-get:*:audio/wav:*,"
@@ -129,7 +133,7 @@ static const struct XMLElt rootDesc[] =
 	{"/major", "1"},
 	{"/minor", "0"},
 	{"/deviceType", "urn:schemas-upnp-org:device:MediaServer:1"},
-	{"/friendlyName", ROOTDEV_FRIENDLYNAME},	/* required */
+	{"/friendlyName", friendly_name},	/* required */
 	{"/manufacturer", ROOTDEV_MANUFACTURER},		/* required */
 	{"/manufacturerURL", ROOTDEV_MANUFACTURERURL},	/* optional */
 	{"/modelDescription", ROOTDEV_MODELDESCRIPTION}, /* recommended */
@@ -175,12 +179,6 @@ static const struct argument AddPortMappingArgs[] =
 	{NULL, 0, 0}
 };
 
-static const struct argument GetExternalIPAddressArgs[] =
-{
-	{NULL, 2, 7},
-	{NULL, 0, 0}
-};
-
 static const struct argument DeletePortMappingArgs[] = 
 {
 	{NULL, 1, 11},
@@ -199,14 +197,6 @@ static const struct argument GetConnectionTypeInfoArgs[] =
 {
 	{NULL, 2, 0},
 	{NULL, 2, 1},
-	{NULL, 0, 0}
-};
-
-static const struct argument GetStatusInfoArgs[] =
-{
-	{NULL, 2, 2},
-	{NULL, 2, 4},
-	{NULL, 2, 3},
 	{NULL, 0, 0}
 };
 
@@ -494,71 +484,6 @@ static const struct argument GetTotalPacketsReceivedArgs[] =
 	{NULL, 0, 0}
 };
 
-static const struct action WANCfgActions[] =
-{
-	{"GetCommonLinkProperties", GetCommonLinkPropertiesArgs}, /* Required */
-	{"GetTotalBytesSent", GetTotalBytesSentArgs},             /* optional */
-	{"GetTotalBytesReceived", GetTotalBytesReceivedArgs},     /* optional */
-	{"GetTotalPacketsSent", GetTotalPacketsSentArgs},         /* optional */
-	{"GetTotalPacketsReceived", GetTotalPacketsReceivedArgs}, /* optional */
-	{0, 0}
-};
-
-/* See UPnP_IGD_WANCommonInterfaceConfig 1.0.pdf */
-static const struct stateVar WANCfgVars[] =
-{
-	{"WANAccessType", 0, 0, 1},
-	/* Allowed Values : DSL / POTS / Cable / Ethernet 
-	 * Default value : empty string */
-	{"Layer1UpstreamMaxBitRate", 3, 0},
-	{"Layer1DownstreamMaxBitRate", 3, 0},
-	{"PhysicalLinkStatus", 0|0x80, 0, 6, 6},
-	/*  allowed values : 
-	 *      Up / Down / Initializing (optional) / Unavailable (optionnal)
-	 *  no Default value 
-	 *  Evented */
-	{"TotalBytesSent", 3, 0},	   /* Optional */
-	{"TotalBytesReceived", 3, 0},  /* Optional */
-	{"TotalPacketsSent", 3, 0},    /* Optional */
-	{"TotalPacketsReceived", 3, 0},/* Optional */
-	/*{"MaximumActiveConnections", 2, 0},	// allowed Range value // OPTIONAL */
-	{0, 0}
-};
-
-static const struct serviceDesc scpdWANCfg =
-{ WANCfgActions, WANCfgVars };
-
-#ifdef ENABLE_L3F_SERVICE
-/* Read UPnP_IGD_Layer3Forwarding_1.0.pdf */
-static const struct argument SetDefaultConnectionServiceArgs[] =
-{
-	{NULL, 1, 0}, /* in */
-	{NULL, 0, 0}
-};
-
-static const struct argument GetDefaultConnectionServiceArgs[] =
-{
-	{NULL, 2, 0}, /* out */
-	{0, 0}
-};
-
-static const struct action L3FActions[] =
-{
-	{"SetDefaultConnectionService", SetDefaultConnectionServiceArgs}, /* Req */
-	{"GetDefaultConnectionService", GetDefaultConnectionServiceArgs}, /* Req */
-	{0, 0}
-};
-
-static const struct stateVar L3FVars[] =
-{
-	{"DefaultConnectionService", 0|0x80, 0, 0, 255}, /* Required */
-	{0, 0}
-};
-
-static const struct serviceDesc scpdL3F =
-{ L3FActions, L3FVars };
-#endif
-
 static const struct serviceDesc scpdContentDirectory =
 { ContentDirectoryActions, ContentDirectoryVars };
 //{ ContentDirectoryActions, ContentDirectoryVars };
@@ -709,9 +634,7 @@ genRootDesc(int * len)
 char *ret = calloc(1, 8192);
 sprintf(ret, "<?xml version='1.0' encoding='UTF-8' ?>\r\n"
 "<root xmlns=\"urn:schemas-upnp-org:device-1-0\" xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion><device><deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType><friendlyName>MiniDLNA (MaggardMachine2)</friendlyName><manufacturer>NETGEAR</manufacturer><manufacturerURL>http://www.netgear.com</manufacturerURL><modelDescription>NETGEAR ReadyNAS NV</modelDescription><modelName>ReadyNAS</modelName><modelNumber>NV</modelNumber><modelURL>http://www.netgear.com</modelURL><UDN>uuid:aefc3d94-8cf7-11dd-b3bb-ff0d6f9a7e6d</UDN><dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC>\r\n"
-//"<root xmlns=\"urn:schemas-upnp-org:device-1-0\" xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion><device><deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType><friendlyName>MiniDLNA (MaggardMachine2)</friendlyName><manufacturer>NETGEAR</manufacturer><manufacturerURL>http://www.netgear.com</manufacturerURL><modelDescription>NETGEAR ReadyNAS NV</modelDescription><modelName>ReadyNAS</modelName><modelNumber>NV</modelNumber><modelURL>http://www.netgear.com</modelURL><UDN>uuid:aefc3d94-8cf7-11dd-b3bb-ff0d6f9a7e6d</UDN><dlna:X_DLNACAP>av-upload,image-upload,create-child-container,audio-upload</dlna:X_DLNACAP><dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC>\r\n"
 "<serviceList><service><serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType><serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId><SCPDURL>/ConnectionMgr.xml</SCPDURL><controlURL>/ctl/ConnectionMgr</controlURL><eventSubURL>/evt/ConnectionMgr</eventSubURL></service><service><serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType><serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId><SCPDURL>/ContentDir.xml</SCPDURL><controlURL>/ctl/ContentDir</controlURL><eventSubURL>/evt/ContentDir</eventSubURL></service></serviceList></device></root>");
-//"</iconList><serviceList><service><serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType><serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId><SCPDURL>/ConnectionMgr.xml</SCPDURL><controlURL>/ctl/ConnectionMgr</controlURL><eventSubURL>/evt/ConnectionMgr</eventSubURL></service><service><serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType><serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId><SCPDURL>/ContentDir.xml</SCPDURL><controlURL>/ctl/ContentDir</controlURL><eventSubURL>/evt/ContentDir</eventSubURL></service><service><serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType><serviceId>763f907c-8cfb-11dd-a382-c9c0ad9eae41</serviceId><SCPDURL>/upnp/aefc3d94-8cf7-11dd-b3bb-ff0d6f9a7e6d/aefdc437-8cf7-11dd-b3bb-ff0d6f9a7e6d</SCPDURL><controlURL>/upnp/aefc3d94-8cf7-11dd-b3bb-ff0d6f9a7e6d/control/aefdc437-8cf7-11dd-b3bb-ff0d6f9a7e6d</controlURL><eventSubURL>/upnp/aefc3d94-8cf7-11dd-b3bb-ff0d6f9a7e6d/events/aefdc437-8cf7-11dd-b3bb-ff0d6f9a7e6d</eventSubURL></service></serviceList></device></root>\r\n");
 	* len = strlen(ret);
 return ret;
 #endif

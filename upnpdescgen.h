@@ -68,11 +68,6 @@ genWANIPCn(int * len);
 char *
 genWANCfg(int * len);
 
-#ifdef ENABLE_L3F_SERVICE
-char *
-genL3F(int * len);
-#endif
-
 #ifdef ENABLE_EVENTS
 char *
 getVarsContentDirectory(int * len);
@@ -81,13 +76,7 @@ char *
 getVarsConnectionManager(int * len);
 
 char *
-getVarsWANIPCn(int * len);
-
-char *
-getVarsWANCfg(int * len);
-
-char *
-getVarsL3F(int * len);
+getVarsX_MS_MediaReceiverRegistrar(int * len);
 #endif
 
 #endif

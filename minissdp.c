@@ -133,15 +133,15 @@ OpenAndConfSSDPNotifySocket(in_addr_t addr)
 	}
 
 	memset(&sockname, 0, sizeof(struct sockaddr_in));
-    sockname.sin_family = AF_INET;
-    sockname.sin_addr.s_addr = addr;	/*inet_addr(addr);*/
+	sockname.sin_family = AF_INET;
+	sockname.sin_addr.s_addr = addr;	/*inet_addr(addr);*/
 
-    if (bind(s, (struct sockaddr *)&sockname, sizeof(struct sockaddr_in)) < 0)
+	if (bind(s, (struct sockaddr *)&sockname, sizeof(struct sockaddr_in)) < 0)
 	{
 		syslog(LOG_ERR, "bind(udp_notify): %m");
 		close(s);
 		return -1;
-    }
+	}
 
 	return s;
 }

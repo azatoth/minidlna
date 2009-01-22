@@ -24,6 +24,12 @@
 #include "upnpglobalvars.h"
 #include "upnpdescgen.h"
 
+#define HAVE_UUID 1
+
+#ifdef HAVE_UUID
+#include <uuid/uuid.h>
+#endif
+
 #ifdef ENABLE_EVENTS
 /*enum subscriber_service_enum {
  EWanCFG = 1,
@@ -80,18 +86,12 @@ newSubscriber(const char * eventurl, const char * callback, int callbacklen)
 	if(!eventurl || !callback || !callbacklen)
 		return NULL;
 	tmp = calloc(1, sizeof(struct subscriber)+callbacklen+1);
-	if(strcmp(eventurl, WANCFG_EVENTURL)==0)
-		tmp->service = EWanCFG;
-	else if(strcmp(eventurl, CONTENTDIRECTORY_EVENTURL)==0)
+	if(strcmp(eventurl, CONTENTDIRECTORY_EVENTURL)==0)
 		tmp->service = EContentDirectory;
 	else if(strcmp(eventurl, CONNECTIONMGR_EVENTURL)==0)
 		tmp->service = EConnectionManager;
-	else if(strcmp(eventurl, WANIPC_EVENTURL)==0)
-		tmp->service = EWanIPC;
-#ifdef ENABLE_L3F_SERVICE
-	else if(strcmp(eventurl, L3F_EVENTURL)==0)
-		tmp->service = EL3F;
-#endif
+	else if(strcmp(eventurl, X_MS_MEDIARECEIVERREGISTRAR_EVENTURL)==0)
+		tmp->service = EMSMediaReceiverRegistrar;
 	else {
 		free(tmp);
 		return NULL;
@@ -99,10 +99,15 @@ newSubscriber(const char * eventurl, const char * callback, int callbacklen)
 	memcpy(tmp->callback, callback, callbacklen);
 	tmp->callback[callbacklen] = '\0';
 	/* make a dummy uuid */
-	/* TODO: improve that */
 	strncpy(tmp->uuid, uuidvalue, sizeof(tmp->uuid));
+#ifdef HAVE_UUID
+	uuid_t uuid;
+	uuid_generate_time(uuid);  
+	uuid_unparse_lower(uuid, tmp->uuid+5);
+#else
 	tmp->uuid[sizeof(tmp->uuid)-1] = '\0';
 	snprintf(tmp->uuid+37, 5, "%04lx", random() & 0xffff);
+#endif
 	return tmp;
 }
 
@@ -136,7 +141,7 @@ renewSubscription(const char * sid, int sidlen, int timeout)
 {
 	struct subscriber * sub;
 	for(sub = subscriberlist.lh_first; sub != NULL; sub = sub->entries.le_next) {
-		if(memcmp(sid, sub->uuid, 41)) {
+		if(memcmp(sid, sub->uuid, 41) == 0) {
 			sub->timeout = (timeout ? time(NULL) + timeout : 0);
 			return 0;
 		}
@@ -290,11 +295,14 @@ static void upnp_event_prepare(struct upnp_event_notify * obj)
 	case EConnectionManager:
 		xml = getVarsConnectionManager(&l);
 		break;
+	case EMSMediaReceiverRegistrar:
+		xml = getVarsX_MS_MediaReceiverRegistrar(&l);
+		break;
 	default:
 		xml = NULL;
 		l = 0;
 	}
-	obj->buffersize = 1536;
+	obj->buffersize = 2048;
 	obj->buffer = malloc(obj->buffersize);
 	/*if(!obj->buffer) {
 	}*/

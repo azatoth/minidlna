@@ -13,12 +13,12 @@
 #include "upnpdescgen.h"
 
 char uuidvalue[] = "uuid:12345678-0000-0000-0000-00000000abcd";
+char friendly_name[] = "localhost: system_type";
 char serialnumber[] = "12345678";
 char modelnumber[] = "1";
 char presentationurl[] = "http://192.168.0.1:8080/";
 
 char * use_ext_ip_addr = NULL;
-const char * ext_if_name = "eth0";
 
 int getifaddr(const char * ifname, char * buf, int len)
 {

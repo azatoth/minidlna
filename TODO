@@ -1,13 +1,8 @@
 Things left to do:
 
-* Clean up more leftover MiniUPnPd code
-* Spawn a new thread for new HTTP connections
 * Persistent HTTP connection (Keep-Alive) support
-* Real Chunked transfer support
 * PNG image support
-* DLNA Profile Name (DLNA.ORG_PN) support for video files
-* DLNA Profile Name (DLNA.ORG_PN) support for audio files besides MP3
-* Video metadata support
+* DLNA Profile Name (DLNA.ORG_PN) support for more audio files
 * SortCriteria support
 * Completely redo the logging scheme.
 * Update scan support (do not require removing the database)

@@ -13,18 +13,6 @@
 
 #define ROOTDESC_PATH 		"/rootDesc.xml"
 
-#ifdef HAS_DUMMY_SERVICE
-#define DUMMY_PATH			"/dummy.xml"
-#endif
-
-#define WANCFG_PATH			"/WANCfg.xml"
-#define WANCFG_CONTROLURL	"/ctl/CmnIfCfg"
-#define WANCFG_EVENTURL		"/evt/CmnIfCfg"
-
-#define WANIPC_PATH			"/WANIPCn.xml"
-#define WANIPC_CONTROLURL	"/ctl/IPConn"
-#define WANIPC_EVENTURL		"/evt/IPConn"
-
 #define CONTENTDIRECTORY_PATH			"/ContentDir.xml"
 #define CONTENTDIRECTORY_CONTROLURL		"/ctl/ContentDir"
 #define CONTENTDIRECTORY_EVENTURL		"/evt/ContentDir"
@@ -36,12 +24,6 @@
 #define X_MS_MEDIARECEIVERREGISTRAR_PATH	"/X_MS_MediaReceiverRegistrar.xml"
 #define X_MS_MEDIARECEIVERREGISTRAR_CONTROLURL	"/ctl/X_MS_MediaReceiverRegistrar"
 #define X_MS_MEDIARECEIVERREGISTRAR_EVENTURL	"/evt/X_MS_MediaReceiverRegistrar"
-
-#ifdef ENABLE_L3F_SERVICE
-#define L3F_PATH			"/L3F.xml"
-#define L3F_CONTROLURL		"/ctl/L3F"
-#define L3F_EVENTURL		"/evt/L3F"
-#endif
 
 #endif
 

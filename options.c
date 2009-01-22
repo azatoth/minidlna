@@ -36,20 +36,11 @@ static const struct {
 	{ UPNPMODEL_NUMBER, "model_number"},
 	{ UPNPCLEANTHRESHOLD, "clean_ruleset_threshold"},
 	{ UPNPCLEANINTERVAL, "clean_ruleset_interval"},
-#ifdef ENABLE_NATPMP
-	{ UPNPENABLENATPMP, "enable_natpmp"},
-#endif
 	{ UPNPENABLE, "enable_upnp"},
-#ifdef USE_PF
-	{ UPNPQUEUE, "queue"},
-	{ UPNPTAG, "tag"},
-#endif
-#ifdef PF_ENABLE_FILTER_RULES
-	{ UPNPQUICKRULES, "quickrules" },
-#endif
 #ifdef ENABLE_LEASEFILE
 	{ UPNPLEASEFILE, "lease_file"},
 #endif
+	{ UPNPFRIENDLYNAME, "friendly_name"},
 	{ UPNPMEDIADIR, "media_dir"},
 	{ UPNPSECUREMODE, "secure_mode"}
 };

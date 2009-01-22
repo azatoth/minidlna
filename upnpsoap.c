@@ -65,28 +65,6 @@ BuildSendAndCloseSoapResp(struct upnphttp * h,
 }
 
 static void
-GetStatusInfo(struct upnphttp * h, const char * action)
-{
-	static const char resp[] =
-		"<u:%sResponse "
-		"xmlns:u=\"%s\">"
-		"<NewConnectionStatus>Connected</NewConnectionStatus>"
-		"<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>"
-		"<NewUptime>%ld</NewUptime>"
-		"</u:%sResponse>";
-
-	char body[512];
-	int bodylen;
-	time_t uptime;
-
-	uptime = (time(NULL) - startup_time);
-	bodylen = snprintf(body, sizeof(body), resp,
-		action, "urn:schemas-upnp-org:service:WANIPConnection:1",
-		(long)uptime, action);	
-	BuildSendAndCloseSoapResp(h, body, bodylen);
-}
-
-static void
 GetSystemUpdateID(struct upnphttp * h, const char * action)
 {
 	static const char resp[] =
@@ -129,16 +107,15 @@ GetProtocolInfo(struct upnphttp * h, const char * action)
 		"<u:%sResponse "
 		"xmlns:u=\"%s\">"
 		"<Source>"
-			/*"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN;DLNA.ORG_OP=01;DLNA.ORG_CI=1,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED;DLNA.ORG_OP=01,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01,"
-			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01,"*/
 			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01,"
-			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC,"
+			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_PAL;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_TS_HD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:video/vnd.dlna.mpeg-tts:DLNA.ORG_PN=AVC_TS_MP_HD_AC3_T;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
+			"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
 			"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01,"
 			"http-get:*:audio/x-ms-wma:*,"
 			"http-get:*:audio/wav:*,"
@@ -212,7 +189,7 @@ GetCurrentConnectionIDs(struct upnphttp * h, const char * action)
 	static const char resp[] =
 		"<u:%sResponse "
 		"xmlns:u=\"%s\">"
-		"<ConnectionIDs>-1</ConnectionIDs>"
+		"<ConnectionIDs>0</ConnectionIDs>"
 		"</u:%sResponse>";
 
 	char body[512];
@@ -378,13 +355,16 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 			sprintf(str_buf, "childCount=\"%s\"", result[1]);
 			strcat(passed_args->resp, str_buf);
 		}
-		/* If the client calls for BrowseMetadata on root, we have to include our "upnp:searchClass"'s */
+		/* If the client calls for BrowseMetadata on root, we have to include our "upnp:searchClass"'s, unless they're filtered out */
 		if( (passed_args->requested == 1) && (strcmp(id, "0") == 0) )
 		{
-			strcat(passed_args->resp, "&gt;"
-						  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.audioItem&lt;/upnp:searchClass&gt;"
-						  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.imageItem&lt;/upnp:searchClass&gt;"
-						  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.videoItem&lt;/upnp:searchClass");
+			if( !passed_args->filter || strstr(passed_args->filter, "upnp:searchClass") )
+			{
+				strcat(passed_args->resp, "&gt;"
+							  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.audioItem&lt;/upnp:searchClass&gt;"
+							  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.imageItem&lt;/upnp:searchClass&gt;"
+							  "&lt;upnp:searchClass includeDerived=\"1\"&gt;object.item.videoItem&lt;/upnp:searchClass");
+			}
 		}
 		sprintf(str_buf, "&gt;"
 				 "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
@@ -575,49 +555,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	free(resp);
 }
 
-static void
-GetExternalIPAddress(struct upnphttp * h, const char * action)
-{
-	static const char resp[] =
-		"<u:%sResponse "
-		"xmlns:u=\"%s\">"
-		"<NewExternalIPAddress>%s</NewExternalIPAddress>"
-		"</u:%sResponse>";
-
-	char body[512];
-	int bodylen;
-	char ext_ip_addr[INET_ADDRSTRLEN];
-
-#ifndef MULTIPLE_EXTERNAL_IP
-	if(use_ext_ip_addr)
-	{
-		strncpy(ext_ip_addr, use_ext_ip_addr, INET_ADDRSTRLEN);
-	}
-	else if(getifaddr(ext_if_name, ext_ip_addr, INET_ADDRSTRLEN) < 0)
-	{
-		syslog(LOG_ERR, "Failed to get ip address for interface %s",
-			ext_if_name);
-		strncpy(ext_ip_addr, "0.0.0.0", INET_ADDRSTRLEN);
-	}
-#else
-	int i;
-	strncpy(ext_ip_addr, "0.0.0.0", INET_ADDRSTRLEN);
-	for(i = 0; i<n_lan_addr; i++)
-	{
-		if( (h->clientaddr.s_addr & lan_addr[i].mask.s_addr)
-		   == (lan_addr[i].addr.s_addr & lan_addr[i].mask.s_addr))
-		{
-			strncpy(ext_ip_addr, lan_addr[i].ext_ip_str, INET_ADDRSTRLEN);
-			break;
-		}
-	}
-#endif
-	bodylen = snprintf(body, sizeof(body), resp,
-	              action, "urn:schemas-upnp-org:service:WANIPConnection:1",
-				  ext_ip_addr, action);
-	BuildSendAndCloseSoapResp(h, body, bodylen);
-}
-
 /*
 If a control point calls QueryStateVariable on a state variable that is not
 buffered in memory within (or otherwise available from) the service,
@@ -659,7 +596,7 @@ QueryStateVariable(struct upnphttp * h, const char * action)
 		BuildSendAndCloseSoapResp(h, body, bodylen);
 	}
 #if 0
-	/* not usefull */
+	/* not useful */
 	else if(strcmp(var_name, "ConnectionType") == 0)
 	{	
 		bodylen = snprintf(body, sizeof(body), resp, "IP_Routed");
@@ -687,9 +624,7 @@ static const struct
 }
 soapMethods[] =
 {
-	{ "GetExternalIPAddress", GetExternalIPAddress},
 	{ "QueryStateVariable", QueryStateVariable},
-	{ "GetStatusInfo", GetStatusInfo},
 	{ "Browse", BrowseContentDirectory},
 	{ "Search", SearchContentDirectory},
 	{ "GetSearchCapabilities", GetSearchCapabilities},

@@ -12,7 +12,10 @@
 #
 #CFLAGS = -Wall -O -D_GNU_SOURCE -g -DDEBUG
 #CFLAGS = -Wall -g -Os -D_GNU_SOURCE
-CFLAGS = -Wall -g -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
+CFLAGS = -Wall -g -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 \
+	 -I/usr/include/ffmpeg \
+	 -I/usr/include/libavutil -I/usr/include/libavcodec -I/usr/include/libavformat \
+	 -I/usr/include/ffmpeg/libavutil -I/usr/include/ffmpeg/libavcodec -I/usr/include/ffmpeg/libavformat
 CC = gcc
 RM = rm -f
 INSTALL = install
@@ -30,7 +33,7 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
 #LIBS = -liptc
-LIBS = -lexif -ltag_c -lsqlite3 -ldlna #-lgd
+LIBS = -lexif -ltag_c -lsqlite3 -lavformat -luuid #-lgd
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 

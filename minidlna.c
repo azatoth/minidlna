@@ -208,6 +208,29 @@ parselanaddr(struct lan_addr_s * lan_addr, const char * str)
 	return 0;
 }
 
+void
+getfriendlyname(char * buf, int len)
+{
+	char * hn = calloc(1, 256);
+	if( gethostname(hn, 256) == 0 )
+	{
+		strncpy(buf, hn, len-1);
+		buf[len] = '\0';
+		*strstr(buf, ".") = '\0';
+	}
+	else
+	{
+		strcpy(buf, "Unknown");
+	}
+	free(hn);
+	strcat(buf, ": ");
+	#ifdef READYNAS
+	strncat(buf, "ReadyNAS", len-strlen(buf)-1);
+	#else
+	strncat(buf, getenv("LOGNAME"), len-strlen(buf)-1);
+	#endif
+}
+
 /* init phase :
  * 1) read configuration file
  * 2) read command line arguments
@@ -229,6 +252,7 @@ init(int argc, char * * argv, struct runtime_vars * v)
 	/*const char * logfilename = 0;*/
 	const char * presurl = 0;
 	const char * optionsfile = "/etc/minidlna.conf";
+	char * mac_str = calloc(1, 64);
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -241,6 +265,19 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		}
 	}
 
+	/* set up uuid based on mac address */
+	if( (getifhwaddr("eth0", mac_str, 64) < 0) &&
+	    (getifhwaddr("eth1", mac_str, 64) < 0) )
+	{
+		printf("No MAC addresses found!\n");
+		strcpy(mac_str, "554e4b4e4f57");
+	}
+	strcpy(uuidvalue+5, "4d696e69-444c-164e-9d41-");
+	strncat(uuidvalue, mac_str, 12);
+	free(mac_str);
+
+	getfriendlyname(friendly_name, FRIENDLYNAME_MAX_LEN);
+	
 	/*v->n_lan_addr = 0;*/
 	char ext_ip_addr[INET_ADDRSTRLEN];
 	if( (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
@@ -270,12 +307,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		{
 			switch(ary_options[i].id)
 			{
-			case UPNPEXT_IFNAME:
-				ext_if_name = ary_options[i].value;
-				break;
-			case UPNPEXT_IP:
-				use_ext_ip_addr = ary_options[i].value;
-				break;
 			case UPNPLISTENING_IP:
 				if(n_lan_addr < MAX_LAN_ADDR)/* if(v->n_lan_addr < MAX_LAN_ADDR)*/
 				{
@@ -313,10 +344,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				if(strcmp(ary_options[i].value, "yes") == 0)
 					SETFLAG(LOGPACKETSMASK);	/*logpackets = 1;*/
 				break;
-			case UPNPUUID:
-				strncpy(uuidvalue+5, ary_options[i].value,
-				        strlen(uuidvalue+5) + 1);
-				break;
 			case UPNPSERIAL:
 				strncpy(serialnumber, ary_options[i].value, SERIALNUMBER_MAX_LEN);
 				serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
@@ -331,20 +358,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 			case UPNPCLEANINTERVAL:
 				v->clean_ruleset_interval = atoi(ary_options[i].value);
 				break;
-#ifdef USE_PF
-			case UPNPQUEUE:
-				queue = ary_options[i].value;
-				break;
-			case UPNPTAG:
-				tag = ary_options[i].value;
-				break;
-#endif
-#ifdef PF_ENABLE_FILTER_RULES
-			case UPNPQUICKRULES:
-				if(strcmp(ary_options[i].value, "no") == 0)
-					SETFLAG(PFNOQUICKRULESMASK);
-				break;
-#endif
 			case UPNPSECUREMODE:
 				if(strcmp(ary_options[i].value, "yes") == 0)
 					SETFLAG(SECUREMODEMASK);
@@ -355,6 +368,10 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				remove(lease_file);
 				break;
 #endif
+			case UPNPFRIENDLYNAME:
+				strncpy(friendly_name, ary_options[i].value, FRIENDLYNAME_MAX_LEN);
+				friendly_name[FRIENDLYNAME_MAX_LEN-1] = '\0';
+				break;
 			case UPNPMEDIADIR:
 				strncpy(media_dir, ary_options[i].value, MEDIADIR_MAX_LEN);
 				media_dir[MEDIADIR_MAX_LEN-1] = '\0';
@@ -375,21 +392,9 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		}
 		else switch(argv[i][1])
 		{
-		case 'o':
-			if(i+1 < argc)
-				use_ext_ip_addr = argv[++i];
-			else
-				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
-			break;
 		case 't':
 			if(i+1 < argc)
 				v->notify_interval = atoi(argv[++i]);
-			else
-				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
-			break;
-		case 'u':
-			if(i+1 < argc)
-				strncpy(uuidvalue+5, argv[++i], strlen(uuidvalue+5) + 1);
 			else
 				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
@@ -421,26 +426,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		case 'S':
 			SETFLAG(SECUREMODEMASK);
 			break;
-		case 'i':
-			if(i+1 < argc)
-				ext_if_name = argv[++i];
-			else
-				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
-			break;
-#ifdef USE_PF
-		case 'q':
-			if(i+1 < argc)
-				queue = argv[++i];
-			else
-				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
-			break;
-		case 'T':
-			if(i+1 < argc)
-				tag = argv[++i];
-			else
-				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
-			break;
-#endif
 		case 'p':
 			if(i+1 < argc)
 				v->port = atoi(argv[++i]);
@@ -510,19 +495,15 @@ init(int argc, char * * argv, struct runtime_vars * v)
 			fprintf(stderr, "Unknown option: %s\n", argv[i]);
 		}
 	}
-	if(!ext_if_name || (/*v->*/n_lan_addr==0) || v->port<=0)
+	if( (/*v->*/n_lan_addr==0) || (v->port<=0) )
 	{
 		fprintf(stderr, "Usage:\n\t"
 		        "%s [-f config_file] [-i ext_ifname] [-o ext_ip]\n"
 				"\t\t[-a listening_ip] [-p port] [-d] [-L] [-U] [-S]\n"
 				/*"[-l logfile] " not functionnal */
-				"\t\t[-u uuid] [-s serial] [-m model_number] \n"
+				"\t\t[-s serial] [-m model_number] \n"
 				"\t\t[-t notify_interval] [-P pid_filename]\n"
-#ifdef USE_PF
-				"\t\t[-B down up] [-w url] [-q queue] [-T tag]\n"
-#else
 				"\t\t[-B down up] [-w url]\n"
-#endif
 		        "\nNotes:\n\tThere can be one or several listening_ips.\n"
 		        "\tNotify interval is in seconds. Default is 30 seconds.\n"
 				"\tDefault pid file is %s.\n"
@@ -533,10 +514,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				"of daemon uptime.\n"
 				"\t-B sets bitrates reported by daemon in bits per second.\n"
 				"\t-w sets the presentation url. Default is http address on port 80\n"
-#ifdef USE_PF
-				"\t-q sets the ALTQ queue in pf.\n"
-				"\t-T sets the tag name in pf.\n"
-#endif
 		        "", argv[0], pidfilename);
 		return 1;
 	}
@@ -563,7 +540,7 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		openlog_option |= LOG_PERROR;	/* also log on stderr */
 	}
 
-	openlog("miniupnpd", openlog_option, LOG_MINIUPNPD);
+	openlog("minidlna", openlog_option, LOG_MINIDLNA);
 
 	if(!debug_flag)
 	{
@@ -573,7 +550,7 @@ init(int argc, char * * argv, struct runtime_vars * v)
 
 	if(checkforrunning(pidfilename) < 0)
 	{
-		syslog(LOG_ERR, "MiniUPnPd is already running. EXITING");
+		syslog(LOG_ERR, "MiniDLNA is already running. EXITING");
 		return 1;
 	}	
 
@@ -594,9 +571,9 @@ init(int argc, char * * argv, struct runtime_vars * v)
 	}
 
 	/* set signal handler */
+	signal(SIGCLD, SIG_IGN);
 	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = sigterm;
-
 	if (sigaction(SIGTERM, &sa, NULL))
 	{
 		syslog(LOG_ERR, "Failed to set %s handler. EXITING", "SIGTERM");
@@ -641,14 +618,31 @@ main(int argc, char * * argv)
 
 	LIST_INIT(&upnphttphead);
 
-	if( access("/tmp/files.db", F_OK) )
+	if( access(DB_PATH, F_OK) )
 	{
-		sqlite3_open("/tmp/files.db", &db);
+		sqlite3_open(DB_PATH, &db);
+		freopen("/dev/null", "a", stderr);
 		ScanDirectory(media_dir, NULL);
+		freopen("/proc/self/fd/2", "a", stderr);
 	}
 	else
 	{
-		sqlite3_open("/tmp/files.db", &db);
+		char **result;
+		int rows;
+		sqlite3_open(DB_PATH, &db);
+		if( sqlite3_get_table(db, "pragma user_version", &result, &rows, 0, 0) == SQLITE_OK )
+		{
+			if( atoi(result[1]) != DB_VERSION ) {
+				printf("Database version mismatch; need to recreate...\n");
+				sqlite3_close(db);
+				unlink(DB_PATH);
+				sqlite3_open(DB_PATH, &db);
+				freopen("/dev/null", "a", stderr);
+				ScanDirectory(media_dir, NULL);
+				freopen("/proc/self/fd/2", "a", stderr);
+			}
+			sqlite3_free_table(result);
+		}
 	}
 
 

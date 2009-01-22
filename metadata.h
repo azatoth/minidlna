@@ -26,6 +26,17 @@ typedef struct metadata_s {
 	char *dlna_pn;
 } metadata_t;
 
+typedef struct tsinfo_s {
+	int x;
+	int packet_size;
+} tsinfo_t;
+
+typedef enum {
+	NONE,
+	EMPTY,
+	VALID
+} ts_timestamp_t;
+
 int
 ends_with(const char * haystack, const char * needle);
 

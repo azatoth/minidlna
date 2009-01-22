@@ -8,11 +8,9 @@
 #define __UPNPEVENTS_H__
 #ifdef ENABLE_EVENTS
 enum subscriber_service_enum {
- EWanCFG = 1,
- EContentDirectory,
+ EContentDirectory = 1,
  EConnectionManager,
- EWanIPC,
- EL3F
+ EMSMediaReceiverRegistrar
 };
 
 void
