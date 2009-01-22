@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <locale.h>
+#include <libgen.h>
 #include <sys/stat.h>
 
 #include <sqlite3.h>
@@ -536,7 +537,7 @@ ScanDirectory(const char * dir, const char * parent)
 		free(namelist[i]);
 	}
 	free(namelist);
-	chdir("..");
+	chdir(dirname((char*)dir));
 	if( !parent )
 	{
 		printf("Scanning \"%s\" finished!\n", dir);
