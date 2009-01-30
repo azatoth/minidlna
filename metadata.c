@@ -586,11 +586,7 @@ GetVideoMetadata(const char * path, char * name)
 					break;
 				default:
 					if( (ctx->streams[audio_stream]->codec->codec_id >= CODEC_ID_PCM_S16LE) &&
-					    #ifdef CODEC_ID_PCM_F64LE
-					    (ctx->streams[audio_stream]->codec->codec_id <= CODEC_ID_PCM_F64LE) )
-					    #else 
-					    (ctx->streams[audio_stream]->codec->codec_id <= CODEC_ID_PCM_S24DAUD) )
-					    #endif
+					    (ctx->streams[audio_stream]->codec->codec_id < CODEC_ID_ADPCM_IMA_QT) )
 						audio_profile = PCM;
 					else
 						printf("Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
