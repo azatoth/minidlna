@@ -25,7 +25,6 @@ sql_exec(sqlite3 * db, const char * sql)
 	char *errMsg = NULL;
 	//DEBUG printf("SQL: %s\n", sql);
 
-	//ret = sqlite3_exec(db, sql, 0, 0, &errMsg);
 	ret = sqlite3_exec(db, sql, 0, 0, &errMsg);
 	if( ret != SQLITE_OK )
 	{
@@ -37,16 +36,18 @@ sql_exec(sqlite3 * db, const char * sql)
 }
 
 int
-sql_get_table(sqlite3 *db, const char *zSql, char ***pazResult, int *pnRow, int *pnColumn, char **pzErrmsg)
+sql_get_table(sqlite3 *db, const char *sql, char ***pazResult, int *pnRow, int *pnColumn)
 {
-	//DEBUG printf("SQL: %s\n", zSql);
 	int ret;
-	ret = sqlite3_get_table(db, zSql, pazResult, pnRow, pnColumn, pzErrmsg);
+	char *errMsg = NULL;
+	//DEBUG printf("SQL: %s\n", sql);
+	
+	ret = sqlite3_get_table(db, sql, pazResult, pnRow, pnColumn, &errMsg);
 	if( ret != SQLITE_OK )
 	{
-		fprintf(stderr, "SQL ERROR [%s]\n%s\n", *pzErrmsg, zSql);
-		if (*pzErrmsg)
-			sqlite3_free(*pzErrmsg);
+		fprintf(stderr, "SQL ERROR %d [%s]\n%s\n", ret, errMsg, sql);
+		if (errMsg)
+			sqlite3_free(errMsg);
 	}
 	return ret;
 }

@@ -28,6 +28,7 @@
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
+#include "utils.h"
 #include "sql.h"
 #include "scanner.h"
 
@@ -57,24 +58,24 @@ is_image(const char * file)
 }
 
 long long int
-insert_container(const char * tmpTable, const char * item, const char * rootParent, const char *subParent, const char *class, const char *artist)
+insert_container(const char * tmpTable, const char * item, const char * rootParent, const char *subParent,
+                 const char *class, const char *artist, const char *genre, const char *album_art)
 {
 	char **result;
 	char *sql;
 	int cols, rows, ret;
-	char *zErrMsg = NULL;
 	int parentID = 0, objectID = 0;
 	sqlite_int64 detailID;
 
 	sql = sqlite3_mprintf("SELECT * from %s where ITEM = '%q' and SUBITEM = '%q'", tmpTable, item, subParent);
-	ret = sql_get_table(db, sql, &result, &rows, &cols, &zErrMsg);
+	ret = sql_get_table(db, sql, &result, &rows, &cols);
 	sqlite3_free(sql);
 	if( cols )
 	{
 		sscanf(result[4], "%X", &parentID);
 		sqlite3_free_table(result);
 		sql = sqlite3_mprintf("SELECT OBJECT_ID, max(ID) from OBJECTS where PARENT_ID = '%s$%X'", rootParent, parentID);
-		ret = sql_get_table(db, sql, &result, 0, &cols, &zErrMsg);
+		ret = sql_get_table(db, sql, &result, 0, &cols);
 		sqlite3_free(sql);
 		if( result[2] && (sscanf(rindex(result[2], '$')+1, "%X", &objectID) == 1) )
 		{
@@ -85,7 +86,7 @@ insert_container(const char * tmpTable, const char * item, const char * rootPare
 	{
 		sqlite3_free_table(result);
 		sql = sqlite3_mprintf("SELECT OBJECT_ID, max(ID) from OBJECTS where PARENT_ID = '%s'", rootParent);
-		sql_get_table(db, sql, &result, &rows, &cols, &zErrMsg);
+		sql_get_table(db, sql, &result, &rows, &cols);
 		sqlite3_free(sql);
 		if( result[2] && (sscanf(rindex(result[2], '$')+1, "%X", &parentID) == 1) )
 		{
@@ -95,7 +96,7 @@ insert_container(const char * tmpTable, const char * item, const char * rootPare
 		{
 			parentID = 0;
 		}
-		detailID = GetFolderMetadata(item, artist);
+		detailID = GetFolderMetadata(item, artist, genre, album_art);
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 					" (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME) "
 					"VALUES"
@@ -120,13 +121,12 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	char **result;
 	int ret;
 	int cols, row;
-	char *zErrMsg = NULL;
 	long long int container;
 	int parentID;
 	int objectID = -1;
 
 	sprintf(sql_buf, "SELECT * from DETAILS where ID = %lu", detailID);
-	ret = sql_get_table(db, sql_buf, &result, &row, &cols, &zErrMsg);
+	ret = sql_get_table(db, sql_buf, &result, &row, &cols);
 
 	if( strstr(class, "imageItem") )
 	{
@@ -143,7 +143,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			{
 				strncpy(date_taken, date, 10);
 			}
-			container = insert_container("DATES", date_taken, "3$12", NULL, "album.photoAlbum", NULL);
+			container = insert_container("DATES", date_taken, "3$12", NULL, "album.photoAlbum", NULL, NULL, NULL);
 			parentID = container>>32;
 			objectID = container;
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
@@ -156,12 +156,12 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		if( cam && date )
 		{
-			container = insert_container("CAMS", cam, "3$13", NULL, "storageFolder", NULL);
+			container = insert_container("CAMS", cam, "3$13", NULL, "storageFolder", NULL, NULL, NULL);
 			parentID = container>>32;
 			//objectID = container;
 			char parent[64];
 			sprintf(parent, "3$13$%X", parentID);
-			long long int subcontainer = insert_container("CAMDATE", date_taken, parent, cam, "storageFolder", NULL);
+			long long int subcontainer = insert_container("CAMDATE", date_taken, parent, cam, "storageFolder", NULL, NULL, NULL);
 			int subParentID = subcontainer>>32;
 			int subObjectID = subcontainer;
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
@@ -183,7 +183,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		char *artist = cols ? result[7+cols]:NULL, *album = cols ? result[8+cols]:NULL, *genre = cols ? result[9+cols]:NULL;
+		char *artist = cols ? result[7+cols]:NULL, *album = cols ? result[8+cols]:NULL;
+		char *genre = cols ? result[9+cols]:NULL, *album_art = cols ? result[19+cols]:NULL;
 		static char last_artist[1024] = "0";
 		static int  last_artist_parentID, last_artist_objectID;
 		static char last_album[1024];
@@ -202,7 +203,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_artist, artist);
-				container = insert_container("ARTISTS", artist, "1$6", NULL, "person.musicArtist", NULL);
+				container = insert_container("ARTISTS", artist, "1$6", NULL, "person.musicArtist", NULL, genre, NULL);
 				parentID = container>>32;
 				objectID = container;
 				last_artist_objectID = objectID;
@@ -226,7 +227,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_album, album);
-				container = insert_container("ALBUMS", album, "1$7", NULL, "album.musicAlbum", artist);
+				container = insert_container("ALBUMS", album, "1$7", NULL, "album.musicAlbum", artist, genre, album_art);
 				parentID = container>>32;
 				objectID = container;
 				last_album_objectID = objectID;
@@ -250,7 +251,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_genre, genre);
-				container = insert_container("GENRES", genre, "1$5", NULL, "genre.musicGenre", NULL);
+				container = insert_container("GENRES", genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL);
 				parentID = container>>32;
 				objectID = container;
 				last_genre_objectID = objectID;
@@ -273,33 +274,82 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		sql_exec(db, sql);
 		sqlite3_free(sql);
 	}
+	else if( strstr(class, "videoItem") )
+	{
+		static int last_all_objectID = 0;
+
+		/* All Music */
+		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+					"VALUES"
+					" ('2$8$%X', '2$8', '%s', '%s', %lu, %Q)",
+					last_all_objectID++, refID, class, detailID, name);
+		sql_exec(db, sql);
+		sqlite3_free(sql);
+	}
 	sqlite3_free_table(result);
 }
 
 int
-insert_directory(const char * name, const char * path, const char * parentID, int objectID)
+insert_directory(const char * name, const char * path, const char * base, const char * parentID, int objectID)
 {
 	char * sql;
-	int ret, i;
+	int ret, found = 0;
 	sqlite_int64 detailID;
 	char * refID = NULL;
 	char class[] = "container.storageFolder";
-	const char * const base[] = { BROWSEDIR_ID, MUSIC_DIR_ID, VIDEO_DIR_ID, IMAGE_DIR_ID, 0 };
+	char * id_buf = NULL;
+	char * parent_buf = NULL;
+	char **result;
+	char *dir = strdup(path);
 
-	detailID = GetFolderMetadata(name, NULL);
-	for( i=0; base[i]; i++ )
+	if( strcmp(base, BROWSEDIR_ID) != 0 )
+		asprintf(&refID, "%s%s$%X", BROWSEDIR_ID, parentID, objectID);
+
+	if( refID )
 	{
-		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-					" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
-					"VALUES"
-					" ('%s%s$%X', '%s%s', %Q, '%lld', '%s', '%q')",
-					base[i], parentID, objectID, base[i], parentID, refID, detailID, class, name);
-		//DEBUG printf("SQL: %s\n", sql);
-		ret = sql_exec(db, sql);
+		dir = dirname(dir);
+		asprintf(&id_buf, "%s%s$%X", base, parentID, objectID);
+		asprintf(&parent_buf, "%s%s", base, parentID);
+		while( !found )
+		{
+			sql = sqlite3_mprintf("SELECT count(OBJECT_ID) from OBJECTS where OBJECT_ID = '%s'", id_buf);
+			if( (sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK) && atoi(result[1]) )
+				break;
+			/* Does not exist.  Need to create, and may need to create parents also */
+			sql = sqlite3_mprintf("SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s'", refID);
+			if( (sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK) && atoi(result[1]) )
+			{
+				detailID = atoi(result[1]);
+			}
+			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+						" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
+						"VALUES"
+						" ('%s', '%s', %Q, '%lld', '%s', '%q')",
+						id_buf, parent_buf, refID, detailID, class, rindex(dir, '/')+1);
+			sql_exec(db, sql);
+			if( rindex(id_buf, '$') )
+				*rindex(id_buf, '$') = '\0';
+			if( rindex(parent_buf, '$') )
+				*rindex(parent_buf, '$') = '\0';
+			if( rindex(refID, '$') )
+				*rindex(refID, '$') = '\0';
+			dir = dirname(dir);
+		}
 		sqlite3_free(sql);
-		if( !i )
-			asprintf(&refID, "%s%s$%X", base[0], parentID, objectID);
+		free(refID);
+		return 1;
 	}
+
+	detailID = GetFolderMetadata(name, NULL, NULL, NULL);
+	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+				" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
+				"VALUES"
+				" ('%s%s$%X', '%s%s', %Q, '%lld', '%s', '%q')",
+				base, parentID, objectID, base, parentID, refID, detailID, class, name);
+	//DEBUG printf("SQL: %s\n", sql);
+	ret = sql_exec(db, sql);
+	sqlite3_free(sql);
 	if( refID )
 		free(refID);
 
@@ -314,11 +364,16 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	char objectID[64];
 	unsigned long int detailID = 0;
 	char base[8];
+	char * typedir_parentID;
+	int typedir_objectID;
 
 	static long unsigned int fileno = 0;
 	printf("Scanned %lu files...\r", fileno++); fflush(stdout);
 
 	sprintf(objectID, "%s%s$%X", BROWSEDIR_ID, parentID, object);
+	typedir_parentID = strdup(parentID);
+	sscanf(rindex(typedir_parentID, '$')+1, "%X", &typedir_objectID);
+	*rindex(typedir_parentID, '$') = '\0';
 
 	if( is_image(name) )
 	{
@@ -342,6 +397,8 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	if( !detailID )
 		return -1;
 
+	insert_directory(name, path, base, typedir_parentID, typedir_objectID);
+
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 				" (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, NAME) "
 				"VALUES"
@@ -349,20 +406,18 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 				objectID, BROWSEDIR_ID, parentID, class, detailID, name);
 	//DEBUG printf("SQL: %s\n", sql);
 	sql_exec(db, sql);
-	sqlite3_free(sql);
-	#if 0
+
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-				" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, PATH, NAME) "
+				" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 				"VALUES"
-				" ('%s%s$%X', '%s%s', '%s', '%s', %lu, '%q', '%q')",
-				base, parentID, object, base, parentID, objectID, class, detailID, path, name);
+				" ('%s%s$%X', '%s%s', '%s', '%s', %lu, '%q')",
+				base, parentID, object, base, parentID, objectID, class, detailID, name);
 	//DEBUG printf("SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
-	#else
+
 	insert_containers(name, path, objectID, class, detailID);
-	#endif
-	return -1;
+	return 0;
 }
 
 int
@@ -426,7 +481,15 @@ create_database(void)
 					"THUMBNAIL BOOL DEFAULT 0, "
 					"CREATOR TEXT, "
 					"DLNA_PN TEXT, "
-					"MIME TEXT"
+					"MIME TEXT, "
+					"ALBUM_ART INTEGER DEFAULT 0"
+					");");
+	if( ret != SQLITE_OK )
+		goto sql_failed;
+	ret = sql_exec(db, "CREATE TABLE ALBUM_ART ( "
+					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
+					"PATH TEXT NOT NULL, "
+					"EMBEDDED BOOL DEFAULT 0"
 					");");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
@@ -435,7 +498,7 @@ create_database(void)
 		sprintf(sql_buf, "INSERT into OBJECTS (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME)"
 				 " values "
 				 "('%s', '%s', %lld, 'container.storageFolder', '%s')",
-				 containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL), containers[i+2]);
+				 containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL, NULL, NULL), containers[i+2]);
 		ret = sql_exec(db, sql_buf);
 		if( ret != SQLITE_OK )
 			goto sql_failed;
@@ -453,6 +516,7 @@ create_database(void)
 	sql_exec(db, "create INDEX IDX_OBJECTS_CLASS ON OBJECTS(CLASS);");
 	sql_exec(db, "create INDEX IDX_DETAILS_PATH ON DETAILS(PATH);");
 	sql_exec(db, "create INDEX IDX_DETAILS_ID ON DETAILS(ID);");
+	sql_exec(db, "create INDEX IDX_ALBUM_ART ON ALBUM_ART(ID);");
 
 
 sql_failed:
@@ -523,7 +587,7 @@ ScanDirectory(const char * dir, const char * parent)
 			}
 			if( S_ISDIR(entry.st_mode) )
 			{
-				insert_directory(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i);
+				insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i);
 				sprintf(parent_id, "%s$%X", (parent ? parent:""), i);
 				ScanDirectory(full_path, parent_id);
 			}
@@ -537,8 +601,11 @@ ScanDirectory(const char * dir, const char * parent)
 		free(namelist[i]);
 	}
 	free(namelist);
-	chdir(dirname((char*)dir));
-	if( !parent )
+	if( parent )
+	{
+		chdir(dirname((char*)dir));
+	}
+	else
 	{
 		printf("Scanning \"%s\" finished!\n", dir);
 #if USE_FORK

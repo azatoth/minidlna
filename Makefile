@@ -28,12 +28,12 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            upnpreplyparse.o minixml.o \
            getifaddr.o daemonize.o upnpglobalvars.o \
            options.o minissdp.o upnpevents.o \
-           sql.o metadata.o scanner.o
+           sql.o utils.o metadata.o albumart.o scanner.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
 #LIBS = -liptc
-LIBS = -lexif -ljpeg -ltag_c -lsqlite3 -lavformat -luuid #-lgd
+LIBS = -lexif -ljpeg -ltag_c -lid3tag -lsqlite3 -lavformat -luuid #-lgd
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 

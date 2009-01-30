@@ -107,31 +107,7 @@ GetProtocolInfo(struct upnphttp * h, const char * action)
 		"<u:%sResponse "
 		"xmlns:u=\"%s\">"
 		"<Source>"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_PAL;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_TS_HD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:video/vnd.dlna.mpeg-tts:DLNA.ORG_PN=AVC_TS_MP_HD_AC3_T;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-			"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01,"
-			"http-get:*:audio/x-ms-wma:*,"
-			"http-get:*:audio/wav:*,"
-			"http-get:*:audio/mp4:*,"
-			"http-get:*:audio/x-aiff:*,"
-			"http-get:*:audio/x-flac:*,"
-			"http-get:*:application/ogg:*,"
-			"http-get:*:image/jpeg:*,"
-			"http-get:*:image/gif:*,"
-			"http-get:*:audio/x-mpegurl:*,"
-			"http-get:*:video/mpeg:*,"
-			"http-get:*:video/x-msvideo:*,"
-			"http-get:*:video/avi:*,"
-			"http-get:*:video/mpeg2:*,"
-			"http-get:*:video/dvd:*,"
-			"http-get:*:video/x-ms-wmv:*"
+		RESOURCE_PROTOCOL_INFO_VALUES
 		"</Source>"
 		"<Sink></Sink>"
 		"</u:%sResponse>";
@@ -231,10 +207,10 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 static int callback(void *args, int argc, char **argv, char **azColName)
 {
 	struct Response { char *resp; int returned; int requested; int total; char *filter; } *passed_args = (struct Response *)args;
-	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *size = argv[9], *title = argv[10],
+	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *detailID = argv[5], *size = argv[9], *title = argv[10],
 	     *duration = argv[11], *bitrate = argv[12], *sampleFrequency = argv[13], *artist = argv[14], *album = argv[15],
 	     *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18], *track = argv[19], *date = argv[20],
-	     *resolution = argv[21], *tn = argv[22], *creator = argv[23], *dlna_pn = argv[24], *mime = argv[25];
+	     *resolution = argv[21], *tn = argv[22], *creator = argv[23], *dlna_pn = argv[24], *mime = argv[25], *album_art = argv[26];
 	char dlna_buf[64];
 	char str_buf[4096];
 	char **result;
@@ -292,6 +268,14 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 			sprintf(str_buf, "&lt;upnp:originalTrackNumber&gt;%s&lt;/upnp:originalTrackNumber&gt;", track);
 			strcat(passed_args->resp, str_buf);
 		}
+		if( album_art && atoi(album_art) && (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI")) ) {
+			sprintf(str_buf, "&lt;upnp:albumArtURI %s"
+					 "&gt;http://%s:5555/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
+					 (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI@dlna:profileID")) ?
+						"dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"" : "",
+					 lan_addr[0].str, album_art);
+			strcat(passed_args->resp, str_buf);
+		}
 		if( !passed_args->filter || strstr(passed_args->filter, "res") ) {
 			strcat(passed_args->resp, "&lt;res ");
 			if( size && (!passed_args->filter || strstr(passed_args->filter, "res@size")) ) {
@@ -319,9 +303,9 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 				strcat(passed_args->resp, str_buf);
 			}
 			sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-						"http://%s:5555/MediaItems/%s"
+						"http://%s:5555/MediaItems/%s.dat"
 					 "&lt;/res&gt;",
-					 mime, dlna_buf, lan_addr[0].str, id);
+					 mime, dlna_buf, lan_addr[0].str, detailID);
 			#if 0 //JPEG_RESIZE
 			if( dlna_pn && (strncmp(dlna_pn, "JPEG_LRG", 8) == 0) ) {
 				strcat(passed_args->resp, str_buf);
@@ -336,9 +320,9 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 				strcat(passed_args->resp, str_buf);
 				strcat(passed_args->resp, "&lt;res ");
 				sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-							"http://%s:5555/Thumbnails/%s"
+							"http://%s:5555/Thumbnails/%s.dat"
 						 "&lt;/res&gt;",
-						 mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, id);
+						 mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, detailID);
 			}
 			strcat(passed_args->resp, str_buf);
 		}
@@ -346,8 +330,8 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 	}
 	else if( strncmp(class, "container", 9) == 0 )
 	{
-		sprintf(str_buf, "SELECT count(*) from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where PARENT_ID = '%s' order by d.TRACK, d.TITLE, o.NAME;", id);
-		ret = sqlite3_get_table(db, str_buf, &result, 0, 0, 0);
+		sprintf(str_buf, "SELECT count(ID) from OBJECTS where PARENT_ID = '%s';", id);
+		ret = sql_get_table(db, str_buf, &result, NULL, NULL);
 		sprintf(str_buf, "&lt;container id=\"%s\" parentID=\"%s\" restricted=\"1\" ", id, parent);
 		strcat(passed_args->resp, str_buf);
 		if( !passed_args->filter || strstr(passed_args->filter, "@childCount"))
@@ -368,9 +352,27 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 		}
 		sprintf(str_buf, "&gt;"
 				 "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
-				 "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;"
-				 "&lt;/container&gt;",
+				 "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
 				 title, class);
+		strcat(passed_args->resp, str_buf);
+		if( creator && (!passed_args->filter || strstr(passed_args->filter, "dc:creator")) ) {
+			sprintf(str_buf, "&lt;dc:creator&gt;%s&lt;/dc:creator&gt;", creator);
+			strcat(passed_args->resp, str_buf);
+		}
+		if( genre && (!passed_args->filter || strstr(passed_args->filter, "upnp:genre")) ) {
+			sprintf(str_buf, "&lt;upnp:genre&gt;%s&lt;/upnp:genre&gt;", genre);
+			strcat(passed_args->resp, str_buf);
+		}
+		if( artist && (!passed_args->filter || strstr(passed_args->filter, "upnp:artist")) ) {
+			sprintf(str_buf, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
+			strcat(passed_args->resp, str_buf);
+		}
+		if( album_art && atoi(album_art) && (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI")) ) {
+			sprintf(str_buf, "&lt;upnp:albumArtURI dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\""
+					 "&gt;http://%s:5555/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;", lan_addr[0].str, album_art);
+			strcat(passed_args->resp, str_buf);
+		}
+		sprintf(str_buf, "&lt;/container&gt;");
 		sqlite3_free_table(result);
 	}
 	strcat(passed_args->resp, str_buf);
@@ -385,7 +387,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			"<u:BrowseResponse "
 			"xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">"
 			"<Result>"
-			"&lt;DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"&gt;\n";
+			"&lt;DIDL-Lite"
+			CONTENT_DIRECTORY_SCHEMAS;
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
         static const char resp2[] = "<UpdateID>0</UpdateID></u:BrowseResponse>";
 
@@ -410,6 +413,10 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	memset(str_buf, '\0', sizeof(str_buf));
 	memset(&args, 0, sizeof(args));
 	strcpy(resp, resp0);
+	/* See if we need to include DLNA namespace reference */
+	if( (strlen(Filter) <= 1) || strstr(Filter, "dlna") )
+		strcat(resp, DLNA_NAMESPACE);
+	strcat(resp, "&gt;\n");
 
 	args.total = StartingIndex;
 	args.returned = 0;
@@ -467,13 +474,14 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			"<u:SearchResponse "
 			"xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">"
 			"<Result>"
-			"&lt;DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"&gt;\n";
+			"&lt;DIDL-Lite"
+			CONTENT_DIRECTORY_SCHEMAS;
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
         static const char resp2[] = "<UpdateID>0</UpdateID></u:SearchResponse>";
 
 	char *resp = calloc(1, 1048576);
 	char *zErrMsg = 0;
-	char sql_buf[4096];
+	char *sql;
 	char str_buf[4096];
 	int ret;
 	struct Response { char *resp; int returned; int requested; int total; char *filter; } args;
@@ -486,8 +494,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char * Filter = GetValueFromNameValueList(&data, "Filter");
 	char * SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
+	char * newSearchCriteria = NULL;
 
-	memset(str_buf, '\0', sizeof(str_buf));
 	memset(&args, 0, sizeof(args));
 
 	args.total = 0;
@@ -503,6 +511,10 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	if( SortCriteria ) printf("Asked for SortCriteria: %s\n", SortCriteria);
 
 	strcpy(resp, resp0);
+	/* See if we need to include DLNA namespace reference */
+	if( (strlen(Filter) <= 1) || strstr(Filter, "dlna") )
+		strcat(resp, DLNA_NAMESPACE);
+	strcat(resp, "&gt;\n");
 
 	if( !Filter )
 	{
@@ -513,10 +525,11 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	if( strlen(Filter) > 1 )
 		args.filter = Filter;
 	if( strcmp(ContainerID, "0") == 0 )
-		*ContainerID = '%';
+		*ContainerID = '*';
 	if( !SearchCriteria )
 	{
-		asprintf(&SearchCriteria, "1 = 1");
+		asprintf(&newSearchCriteria, "1 = 1");
+		SearchCriteria = newSearchCriteria;
 	}
 	else
 	{
@@ -533,25 +546,41 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "exists false", "is NULL", 0);
 		SearchCriteria = modifyString(SearchCriteria, "@refID", "REF_ID", 0);
 		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
+		#if 0
+		if( strstr(SearchCriteria, "&amp;") )
+		{
+			newSearchCriteria = modifyString(strdup(SearchCriteria), "&amp;", "&amp;amp;", 0);
+			SearchCriteria = newSearchCriteria;
+		}
+		#endif
 	}
 	printf("Translated SearchCriteria: %s\n", SearchCriteria);
 
 	args.resp = resp;
-	sprintf(sql_buf, "SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-			 " where OBJECT_ID like '%s$%%' and (%s) order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
-			 ContainerID, SearchCriteria, StartingIndex);
-	printf("Search SQL: %s\n", sql_buf);
-	ret = sqlite3_exec(db, sql_buf, callback, (void *) &args, &zErrMsg);
+	sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+	                      " where OBJECT_ID glob '%s$*' and (%s) "
+			      "%z"
+	                      " order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
+	                      ContainerID, SearchCriteria, 
+			      (*ContainerID == '*') ? NULL :
+	                      sqlite3_mprintf("UNION ALL SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+	    		                      " where OBJECT_ID = '%s' and (%s) ", ContainerID, SearchCriteria),
+		       	      StartingIndex);
+	printf("Search SQL: %s\n", sql);
+	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	if( ret != SQLITE_OK ){
-		printf("SQL error: %s\n", zErrMsg);
+		printf("SQL error: %s\nBAD SQL: %s\n", zErrMsg, sql);
 		sqlite3_free(zErrMsg);
 	}
+	sqlite3_free(sql);
 	strcat(resp, resp1);
 	sprintf(str_buf, "\n<NumberReturned>%u</NumberReturned>\n<TotalMatches>%u</TotalMatches>\n", args.returned, args.total);
 	strcat(resp, str_buf);
 	strcat(resp, resp2);
 	BuildSendAndCloseSoapResp(h, resp, strlen(resp));
 	ClearNameValueList(&data);
+	if( newSearchCriteria )
+		free(newSearchCriteria);
 	free(resp);
 }
 

@@ -7,6 +7,13 @@
 #ifndef __UPNPSOAP_H__
 #define __UPNPSOAP_H__
 
+#define CONTENT_DIRECTORY_SCHEMAS \
+	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"" \
+	" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"" \
+	" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
+#define DLNA_NAMESPACE \
+	" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\""
+
 /* ExecuteSoapAction():
  * this method executes the requested Soap Action */
 void

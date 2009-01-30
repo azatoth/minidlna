@@ -84,31 +84,7 @@ static const char * const upnpallowedvalues[] =
 	"IN_PROGRESS",
 	"STOPPED",
 	0,
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN,"		/* 44 */
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_PS_PAL;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:video/mpeg:DLNA.ORG_PN=MPEG_TS_HD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:video/vnd.dlna.mpeg-tts:DLNA.ORG_PN=AVC_TS_MP_HD_AC3_T;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
-	"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01,"
-	"http-get:*:audio/x-ms-wma:*,"
-	"http-get:*:audio/wav:*,"
-	"http-get:*:audio/mp4:*,"
-	"http-get:*:audio/x-aiff:*,"
-	"http-get:*:audio/x-flac:*,"
-	"http-get:*:application/ogg:*,"
-	"http-get:*:image/jpeg:*,"
-	"http-get:*:image/gif:*,"
-	"http-get:*:audio/x-mpegurl:*,"
-	"http-get:*:video/mpeg:*,"
-	"http-get:*:video/x-msvideo:*,"
-	"http-get:*:video/avi:*,"
-	"http-get:*:video/mpeg2:*,"
-	"http-get:*:video/dvd:*,"
-	"http-get:*:video/x-ms-wmv:*",
+	RESOURCE_PROTOCOL_INFO_VALUES,		/* 44 */
 	0,
 	"",			/* 46 */
 	0

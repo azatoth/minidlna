@@ -37,6 +37,8 @@
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
+#include "albumart.h"
+#include "utils.h"
 #include "sql.h"
 
 #define FLAG_ARTIST 0x01
@@ -51,81 +53,6 @@
 #define PCM		0x00000040
 #define AAC		0x00000100
 #define AAC_MULT5	0x00000200
-
-int
-ends_with(const char * haystack, const char * needle)
-{
-	const char *found = strcasestr(haystack, needle);
-	return (found && found[strlen(needle)] == '\0');
-}
-
-char *
-trim(char *str)
-{
-        if (!str)
-                return(NULL);
-        int i;
-        for (i=0; i <= strlen(str) && (isspace(str[i]) || str[i] == '"'); i++) {
-		str++;
-	}
-        for (i=(strlen(str)-1); i >= 0 && (isspace(str[i]) || str[i] == '"'); i--) {
-                str[i] = '\0';
-        }
-        return str;
-}
-
-char *
-modifyString(char * string, const char * before, const char * after, short like)
-{
-	int oldlen, newlen, chgcnt = 0;
-	char *s, *p, *t;
-
-	oldlen = strlen(before);
-	newlen = strlen(after);
-	if( newlen > oldlen )
-	{
-		s = string;
-		while( (p = strstr(s, before)) )
-		{
-			chgcnt++;
-			s = p+oldlen;
-		}
-		string = realloc(string, strlen(string)+((newlen-oldlen)*chgcnt)+1);
-	}
-
-	s = string;
-	while( s )
-	{
-		p = strcasestr(s, before);
-		if( !p )
-			return string;
-		if( like )
-		{
-			t = p+oldlen;
-			while( isspace(*t) )
-				t++;
-			if( *t == '"' )
-				while( *++t != '"' )
-					continue;
-			memmove(t+1, t, strlen(t)+1);
-			*t = '%';
-		}
-		memmove(p + newlen, p + oldlen, strlen(p + oldlen) + 1);
-		memcpy(p, after, newlen);
-		s = p + newlen;
-	}
-	if( newlen < oldlen )
-		string = realloc(string, strlen(string)+1);
-
-	return string;
-}
-
-void
-strip_ext(char * name)
-{
-	if( rindex(name, '.') )
-		*rindex(name, '.') = '\0';
-}
 
 /* This function shamelessly copied from libdlna */
 #define MPEG_TS_SYNC_CODE 0x47
@@ -162,16 +89,17 @@ dlna_timestamp_is_present(const char * filename)
 }
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * artist)
+GetFolderMetadata(const char * name, const char * artist, const char * genre, const char * album_art)
 {
 	char * sql;
 	int ret;
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, ARTIST) "
+				" (TITLE, CREATOR, ARTIST, GENRE, ALBUM_ART) "
 				"VALUES"
-				" ('%q', %Q);",
-				name, artist);
+				" ('%q', %Q, %Q, %Q, %lld);",
+				name, artist, artist, genre,
+				album_art ? strtoll(album_art, NULL, 10) : 0);
 
 	if( sql_exec(db, sql) != SQLITE_OK )
 		ret = 0;
@@ -307,9 +235,9 @@ GetAudioMetadata(const char * path, char * name)
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
-				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME) "
+				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 				"VALUES"
-				" (%Q, %llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s');",
+				" (%Q, %llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s', %lld);",
 				path, size, duration, taglib_audioproperties_channels(properties),
 				taglib_audioproperties_bitrate(properties)*1024,
 				taglib_audioproperties_samplerate(properties),
@@ -320,8 +248,8 @@ GetAudioMetadata(const char * path, char * name)
 				genre,
 				comment,
 				taglib_tag_track(tag),
-				dlna_pn, mime);
-
+				dlna_pn, mime,
+				find_album_art(path) );
 	taglib_tag_free_strings();
 	taglib_file_free(audio_file);
 
@@ -552,7 +480,7 @@ GetVideoMetadata(const char * path, char * name)
 	int audio_profile = 0;
 	ts_timestamp_t ts_timestamp = NONE;
 	int duration, hours, min, sec, ms;
-	aac_object_type_t aac_type = 0;
+	aac_object_type_t aac_type = AAC_INVALID;
 	metadata_t m;
 	memset(&m, '\0', sizeof(m));
 	date[0] = '\0';
@@ -597,9 +525,15 @@ GetVideoMetadata(const char * path, char * name)
 				case CODEC_ID_AAC:
 					if( !ctx->streams[audio_stream]->codec->extradata_size ||
 					    !ctx->streams[audio_stream]->codec->extradata )
+					{
 						printf("No AAC type\n");
+					}
 					else
-						aac_type = ctx->streams[audio_stream]->codec->extradata[0] >> 3;
+					{
+						uint8_t data;
+						memcpy(&data, ctx->streams[audio_stream]->codec->extradata, 1);
+						aac_type = data >> 3;
+					}
 					switch( aac_type )
 					{
 						/* AAC Low Complexity variants */
@@ -642,15 +576,21 @@ GetVideoMetadata(const char * path, char * name)
 					else if ( ctx->streams[audio_stream]->codec->bit_rate <= 385000 )
 						audio_profile = WMA_FULL;
 					break;
+				#ifdef CODEC_ID_WMAPRO
 				case CODEC_ID_WMAPRO:
 					audio_profile = WMA_PRO;
 					break;
+				#endif
 				case CODEC_ID_MP2:
 					audio_profile = MP2;
 					break;
 				default:
 					if( (ctx->streams[audio_stream]->codec->codec_id >= CODEC_ID_PCM_S16LE) &&
+					    #ifdef CODEC_ID_PCM_F64LE
 					    (ctx->streams[audio_stream]->codec->codec_id <= CODEC_ID_PCM_F64LE) )
+					    #else 
+					    (ctx->streams[audio_stream]->codec->codec_id <= CODEC_ID_PCM_S24DAUD) )
+					    #endif
 						audio_profile = PCM;
 					else
 						printf("Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);

@@ -33,6 +33,7 @@
 #include <sys/sendfile.h>
 
 #include "upnpglobalvars.h"
+#include "utils.h"
 #include <sqlite3.h>
 #include <libexif/exif-loader.h>
 #if 0 //JPEG_RESIZE
@@ -175,7 +176,8 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_RANGE;
 					h->req_RangeEnd = atoll(index(p+6, '-')+1);
 					h->req_RangeStart = atoll(p+6);
-printf("Range Start-End: %lld - %lld\n", h->req_RangeStart, h->req_RangeEnd?h->req_RangeEnd:-1);
+					printf("Range Start-End: %lld - %lld\n",
+					       h->req_RangeStart, h->req_RangeEnd?h->req_RangeEnd:-1);
 				}
 			}
 			else if(strncasecmp(line, "Host", 4)==0)
@@ -532,7 +534,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 	HttpVer[i] = '\0';
 	syslog(LOG_INFO, "HTTP REQUEST : %s %s (%s)",
 	       HttpCommand, HttpUrl, HttpVer);
-	//DEBUG printf("HTTP REQUEST:\n%.*s\n", h->req_buflen, h->req_buf);
+	printf("HTTP REQUEST:\n%.*s\n", h->req_buflen, h->req_buf);
 	ParseHttpHeaders(h);
 
 	/* see if we need to wait for remaining data */
@@ -605,6 +607,11 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		else if(strncmp(HttpUrl, "/Thumbnails/", 12) == 0)
 		{
 			SendResp_thumbnail(h, HttpUrl+12);
+			CloseSocket_upnphttp(h);
+		}
+		else if(strncmp(HttpUrl, "/AlbumArt/", 10) == 0)
+		{
+			SendResp_albumArt(h, HttpUrl+10);
 			CloseSocket_upnphttp(h);
 		}
 #if 0 //JPEG_RESIZE
@@ -833,7 +840,7 @@ void
 SendResp_upnphttp(struct upnphttp * h)
 {
 	int n;
-printf("HTTP RESPONSE:\n%.*s\n", h->res_buflen, h->res_buf);
+	printf("HTTP RESPONSE:\n%.*s\n", h->res_buflen, h->res_buf);
 	n = send(h->socket, h->res_buf, h->res_buflen, 0);
 	if(n<0)
 	{
@@ -847,6 +854,127 @@ printf("HTTP RESPONSE:\n%.*s\n", h->res_buflen, h->res_buf);
 	}
 }
 
+int
+send_data(struct upnphttp * h, char * header, size_t size)
+{
+	int n;
+
+	n = send(h->socket, header, size, 0);
+	if(n<0)
+	{
+		syslog(LOG_ERR, "send(res_buf): %m");
+	} 
+	else if(n < h->res_buflen)
+	{
+		/* TODO : handle correctly this case */
+		syslog(LOG_ERR, "send(res_buf): %d bytes sent (out of %d)",
+						n, h->res_buflen);
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
+
+void
+send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
+{
+	off_t send_size;
+
+	while( offset < end_offset )
+	{
+		send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
+		off_t ret = sendfile(h->socket, sendfd, &offset, send_size);
+		if( ret == -1 )
+		{
+			printf("sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+			if( errno == 32 || errno == 9 || errno == 54 || errno == 104 )
+				break;
+		}
+		/*else
+		{
+			printf("sent %lld bytes to %d. offset is now %lld.\n", ret, h->socket, offset);
+		}*/
+	}
+}
+
+void
+SendResp_albumArt(struct upnphttp * h, char * object)
+{
+	char header[1500];
+	char sql_buf[256];
+	char **result;
+	int rows;
+	char *path;
+	char date[30];
+	time_t curtime = time(NULL);
+	off_t offset = 0, size;
+	int sendfh;
+
+	memset(header, 0, 1500);
+
+	if( h->reqflags & FLAG_XFERSTREAMING || h->reqflags & FLAG_RANGE )
+	{
+		syslog(LOG_NOTICE, "Hey, you can't specify transferMode as Streaming with an image!");
+		Send406(h);
+		return;
+	}
+
+	strip_ext(object);
+	sprintf(sql_buf, "SELECT PATH from ALBUM_ART where ID = %s", object);
+	sqlite3_get_table(db, sql_buf, &result, &rows, 0, 0);
+	if( !rows )
+	{
+		syslog(LOG_NOTICE, "ALBUM_ART ID %s not found, responding ERROR 404", object);
+		Send404(h);
+		goto error;
+	}
+	path = result[1];
+	printf("Serving album art ID: %s [%s]\n", object, path);
+
+	if( access(path, F_OK) == 0 )
+	{
+		strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+
+		sendfh = open(path, O_RDONLY);
+		if( sendfh < 0 ) {
+			printf("Error opening %s\n", path);
+			goto error;
+		}
+		size = lseek(sendfh, 0, SEEK_END);
+		lseek(sendfh, 0, SEEK_SET);
+
+		sprintf(header, "HTTP/1.1 200 OK\r\n"
+				"Content-Type: image/jpeg\r\n"
+				"Content-Length: %lld\r\n"
+				"Connection: close\r\n"
+				"Date: %s\r\n"
+				"EXT:\r\n"
+			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
+				"Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n",
+				size, date);
+
+		if( h->reqflags & FLAG_XFERBACKGROUND )
+		{
+			strcat(header, "transferMode.dlna.org: Background\r\n\r\n");
+		}
+		else //if( h->reqflags & FLAG_XFERINTERACTIVE )
+		{
+			strcat(header, "transferMode.dlna.org: Interactive\r\n\r\n");
+		}
+
+
+		if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
+		{
+			send_file(h, sendfh, offset, size);
+		}
+		close(sendfh);
+	}
+	error:
+	sqlite3_free_table(result);
+}
+
 void
 SendResp_thumbnail(struct upnphttp * h, char * object)
 {
@@ -854,9 +982,9 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 	char sql_buf[256];
 	char **result;
 	int rows;
+	char *path;
 	char date[30];
 	time_t curtime = time(NULL);
-	int n;
 	ExifData *ed;
 	ExifLoader *l;
 
@@ -869,7 +997,8 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 		return;
 	}
 
-	sprintf(sql_buf, "SELECT d.PATH from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where OBJECT_ID = '%s'", object);
+	strip_ext(object);
+	sprintf(sql_buf, "SELECT PATH from DETAILS where ID = '%s'", object);
 	sqlite3_get_table(db, sql_buf, &result, &rows, 0, 0);
 	if( !rows )
 	{
@@ -877,20 +1006,23 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 		Send404(h);
 		goto error;
 	}
-	printf("Serving up thumbnail for ObjectId: %s [%s]\n", object, result[1]);
+	path = result[1];
+	printf("Serving thumbnail for ObjectId: %s [%s]\n", object, path);
 
-	if( access(result[1], F_OK) == 0 )
+	if( access(path, F_OK) == 0 )
 	{
 		strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 
 		l = exif_loader_new();
-		exif_loader_write_file(l, result[1]);
+		exif_loader_write_file(l, path);
 		ed = exif_loader_get_data(l);
 		exif_loader_unref(l);
 
-		if( !ed->size )
+		if( !ed || !ed->size )
 		{
 			Send404(h);
+			if( ed )
+				exif_data_unref(ed);
 			goto error;
 		}
 		sprintf(header, "HTTP/1.1 200 OK\r\n"
@@ -900,47 +1032,21 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 				"Date: %s\r\n"
 				"EXT:\r\n"
 			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
-				"Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA_TN/1.0\r\n",
+				"Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n",
 				ed->size, date);
 
 		if( h->reqflags & FLAG_XFERBACKGROUND )
 		{
-			strcat(header, "transferMode.dlna.org: Background\r\n");
+			strcat(header, "transferMode.dlna.org: Background\r\n\r\n");
 		}
 		else //if( h->reqflags & FLAG_XFERINTERACTIVE )
 		{
-			strcat(header, "transferMode.dlna.org: Interactive\r\n");
-		}
-		strcat(header, "\r\n");
-
-		n = send(h->socket, header, strlen(header), 0);
-		if(n<0)
-		{
-			syslog(LOG_ERR, "send(res_buf): %m");
-		} 
-		else if(n < h->res_buflen)
-		{
-			/* TODO : handle correctly this case */
-			syslog(LOG_ERR, "send(res_buf): %d bytes sent (out of %d)",
-							n, h->res_buflen);
+			strcat(header, "transferMode.dlna.org: Interactive\r\n\r\n");
 		}
 
-		if( h->req_command == EHead )
+		if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
 		{
-			exif_data_unref(ed);
-			goto error;
-		}
-
-		n = send(h->socket, ed->data, ed->size, 0);
-		if(n<0)
-		{
-			syslog(LOG_ERR, "send(res_buf): %m");
-		} 
-		else if(n < h->res_buflen)
-		{
-			/* TODO : handle correctly this case */
-			syslog(LOG_ERR, "send(res_buf): %d bytes sent (out of %d)",
-							n, h->res_buflen);
+			send_data(h, (char *)ed->data, ed->size);
 		}
 		exif_data_unref(ed);
 	}
@@ -1067,15 +1173,17 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	int rows;
 	char date[30];
 	time_t curtime = time(NULL);
-	off_t total, send_size;
+	off_t total, offset, size;
 	char *path, *mime, *dlna;
+	int sendfh;
 #if USE_FORK
 	pid_t newpid = 0;
 #endif
 
 	memset(header, 0, 1500);
 
-	sprintf(sql_buf, "SELECT d.PATH, d.MIME, d.DLNA_PN from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where OBJECT_ID = '%s'", object);
+	strip_ext(object);
+	sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%s'", object);
 	sqlite3_get_table(db, sql_buf, &result, &rows, 0, 0);
 	if( !rows )
 	{
@@ -1093,11 +1201,11 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	path = result[3];
 	mime = result[4];
 	dlna = result[5];
-	printf("ObjectId: %s [%s]\n", object, path);
+	printf("Serving DetailID: %s [%s]\n", object, path);
 
 	if( h->reqflags & FLAG_XFERSTREAMING )
 	{
-		if( strncmp(mime, "imag", 4) == 0 )
+		if( strncmp(mime, "image", 5) == 0 )
 		{
 			syslog(LOG_NOTICE, "Hey, you can't specify transferMode as Streaming with an image!");
 			Send406(h);
@@ -1112,7 +1220,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			Send400(h);
 			goto error;
 		}
-		if( strncmp(mime, "imag", 4) != 0 )
+		if( strncmp(mime, "image", 5) != 0 )
 		{
 			syslog(LOG_NOTICE, "Hey, you can't specify transferMode as Interactive without an image!");
 			Send406(h);
@@ -1121,15 +1229,17 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	}
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-	off_t offset = h->req_RangeStart;
-        int sendfh = open(path, O_RDONLY);
+	offset = h->req_RangeStart;
+	sendfh = open(path, O_RDONLY);
 	if( sendfh < 0 ) {
-		printf("Error opening %s\n", result[2]);
+		printf("Error opening %s\n", path);
 		goto error;
 	}
-	off_t size = lseek(sendfh, 0, SEEK_END);
+	size = lseek(sendfh, 0, SEEK_END);
 	lseek(sendfh, 0, SEEK_SET);
 
+	sprintf(header, "HTTP/1.1 20%c OK\r\n"
+			"Content-Type: %s\r\n", (h->reqflags & FLAG_RANGE ? '6' : '0'), mime);
 	if( h->reqflags & FLAG_RANGE )
 	{
 		if( !h->req_RangeEnd )
@@ -1149,10 +1259,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			goto error;
 		}
 
-		sprintf(hdr_buf, "HTTP/1.1 206 OK\r\n"
-				 "Content-Type: %s\r\n", mime);
-		strcpy(header, hdr_buf);
-		if( h->req_RangeEnd && (h->req_RangeEnd < size) )
+		if( h->req_RangeEnd < size )
 		{
 			total = h->req_RangeEnd - h->req_RangeStart + 1;
 			sprintf(hdr_buf, "Content-Length: %llu\r\n"
@@ -1172,11 +1279,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	{
 		h->req_RangeEnd = size;
 		total = size;
-		sprintf(hdr_buf, "%s 200 OK\r\n"
-				 "Content-Type: %s\r\n"
-				 "Content-Length: %llu\r\n",
-				 "HTTP/1.1", mime, total);
-				 //h->HttpVer, mime, total);
+		sprintf(hdr_buf, "Content-Length: %llu\r\n", total);
 	}
 	strcat(header, hdr_buf);
 
@@ -1186,16 +1289,20 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	}
 	else if( h->reqflags & FLAG_XFERBACKGROUND )
 	{
-		if( strncmp(mime, "imag", 4) == 0 )
+		if( strncmp(mime, "image", 5) == 0 )
 			strcat(header, "transferMode.dlna.org: Background\r\n");
 	}
 	else //if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
 		if( (strncmp(mime, "video", 5) == 0) ||
 		    (strncmp(mime, "audio", 5) == 0) )
+		{
 			strcat(header, "transferMode.dlna.org: Streaming\r\n");
+		}
 		else
+		{
 			strcat(header, "transferMode.dlna.org: Interactive\r\n");
+		}
 	}
 
 	sprintf(hdr_buf, "Accept-Ranges: bytes\r\n"
@@ -1207,42 +1314,12 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			 date, dlna);
 	strcat(header, hdr_buf);
 
-	int n;
-	n = send(h->socket, header, strlen(header), 0);
-	if(n<0)
+	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 	{
-		syslog(LOG_ERR, "send(res_buf): %m");
-	} 
-	else if(n < h->res_buflen)
-	{
-		/* TODO : handle correctly this case */
-		syslog(LOG_ERR, "send(res_buf): %d bytes sent (out of %d)",
-						n, h->res_buflen);
+		send_file(h, sendfh, offset, h->req_RangeEnd);
 	}
+	close(sendfh);
 
-	if( h->req_command == EHead )
-	{
-		close(sendfh);
-	}
-	else if( sendfh > 0 )
-	{
-		while( offset < h->req_RangeEnd )
-		{
-			send_size = (( (h->req_RangeEnd - offset) < MAX_BUFFER_SIZE ) ? (h->req_RangeEnd - offset + 1) : MAX_BUFFER_SIZE);
-			off_t ret = sendfile(h->socket, sendfh, &offset, send_size);
-			if( ret == -1 )
-			{
-				printf("sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
-				if( errno == 32 || errno == 9 || errno == 54 || errno == 104 )
-					break;
-			}
-			/*else
-			{
-				printf("sent %lld bytes to %d. offset is now %lld.\n", ret, h->socket, offset);
-			}*/
-		}
-		close(sendfh);
-	}
 	error:
 	sqlite3_free_table(result);
 #if USE_FORK

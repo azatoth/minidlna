@@ -16,6 +16,6 @@ int
 sql_exec(sqlite3 * db, const char * sql);
 
 int
-sql_get_table(sqlite3 *db, const char *zSql, char ***pazResult, int *pnRow, int *pnColumn, char **pzErrmsg);
+sql_get_table(sqlite3 *db, const char *zSql, char ***pazResult, int *pnRow, int *pnColumn);
 
 #endif

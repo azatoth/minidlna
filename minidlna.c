@@ -211,12 +211,15 @@ parselanaddr(struct lan_addr_s * lan_addr, const char * str)
 void
 getfriendlyname(char * buf, int len)
 {
+	char * dot = NULL;
 	char * hn = calloc(1, 256);
 	if( gethostname(hn, 256) == 0 )
 	{
 		strncpy(buf, hn, len-1);
 		buf[len] = '\0';
-		*strstr(buf, ".") = '\0';
+		dot = index(buf, '.');
+		if( dot )
+			*dot = '\0';
 	}
 	else
 	{
