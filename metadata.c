@@ -41,7 +41,11 @@
 #include "utils.h"
 #include "sql.h"
 
-#define FLAG_ARTIST 0x01
+#define FLAG_TITLE	0x00000001
+#define FLAG_ARTIST	0x00000002
+#define FLAG_ALBUM	0x00000004
+#define FLAG_GENRE	0x00000008
+#define FLAG_COMMENT	0x00000010
 
 /* Audio profile flags */
 #define MP3		0x00000001
@@ -155,6 +159,7 @@ GetAudioMetadata(const char * path, char * name)
 		title = trim(title);
 		if( index(title, '&') )
 		{
+			free_flags |= FLAG_TITLE;
 			title = modifyString(strdup(title), "&", "&amp;amp;", 0);
 		}
 	}
@@ -182,6 +187,7 @@ GetAudioMetadata(const char * path, char * name)
 		album = trim(album);
 		if( index(album, '&') )
 		{
+			free_flags |= FLAG_ALBUM;
 			album = modifyString(strdup(album), "&", "&amp;amp;", 0);
 		}
 	}
@@ -195,6 +201,7 @@ GetAudioMetadata(const char * path, char * name)
 		genre = trim(genre);
 		if( index(genre, '&') )
 		{
+			free_flags |= FLAG_GENRE;
 			genre = modifyString(strdup(genre), "&", "&amp;amp;", 0);
 		}
 	}
@@ -208,6 +215,7 @@ GetAudioMetadata(const char * path, char * name)
 		comment = trim(comment);
 		if( index(comment, '&') )
 		{
+			free_flags |= FLAG_COMMENT;
 			comment = modifyString(strdup(comment), "&", "&amp;amp;", 0);
 		}
 	}
@@ -253,8 +261,16 @@ GetAudioMetadata(const char * path, char * name)
 	taglib_tag_free_strings();
 	taglib_file_free(audio_file);
 
+	if( free_flags & FLAG_TITLE )
+		free(title);
 	if( free_flags & FLAG_ARTIST )
 		free(artist);
+	if( free_flags & FLAG_ALBUM )
+		free(album);
+	if( free_flags & FLAG_GENRE )
+		free(genre);
+	if( free_flags & FLAG_COMMENT )
+		free(comment);
 
 	//DEBUG printf("SQL: %s\n", sql);
 	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
