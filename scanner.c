@@ -528,11 +528,9 @@ sql_failed:
 int
 filter_media(const struct dirent *d)
 {
-	struct stat entry;
 	return ( (*d->d_name != '.') &&
-		 (stat(d->d_name, &entry) == 0) &&
-		 (S_ISDIR(entry.st_mode) ||
-		  (S_ISREG(entry.st_mode) &&
+	         ((d->d_type == DT_DIR) ||
+		  ((d->d_type == DT_REG) &&
 		   (is_image(d->d_name) ||
 		    is_audio(d->d_name) ||
 		    is_video(d->d_name)
@@ -544,7 +542,6 @@ void
 ScanDirectory(const char * dir, const char * parent)
 {
 	struct dirent **namelist;
-        struct stat entry;
 	int n, i;
 	char parent_id[PATH_MAX];
 	char full_path[PATH_MAX];
@@ -577,24 +574,21 @@ ScanDirectory(const char * dir, const char * parent)
 		return;
 	}
 	for (i=0; i < n; i++) {
-                if( stat(namelist[i]->d_name, &entry) == 0 )
+		name = NULL;
+		sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
+		if( index(namelist[i]->d_name, '&') )
 		{
-			name = NULL;
-			sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
-			if( index(namelist[i]->d_name, '&') )
-			{
-				name = modifyString(strdup(namelist[i]->d_name), "&", "&amp;amp;", 0);
-			}
-			if( S_ISDIR(entry.st_mode) )
-			{
-				insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i);
-				sprintf(parent_id, "%s$%X", (parent ? parent:""), i);
-				ScanDirectory(full_path, parent_id);
-			}
-			else
-			{
-				insert_file(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i);
-			}
+			name = modifyString(strdup(namelist[i]->d_name), "&", "&amp;amp;", 0);
+		}
+		if( namelist[i]->d_type == DT_DIR )
+		{
+			insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i);
+			sprintf(parent_id, "%s$%X", (parent ? parent:""), i);
+			ScanDirectory(full_path, parent_id);
+		}
+		else
+		{
+			insert_file(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i);
 		}
 		if( name )
 			free(name);
