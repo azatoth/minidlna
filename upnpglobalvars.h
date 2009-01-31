@@ -8,7 +8,7 @@
 #define __UPNPGLOBALVARS_H__
 
 #include <time.h>
-#include "miniupnpdtypes.h"
+#include "minidlnatypes.h"
 #include "config.h"
 
 #include <sqlite3.h>
@@ -44,15 +44,6 @@
 	"http-get:*:video/dvd:*," \
 	"http-get:*:video/x-ms-wmv:*"
 
-/* file to store all leases */
-#ifdef ENABLE_LEASEFILE
-extern const char * lease_file;
-#endif
-
-/* forced ip address to use for this interface
- * when NULL, getifaddr() is used */
-extern const char * use_ext_ip_addr;
-
 /* statup time */
 extern time_t startup_time;
 
@@ -79,10 +70,6 @@ extern char modelnumber[];
 
 #define PRESENTATIONURL_MAX_LEN (64)
 extern char presentationurl[];
-
-/* UPnP permission rules : */
-extern struct upnpperm * upnppermlist;
-extern unsigned int num_upnpperm;
 
 /* lan addresses */
 /* MAX_LAN_ADDR : maximum number of interfaces

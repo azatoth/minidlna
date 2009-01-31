@@ -14,10 +14,6 @@
 struct lan_addr_s {
 	char str[16];	/* example: 192.168.0.1 */
 	struct in_addr addr, mask;	/* ip/mask */
-#ifdef MULTIPLE_EXTERNAL_IP
-	char ext_ip_str[16];
-	struct in_addr ext_ip_addr;
-#endif
 };
 
 #endif

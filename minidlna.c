@@ -39,12 +39,12 @@
 #include "upnpglobalvars.h"
 #include "upnphttp.h"
 #include "upnpdescgen.h"
-#include "miniupnpdpath.h"
+#include "minidlnapath.h"
 #include "getifaddr.h"
 #include "upnpsoap.h"
 #include "options.h"
 #include "minissdp.h"
-#include "miniupnpdtypes.h"
+#include "minidlnatypes.h"
 #include "daemonize.h"
 #include "upnpevents.h"
 #include "scanner.h"
@@ -148,9 +148,6 @@ struct runtime_vars {
 	/*struct lan_addr_s lan_addr[MAX_LAN_ADDR];*/
 	int port;	/* HTTP Port */
 	int notify_interval;	/* seconds between SSDP announces */
-	/* unused rules cleaning related variables : */
-	int clean_ruleset_threshold;	/* threshold for removing unused rules */
-	int clean_ruleset_interval;		/* (minimum) interval between checks */
 };
 
 /* parselanaddr()
@@ -188,23 +185,6 @@ parselanaddr(struct lan_addr_s * lan_addr, const char * str)
 		return -1;
 	}
 	lan_addr->mask.s_addr = htonl(nbits ? (0xffffffff << (32 - nbits)) : 0);
-#ifdef MULTIPLE_EXTERNAL_IP
-	while(*p && isspace(*p))
-		p++;
-	if(*p) {
-		n = 0;
-		while(p[n] && !isspace(*p))
-			n++;
-		if(n<=15) {
-			memcpy(lan_addr->ext_ip_str, p, n);
-			lan_addr->ext_ip_str[n] = '\0';
-			if(!inet_aton(lan_addr->ext_ip_str, &lan_addr->ext_ip_addr)) {
-				/* error */
-				fprintf(stderr, "Error parsing address : %s\n", lan_addr->ext_ip_str);
-			}
-		}
-	}
-#endif
 	return 0;
 }
 
@@ -293,8 +273,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		n_lan_addr++;
 	v->port = -1;
 	v->notify_interval = 30;	/* seconds between SSDP announces */
-	v->clean_ruleset_threshold = 20;
-	v->clean_ruleset_interval = 0;	/* interval between ruleset check. 0=disabled */
 
 	/* read options file first since
 	 * command line arguments have final say */
@@ -349,22 +327,10 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				strncpy(modelnumber, ary_options[i].value, MODELNUMBER_MAX_LEN);
 				modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
 				break;
-			case UPNPCLEANTHRESHOLD:
-				v->clean_ruleset_threshold = atoi(ary_options[i].value);
-				break;
-			case UPNPCLEANINTERVAL:
-				v->clean_ruleset_interval = atoi(ary_options[i].value);
-				break;
 			case UPNPSECUREMODE:
 				if(strcmp(ary_options[i].value, "yes") == 0)
 					SETFLAG(SECUREMODEMASK);
 				break;
-#ifdef ENABLE_LEASEFILE
-			case UPNPLEASEFILE:
-				lease_file = ary_options[i].value;
-				remove(lease_file);
-				break;
-#endif
 			case UPNPFRIENDLYNAME:
 				strncpy(friendly_name, ary_options[i].value, FRIENDLYNAME_MAX_LEN);
 				friendly_name[FRIENDLYNAME_MAX_LEN-1] = '\0';

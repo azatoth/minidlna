@@ -20,7 +20,7 @@
 #include <errno.h>
 #include "config.h"
 #include "upnpevents.h"
-#include "miniupnpdpath.h"
+#include "minidlnapath.h"
 #include "upnpglobalvars.h"
 #include "upnpdescgen.h"
 

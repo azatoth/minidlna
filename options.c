@@ -32,12 +32,7 @@ static const struct {
 	{ UPNPUUID, "uuid"},
 	{ UPNPSERIAL, "serial"},
 	{ UPNPMODEL_NUMBER, "model_number"},
-	{ UPNPCLEANTHRESHOLD, "clean_ruleset_threshold"},
-	{ UPNPCLEANINTERVAL, "clean_ruleset_interval"},
 	{ UPNPENABLE, "enable_upnp"},
-#ifdef ENABLE_LEASEFILE
-	{ UPNPLEASEFILE, "lease_file"},
-#endif
 	{ UPNPFRIENDLYNAME, "friendly_name"},
 	{ UPNPMEDIADIR, "media_dir"},
 	{ UPNPSECUREMODE, "secure_mode"}

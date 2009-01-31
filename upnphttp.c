@@ -22,7 +22,7 @@
 #include "config.h"
 #include "upnphttp.h"
 #include "upnpdescgen.h"
-#include "miniupnpdpath.h"
+#include "minidlnapath.h"
 #include "upnpsoap.h"
 #include "upnpevents.h"
 

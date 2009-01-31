@@ -16,7 +16,7 @@
 #include "getifaddr.h"
 #endif
 #include "upnpdescgen.h"
-#include "miniupnpdpath.h"
+#include "minidlnapath.h"
 #include "upnpglobalvars.h"
 #include "upnpdescstrings.h"
 

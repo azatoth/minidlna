@@ -526,6 +526,36 @@ sql_failed:
 }
 
 int
+filter_audio(const struct dirent *d)
+{
+	return ( (*d->d_name != '.') &&
+	         ((d->d_type == DT_DIR) ||
+		  ((d->d_type == DT_REG) &&
+		   is_audio(d->d_name) )
+	       ) );
+}
+
+int
+filter_video(const struct dirent *d)
+{
+	return ( (*d->d_name != '.') &&
+	         ((d->d_type == DT_DIR) ||
+		  ((d->d_type == DT_REG) &&
+		   is_video(d->d_name) )
+	       ) );
+}
+
+int
+filter_images(const struct dirent *d)
+{
+	return ( (*d->d_name != '.') &&
+	         ((d->d_type == DT_DIR) ||
+		  ((d->d_type == DT_REG) &&
+		   is_image(d->d_name) )
+	       ) );
+}
+
+int
 filter_media(const struct dirent *d)
 {
 	return ( (*d->d_name != '.') &&

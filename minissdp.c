@@ -14,7 +14,7 @@
 #include <syslog.h>
 #include "config.h"
 #include "upnpdescstrings.h"
-#include "miniupnpdpath.h"
+#include "minidlnapath.h"
 #include "upnphttp.h"
 #include "upnpglobalvars.h"
 #include "minissdp.h"

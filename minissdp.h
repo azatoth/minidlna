@@ -6,7 +6,7 @@
 #ifndef __MINISSDP_H__
 #define __MINISSDP_H__
 
-/*#include "miniupnpdtypes.h"*/
+/*#include "minidlnatypes.h"*/
 
 int
 OpenAndConfSSDPReceiveSocket();

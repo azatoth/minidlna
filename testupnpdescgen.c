@@ -18,8 +18,6 @@ char serialnumber[] = "12345678";
 char modelnumber[] = "1";
 char presentationurl[] = "http://192.168.0.1:8080/";
 
-char * use_ext_ip_addr = NULL;
-
 int getifaddr(const char * ifname, char * buf, int len)
 {
 	strncpy(buf, "1.2.3.4", len);

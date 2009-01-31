@@ -133,18 +133,9 @@ echo "/* The cache duration is indicated in seconds */" >> ${CONFIGFILE}
 echo "#define GETIFSTATS_CACHING_DURATION 2" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
-echo "/* Uncomment the following line to enable multiple external ip support */" >> ${CONFIGFILE}
-echo "/* note : Thas is EXPERIMENTAL, do not use that unless you know perfectly what you are doing */" >> ${CONFIGFILE}
-echo "/*#define MULTIPLE_EXTERNAL_IP*/" >> ${CONFIGFILE}
-echo "" >> ${CONFIGFILE}
-
 echo "/* Comment the following line to use home made daemonize() func instead" >> ${CONFIGFILE}
 echo " * of BSD daemon() */" >> ${CONFIGFILE}
 echo "#define USE_DAEMON" >> ${CONFIGFILE}
-echo "" >> ${CONFIGFILE}
-
-echo "/* Uncomment the following line to enable lease file support */" >> ${CONFIGFILE}
-echo "/*#define ENABLE_LEASEFILE*/" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* Experimental UPnP Events support. */" >> ${CONFIGFILE}

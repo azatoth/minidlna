@@ -24,13 +24,8 @@ enum upnpconfigoptions {
 	UPNPUUID,				/* uuid */
 	UPNPSERIAL,				/* serial */
 	UPNPMODEL_NUMBER,		/* model_number */
-	UPNPCLEANTHRESHOLD,		/* clean_ruleset_threshold */
-	UPNPCLEANINTERVAL,		/* clean_ruleset_interval */
 	UPNPENABLENATPMP,		/* enable_natpmp */
 	UPNPSECUREMODE,			/* secure_mode */
-#ifdef ENABLE_LEASEFILE
-	UPNPLEASEFILE,			/* lease_file */
-#endif
 	UPNPFRIENDLYNAME,		/* how the system should show up to DLNA clients */
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */
 	UPNPENABLE				/* enable_upnp */

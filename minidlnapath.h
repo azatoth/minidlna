@@ -9,9 +9,9 @@
 
 #include "config.h"
 
-/* Paths and other URLs in the miniupnpd http server */
+/* Paths and other URLs in the minidlna http server */
 
-#define ROOTDESC_PATH 		"/rootDesc.xml"
+#define ROOTDESC_PATH 				"/rootDesc.xml"
 
 #define CONTENTDIRECTORY_PATH			"/ContentDir.xml"
 #define CONTENTDIRECTORY_CONTROLURL		"/ctl/ContentDir"

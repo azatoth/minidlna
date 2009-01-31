@@ -76,29 +76,29 @@ depend:	config.h
 
 # DO NOT DELETE
 
-minidlna.o: config.h upnpglobalvars.h miniupnpdtypes.h
-minidlna.o: upnphttp.h upnpdescgen.h miniupnpdpath.h getifaddr.h upnpsoap.h
+minidlna.o: config.h upnpglobalvars.h minidlnatypes.h
+minidlna.o: upnphttp.h upnpdescgen.h minidlnapath.h getifaddr.h upnpsoap.h
 minidlna.o: options.h minissdp.h daemonize.h upnpevents.h
 minidlna.o: commonrdr.h
-upnphttp.o: config.h upnphttp.h upnpdescgen.h miniupnpdpath.h upnpsoap.h
+upnphttp.o: config.h upnphttp.h upnpdescgen.h minidlnapath.h upnpsoap.h
 upnphttp.o: upnpevents.h
-upnpdescgen.o: config.h upnpdescgen.h miniupnpdpath.h upnpglobalvars.h
-upnpdescgen.o: miniupnpdtypes.h upnpdescstrings.h
-upnpsoap.o: config.h upnpglobalvars.h miniupnpdtypes.h
+upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
+upnpdescgen.o: minidlnatypes.h upnpdescstrings.h
+upnpsoap.o: config.h upnpglobalvars.h minidlnatypes.h
 upnpsoap.o: upnphttp.h upnpsoap.h upnpreplyparse.h getifaddr.h
 upnpreplyparse.o: upnpreplyparse.h minixml.h
 minixml.o: minixml.h
 getifaddr.o: getifaddr.h
 daemonize.o: daemonize.h config.h
 upnpglobalvars.o: config.h upnpglobalvars.h
-upnpglobalvars.o: miniupnpdtypes.h
+upnpglobalvars.o: minidlnatypes.h
 options.o: options.h config.h upnpglobalvars.h
-options.o: miniupnpdtypes.h
-minissdp.o: config.h upnpdescstrings.h miniupnpdpath.h upnphttp.h
-minissdp.o: upnpglobalvars.h miniupnpdtypes.h minissdp.h
-upnpevents.o: config.h upnpevents.h miniupnpdpath.h upnpglobalvars.h
-upnpevents.o: miniupnpdtypes.h upnpdescgen.h
+options.o: minidlnatypes.h
+minissdp.o: config.h upnpdescstrings.h minidlnapath.h upnphttp.h
+minissdp.o: upnpglobalvars.h minidlnatypes.h minissdp.h
+upnpevents.o: config.h upnpevents.h minidlnapath.h upnpglobalvars.h
+upnpevents.o: minidlnatypes.h upnpdescgen.h
 netfilter/iptcrdr.o: netfilter/iptcrdr.h commonrdr.h config.h
 testupnpdescgen.o: config.h upnpdescgen.h
-upnpdescgen.o: config.h upnpdescgen.h miniupnpdpath.h upnpglobalvars.h
-upnpdescgen.o: miniupnpdtypes.h upnpdescstrings.h
+upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
+upnpdescgen.o: minidlnatypes.h upnpdescstrings.h
