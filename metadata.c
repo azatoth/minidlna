@@ -92,6 +92,13 @@ dlna_timestamp_is_present(const char * filename)
 	return 0;
 }
 
+/* This function taken from libavutil (ffmpeg), because it's not included with all versions of libavutil. */
+int
+get_fourcc(const char *s)
+{
+	return (s[0]) + (s[1]<<8) + (s[2]<<16) + (s[3]<<24);
+}
+
 sqlite_int64
 GetFolderMetadata(const char * name, const char * artist, const char * genre, const char * album_art)
 {
@@ -753,17 +760,17 @@ GetVideoMetadata(const char * path, char * name)
 					printf("Stream %d of %s is h.264\n", video_stream, path);
 					break;
 				case CODEC_ID_MPEG4:
-					if( ctx->streams[video_stream]->codec->codec_tag == ff_get_fourcc("XVID") )
+					if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("XVID") )
 					{
 						printf("Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
 						asprintf(&m.mime, "video/divx");
 					}
-					else if( ctx->streams[video_stream]->codec->codec_tag == ff_get_fourcc("DX50") )
+					else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DX50") )
 					{
 						printf("Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
 						asprintf(&m.mime, "video/divx");
 					}
-					else if( ctx->streams[video_stream]->codec->codec_tag == ff_get_fourcc("DIVX") )
+					else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DIVX") )
 					{
 						printf("Stream %d of %s is DiVX\n", video_stream, path);
 						asprintf(&m.mime, "video/divx");

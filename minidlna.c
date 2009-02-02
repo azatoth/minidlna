@@ -263,7 +263,8 @@ init(int argc, char * * argv, struct runtime_vars * v)
 	
 	/*v->n_lan_addr = 0;*/
 	char ext_ip_addr[INET_ADDRSTRLEN];
-	if( (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
+	if( (getsysaddr(ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
+	    (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
 	    (getifaddr("eth1", ext_ip_addr, INET_ADDRSTRLEN) < 0) )
 	{
 		printf("No IP!\n");

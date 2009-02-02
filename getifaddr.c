@@ -16,6 +16,7 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #if defined(sun)
 #include <sys/sockio.h>
 #endif
@@ -55,6 +56,23 @@ getifaddr(const char * ifname, char * buf, int len)
 	return 0;
 }
 
+int
+getsysaddr(char * buf, int len)
+{
+	char hn[256];
+	struct in_addr *addr;
+	struct hostent *host;
+
+	memset(buf, '\0', len);
+	gethostname(hn, sizeof(hn));
+	host = gethostbyname(hn);
+	if( !host )
+		return -1;
+	addr = (struct in_addr*)host->h_addr;
+	strncpy(buf, inet_ntoa(*addr), len);
+
+	return 0;
+}
 
 int
 getifhwaddr(const char * ifname, char * buf, int len)

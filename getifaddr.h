@@ -15,6 +15,9 @@ int
 getifaddr(const char * ifname, char * buf, int len);
 
 int
+getsysaddr(char * buf, int len);
+
+int
 getifhwaddr(const char * ifname, char * buf, int len);
 
 #endif
