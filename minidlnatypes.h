@@ -16,4 +16,22 @@ struct lan_addr_s {
 	struct in_addr addr, mask;	/* ip/mask */
 };
 
+struct runtime_vars_s {
+	int port;	/* HTTP Port */
+	int notify_interval;	/* seconds between SSDP announces */
+};
+
+enum media_types {
+	ALL_MEDIA,
+	AUDIO_ONLY,
+	VIDEO_ONLY,
+	IMAGES_ONLY
+};
+
+struct media_dir_s {
+	char * path;	/* Base path */
+	enum media_types type;	/* type of files to scan */
+	struct media_dir_s * next;
+};
+
 #endif

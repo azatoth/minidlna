@@ -222,6 +222,7 @@ find_album_art(const char * path)
 		}
 		else
 		{
+			sqlite3_free(sql);
 			sql = sqlite3_mprintf(	"INSERT into ALBUM_ART"
 						" (PATH, EMBEDDED) "
 						"VALUES"
@@ -231,6 +232,7 @@ find_album_art(const char * path)
 			if( sql_exec(db, sql) == SQLITE_OK )
 				ret = sqlite3_last_insert_rowid(db);
 		}
+		sqlite3_free_table(result);
 		sqlite3_free(sql);
 	}
 	if( album_art )

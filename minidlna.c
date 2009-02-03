@@ -139,17 +139,6 @@ set_startup_time(int sysuptime)
 	}
 }
 
-/* structure containing variables used during "main loop"
- * that are filled during the init */
-struct runtime_vars {
-	/* LAN IP addresses for SSDP traffic and HTTP */
-	/* moved to global vars */
-	/*int n_lan_addr;*/
-	/*struct lan_addr_s lan_addr[MAX_LAN_ADDR];*/
-	int port;	/* HTTP Port */
-	int notify_interval;	/* seconds between SSDP announces */
-};
-
 /* parselanaddr()
  * parse address with mask
  * ex: 192.168.1.1/24
@@ -224,7 +213,7 @@ getfriendlyname(char * buf, int len)
  * 7) compute presentation URL
  * 8) set signal handlers */
 static int
-init(int argc, char * * argv, struct runtime_vars * v)
+init(int argc, char * * argv)
 {
 	int i;
 	int pid;
@@ -261,7 +250,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 
 	getfriendlyname(friendly_name, FRIENDLYNAME_MAX_LEN);
 	
-	/*v->n_lan_addr = 0;*/
 	char ext_ip_addr[INET_ADDRSTRLEN];
 	if( (getsysaddr(ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
 	    (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
@@ -272,8 +260,8 @@ init(int argc, char * * argv, struct runtime_vars * v)
 	}
 	if( parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
 		n_lan_addr++;
-	v->port = -1;
-	v->notify_interval = 30;	/* seconds between SSDP announces */
+	runtime_vars.port = -1;
+	runtime_vars.notify_interval = 30;	/* seconds between SSDP announces */
 
 	/* read options file first since
 	 * command line arguments have final say */
@@ -290,12 +278,11 @@ init(int argc, char * * argv, struct runtime_vars * v)
 			switch(ary_options[i].id)
 			{
 			case UPNPLISTENING_IP:
-				if(n_lan_addr < MAX_LAN_ADDR)/* if(v->n_lan_addr < MAX_LAN_ADDR)*/
+				if(n_lan_addr < MAX_LAN_ADDR)
 				{
-					/*if(parselanaddr(&v->lan_addr[v->n_lan_addr],*/
 					if(parselanaddr(&lan_addr[n_lan_addr],
 					             ary_options[i].value) == 0)
-						n_lan_addr++; /*v->n_lan_addr++; */
+						n_lan_addr++;
 				}
 				else
 				{
@@ -304,13 +291,13 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				}
 				break;
 			case UPNPPORT:
-				v->port = atoi(ary_options[i].value);
+				runtime_vars.port = atoi(ary_options[i].value);
 				break;
 			case UPNPPRESENTATIONURL:
 				presurl = ary_options[i].value;
 				break;
 			case UPNPNOTIFY_INTERVAL:
-				v->notify_interval = atoi(ary_options[i].value);
+				runtime_vars.notify_interval = atoi(ary_options[i].value);
 				break;
 			case UPNPSYSTEM_UPTIME:
 				if(strcmp(ary_options[i].value, "yes") == 0)
@@ -337,8 +324,54 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				friendly_name[FRIENDLYNAME_MAX_LEN-1] = '\0';
 				break;
 			case UPNPMEDIADIR:
-				strncpy(media_dir, ary_options[i].value, MEDIADIR_MAX_LEN);
-				media_dir[MEDIADIR_MAX_LEN-1] = '\0';
+				usleep(1);
+				enum media_types type = ALL_MEDIA;
+				char * myval = NULL;
+				switch( ary_options[i].value[0] )
+				{
+				case 'A':
+				case 'a':
+					if( ary_options[i].value[0] == 'A' || ary_options[i].value[0] == 'a' )
+						type = AUDIO_ONLY;
+				case 'V':
+				case 'v':
+					if( ary_options[i].value[0] == 'V' || ary_options[i].value[0] == 'v' )
+						type = VIDEO_ONLY;
+				case 'P':
+				case 'p':
+					if( ary_options[i].value[0] == 'P' || ary_options[i].value[0] == 'p' )
+						type = IMAGES_ONLY;
+					myval = index(ary_options[i].value, '/');
+				case '/':
+					usleep(1);
+					char * path = realpath(myval ? myval:ary_options[i].value, NULL);
+					if( access(path, F_OK) != 0 )
+					{
+						fprintf(stderr, "Media directory not accessible! [%s]\n",
+						        path);
+						free(path);
+						break;
+					}
+					struct media_dir_s * this_dir = calloc(1, sizeof(struct media_dir_s));
+					this_dir->path = path;
+					this_dir->type = type;
+					if( !media_dirs )
+					{
+						media_dirs = this_dir;
+					}
+					else
+					{
+						struct media_dir_s * all_dirs = media_dirs;
+						while( all_dirs->next )
+							all_dirs = all_dirs->next;
+						all_dirs->next = this_dir;
+					}
+					break;
+				default:
+					fprintf(stderr, "Media directory entry not understood! [%s]\n",
+					        ary_options[i].value);
+					break;
+				}
 				break;
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",
@@ -358,7 +391,7 @@ init(int argc, char * * argv, struct runtime_vars * v)
 		{
 		case 't':
 			if(i+1 < argc)
-				v->notify_interval = atoi(argv[++i]);
+				runtime_vars.notify_interval = atoi(argv[++i]);
 			else
 				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
@@ -392,7 +425,7 @@ init(int argc, char * * argv, struct runtime_vars * v)
 			break;
 		case 'p':
 			if(i+1 < argc)
-				v->port = atoi(argv[++i]);
+				runtime_vars.port = atoi(argv[++i]);
 			else
 				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
@@ -417,22 +450,19 @@ init(int argc, char * * argv, struct runtime_vars * v)
 				int address_already_there = 0;
 				int j;
 				i++;
-				for(j=0; j<n_lan_addr; j++)/* for(j=0; j<v->n_lan_addr; j++)*/
+				for(j=0; j<n_lan_addr; j++)
 				{
 					struct lan_addr_s tmpaddr;
 					parselanaddr(&tmpaddr, argv[i]);
-					/*if(0 == strcmp(v->lan_addr[j].str, tmpaddr.str))*/
 					if(0 == strcmp(lan_addr[j].str, tmpaddr.str))
 						address_already_there = 1;
 				}
 				if(address_already_there)
 					break;
-				if(n_lan_addr < MAX_LAN_ADDR) /*if(v->n_lan_addr < MAX_LAN_ADDR)*/
+				if(n_lan_addr < MAX_LAN_ADDR)
 				{
-					/*v->lan_addr[v->n_lan_addr++] = argv[i];*/
-					/*if(parselanaddr(&v->lan_addr[v->n_lan_addr], argv[i]) == 0)*/
 					if(parselanaddr(&lan_addr[n_lan_addr], argv[i]) == 0)
-						n_lan_addr++; /*v->n_lan_addr++;*/
+						n_lan_addr++;
 				}
 				else
 				{
@@ -450,7 +480,7 @@ init(int argc, char * * argv, struct runtime_vars * v)
 			fprintf(stderr, "Unknown option: %s\n", argv[i]);
 		}
 	}
-	if( (/*v->*/n_lan_addr==0) || (v->port<=0) )
+	if( (n_lan_addr==0) || (runtime_vars.port<=0) )
 	{
 		fprintf(stderr, "Usage:\n\t"
 		        "%s [-f config_file] [-i ext_ifname] [-o ext_ip]\n"
@@ -521,8 +551,6 @@ init(int argc, char * * argv, struct runtime_vars * v)
 	{
 		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
 		         "http://%s/", lan_addr[0].str);
-		         /*"http://%s:%d/", lan_addr[0].str, 80);*/
-		         /*"http://%s:%d/", v->lan_addr[0].str, 80);*/
 	}
 
 	/* set signal handler */
@@ -566,19 +594,36 @@ main(int argc, char * * argv)
 #endif
 	struct timeval timeout, timeofday, lasttimeofday = {0, 0};
 	int max_fd = -1;
-	struct runtime_vars v;
 
-	if(init(argc, argv, &v) != 0)
+	if(init(argc, argv) != 0)
 		return 1;
 
 	LIST_INIT(&upnphttphead);
 
 	if( access(DB_PATH, F_OK) )
 	{
+		struct media_dir_s * media_path = media_dirs;
 		sqlite3_open(DB_PATH, &db);
 		freopen("/dev/null", "a", stderr);
-		ScanDirectory(media_dir, NULL);
+		if( CreateDatabase() != 0 )
+		{
+			fprintf(stderr, "Error creating database!\n");
+			return -1;
+		}
+		#if USE_FORK
+		pid_t newpid = fork();
+		if( newpid )
+			goto fork_done;
+		#endif
+		while( media_path )
+		{
+			ScanDirectory(media_path->path, NULL, media_path->type);
+			media_path = media_path->next;
+		}
 		freopen("/proc/self/fd/2", "a", stderr);
+		#if USE_FORK
+		_exit(0);
+		#endif
 	}
 	else
 	{
@@ -588,21 +633,40 @@ main(int argc, char * * argv)
 		if( sqlite3_get_table(db, "pragma user_version", &result, &rows, 0, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
+				struct media_dir_s * media_path = media_dirs;
 				printf("Database version mismatch; need to recreate...\n");
 				sqlite3_close(db);
 				unlink(DB_PATH);
 				sqlite3_open(DB_PATH, &db);
 				freopen("/dev/null", "a", stderr);
-				ScanDirectory(media_dir, NULL);
+				if( CreateDatabase() != 0 )
+				{
+					fprintf(stderr, "Error creating database!\n");
+					return -1;
+				}
+				#if USE_FORK
+				pid_t newpid = fork();
+				if( newpid )
+					goto fork_done;
+				#endif
+				while( media_path )
+				{
+					ScanDirectory(media_path->path, NULL, media_path->type);
+					media_path = media_path->next;
+				}
+				ScanDirectory(media_dirs->path, NULL, media_dirs->type);
 				freopen("/proc/self/fd/2", "a", stderr);
+				#if USE_FORK
+				_exit(0);
+				#endif
 			}
 			sqlite3_free_table(result);
 		}
 	}
+	#if USE_FORK
+	fork_done:
+	#endif
 
-
-	/* open socket for SSDP connections */
-	/*sudp = OpenAndConfSSDPReceiveSocket(v.n_lan_addr, v.lan_addr);*/
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
 	if(sudp < 0)
 	{
@@ -610,13 +674,13 @@ main(int argc, char * * argv)
 		return 1;
 	}
 	/* open socket for HTTP connections. Listen on the 1st LAN address */
-	shttpl = OpenAndConfHTTPSocket(v.port);
+	shttpl = OpenAndConfHTTPSocket(runtime_vars.port);
 	if(shttpl < 0)
 	{
 		syslog(LOG_ERR, "Failed to open socket for HTTP. EXITING");
 		return 1;
 	}
-	syslog(LOG_NOTICE, "HTTP listening on port %d", v.port);
+	syslog(LOG_NOTICE, "HTTP listening on port %d", runtime_vars.port);
 
 	/* open socket for sending notifications */
 	if(OpenAndConfSSDPNotifySockets(snotify) < 0)
@@ -636,24 +700,24 @@ main(int argc, char * * argv)
 		if(gettimeofday(&timeofday, 0) < 0)
 		{
 			syslog(LOG_ERR, "gettimeofday(): %m");
-			timeout.tv_sec = v.notify_interval;
+			timeout.tv_sec = runtime_vars.notify_interval;
 			timeout.tv_usec = 0;
 		}
 		else
 		{
 			/* the comparaison is not very precise but who cares ? */
-			if(timeofday.tv_sec >= (lasttimeofday.tv_sec + v.notify_interval))
+			if(timeofday.tv_sec >= (lasttimeofday.tv_sec + runtime_vars.notify_interval))
 			{
 				SendSSDPNotifies2(snotify,
-			                  (unsigned short)v.port,
-			                  (v.notify_interval << 1)+10);
+			                  (unsigned short)runtime_vars.port,
+			                  (runtime_vars.notify_interval << 1)+10);
 				memcpy(&lasttimeofday, &timeofday, sizeof(struct timeval));
-				timeout.tv_sec = v.notify_interval;
+				timeout.tv_sec = runtime_vars.notify_interval;
 				timeout.tv_usec = 0;
 			}
 			else
 			{
-				timeout.tv_sec = lasttimeofday.tv_sec + v.notify_interval
+				timeout.tv_sec = lasttimeofday.tv_sec + runtime_vars.notify_interval
 				                 - timeofday.tv_sec;
 				if(timeofday.tv_usec > lasttimeofday.tv_usec)
 				{
@@ -724,8 +788,7 @@ main(int argc, char * * argv)
 		if(sudp >= 0 && FD_ISSET(sudp, &readset))
 		{
 			/*syslog(LOG_INFO, "Received UDP Packet");*/
-			/*ProcessSSDPRequest(sudp, v.lan_addr, v.n_lan_addr,*/
-			ProcessSSDPRequest(sudp, (unsigned short)v.port);
+			ProcessSSDPRequest(sudp, (unsigned short)runtime_vars.port);
 		}
 		/* process active HTTP connections */
 		/* LIST_FOREACH macro is not available under linux */
@@ -802,7 +865,7 @@ shutdown:
 	{
 		syslog(LOG_ERR, "Failed to broadcast good-bye notifications");
 	}
-	for(i=0; i<n_lan_addr; i++)/* for(i=0; i<v.n_lan_addr; i++)*/
+	for(i=0; i<n_lan_addr; i++)
 		close(snotify[i]);
 
 	sqlite3_close(db);

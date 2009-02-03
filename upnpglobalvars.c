@@ -26,6 +26,7 @@ int logpackets = 0;
 
 #endif
 
+struct runtime_vars_s runtime_vars;
 int runtime_flags = 0;
 
 const char * pidfilename = "/var/run/minidlna.pid";
@@ -44,5 +45,5 @@ struct lan_addr_s lan_addr[MAX_LAN_ADDR];
 
 /* UPnP-A/V [DLNA] */
 sqlite3 *db;
-char media_dir[MEDIADIR_MAX_LEN];
+struct media_dir_s * media_dirs = NULL;
 char friendly_name[FRIENDLYNAME_MAX_LEN];

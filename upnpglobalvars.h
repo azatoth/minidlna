@@ -47,6 +47,7 @@
 /* statup time */
 extern time_t startup_time;
 
+extern struct runtime_vars_s runtime_vars;
 /* runtime boolean flags */
 extern int runtime_flags;
 #define LOGPACKETSMASK		0x0001
@@ -81,7 +82,7 @@ extern struct lan_addr_s lan_addr[];
 /* UPnP-A/V [DLNA] */
 extern sqlite3 *db;
 #define MEDIADIR_MAX_LEN (256)
-extern char media_dir[];
+extern struct media_dir_s * media_dirs;
 #define FRIENDLYNAME_MAX_LEN (64)
 extern char friendly_name[];
 

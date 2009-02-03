@@ -59,17 +59,34 @@ getifaddr(const char * ifname, char * buf, int len)
 int
 getsysaddr(char * buf, int len)
 {
-	char hn[256];
-	struct in_addr *addr;
-	struct hostent *host;
+	int i;
+	int s = socket(PF_INET, SOCK_STREAM, 0);
 
-	memset(buf, '\0', len);
-	gethostname(hn, sizeof(hn));
-	host = gethostbyname(hn);
-	if( !host )
-		return -1;
-	addr = (struct in_addr*)host->h_addr;
-	strncpy(buf, inet_ntoa(*addr), len);
+	for (i=1; i > 0; i++)
+	{
+		struct ifreq ifr;
+		struct sockaddr_in *addr = (struct sockaddr_in *) &ifr.ifr_addr;
+
+		ifr.ifr_ifindex = i;
+		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
+			break;
+		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
+		{
+			syslog(LOG_ERR, "ioctl(s, SIOCGIFADDR, ...): %m");
+			close(s);
+			return -1;
+		}
+		if(strncmp(inet_ntoa(addr->sin_addr), "127.", 4) == 0)
+			continue;
+		if(!inet_ntop(AF_INET, &addr->sin_addr, buf, len))
+		{
+			syslog(LOG_ERR, "inet_ntop(): %m");
+			close(s);
+			return -1;
+		}
+		break;
+	}
+	close(s);
 
 	return 0;
 }

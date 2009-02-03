@@ -15,7 +15,10 @@
 #define VIDEO_DIR_ID	"2$21"
 #define IMAGE_DIR_ID	"3$22"
 
+int
+CreateDatabase(void);
+
 void
-ScanDirectory(const char * dir, const char * parent);
+ScanDirectory(const char * dir, const char * parent, enum media_types type);
 
 #endif

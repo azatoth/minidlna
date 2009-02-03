@@ -270,10 +270,10 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 		}
 		if( album_art && atoi(album_art) && (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI")) ) {
 			sprintf(str_buf, "&lt;upnp:albumArtURI %s"
-					 "&gt;http://%s:5555/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
+					 "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
 					 (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI@dlna:profileID")) ?
 						"dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"" : "",
-					 lan_addr[0].str, album_art);
+					 lan_addr[0].str, runtime_vars.port, album_art);
 			strcat(passed_args->resp, str_buf);
 		}
 		if( !passed_args->filter || strstr(passed_args->filter, "res") ) {
@@ -303,26 +303,26 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 				strcat(passed_args->resp, str_buf);
 			}
 			sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-						"http://%s:5555/MediaItems/%s.dat"
+						"http://%s:%d/MediaItems/%s.dat"
 					 "&lt;/res&gt;",
-					 mime, dlna_buf, lan_addr[0].str, detailID);
+					 mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID);
 			#if 0 //JPEG_RESIZE
 			if( dlna_pn && (strncmp(dlna_pn, "JPEG_LRG", 8) == 0) ) {
 				strcat(passed_args->resp, str_buf);
 				sprintf(str_buf, "&lt;res "
 						 "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-							"http://%s:5555/Resized/%s"
+							"http://%s:%d/Resized/%s"
 						 "&lt;/res&gt;",
-						 mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, id);
+						 mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port, id);
 			}
 			#endif
 			if( tn && atoi(tn) && dlna_pn ) {
 				strcat(passed_args->resp, str_buf);
 				strcat(passed_args->resp, "&lt;res ");
 				sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-							"http://%s:5555/Thumbnails/%s.dat"
+							"http://%s:%d/Thumbnails/%s.dat"
 						 "&lt;/res&gt;",
-						 mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, detailID);
+						 mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
 			}
 			strcat(passed_args->resp, str_buf);
 		}
@@ -369,7 +369,7 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 		}
 		if( album_art && atoi(album_art) && (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI")) ) {
 			sprintf(str_buf, "&lt;upnp:albumArtURI dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\""
-					 "&gt;http://%s:5555/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;", lan_addr[0].str, album_art);
+					 "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;", lan_addr[0].str, runtime_vars.port, album_art);
 			strcat(passed_args->resp, str_buf);
 		}
 		sprintf(str_buf, "&lt;/container&gt;");

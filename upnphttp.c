@@ -1178,6 +1178,9 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	int sendfh;
 #if USE_FORK
 	pid_t newpid = 0;
+	newpid = fork();
+	if( newpid )
+		return;
 #endif
 
 	memset(header, 0, 1500);
@@ -1192,15 +1195,10 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		sqlite3_free_table(result);
 		return;
 	}
-#if USE_FORK
-	newpid = fork();
-	if( newpid )
-		return;
-#endif
-
 	path = result[3];
 	mime = result[4];
 	dlna = result[5];
+
 	printf("Serving DetailID: %s [%s]\n", object, path);
 
 	if( h->reqflags & FLAG_XFERSTREAMING )
