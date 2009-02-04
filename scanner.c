@@ -306,6 +306,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 	char * parent_buf = NULL;
 	char **result;
 	char *dir = NULL;
+	static char last_found[256] = "-1";
 
 	if( strcmp(base, BROWSEDIR_ID) != 0 )
 		asprintf(&refID, "%s%s$%X", BROWSEDIR_ID, parentID, objectID);
@@ -318,11 +319,14 @@ insert_directory(const char * name, const char * path, const char * base, const 
 		asprintf(&parent_buf, "%s%s", base, parentID);
 		while( !found )
 		{
+			if( strcmp(id_buf, last_found) == 0 )
+				break;
 			sql = sqlite3_mprintf("SELECT count(OBJECT_ID) from OBJECTS where OBJECT_ID = '%s'", id_buf);
 			if( (sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK) && atoi(result[1]) )
 			{
 				sqlite3_free_table(result);
 				sqlite3_free(sql);
+				strcpy(last_found, id_buf);
 				break;
 			}
 			sqlite3_free_table(result);
@@ -418,8 +422,6 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		*baseid = '\0';
 	}
 
-	insert_directory(name, path, base, typedir_parentID, typedir_objectID);
-
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 				" (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, NAME) "
 				"VALUES"
@@ -428,6 +430,8 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	//DEBUG printf("SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
+
+	insert_directory(name, path, base, typedir_parentID, typedir_objectID);
 
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 				" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -668,6 +672,6 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	}
 	else
 	{
-		printf("Scanning \"%s\" finished!\n", dir);
+		printf("Scanning %s finished!\n", dir);
 	}
 }
