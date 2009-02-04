@@ -385,7 +385,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	unsigned long int detailID = 0;
 	char base[8];
 	char * typedir_parentID;
-	int typedir_objectID = 0;
+	int typedir_objectID;
 	char * baseid;
 
 	static long unsigned int fileno = 0;
@@ -414,13 +414,6 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		return -1;
 
 	sprintf(objectID, "%s%s$%X", BROWSEDIR_ID, parentID, object);
-	typedir_parentID = strdup(parentID);
-	baseid = rindex(typedir_parentID, '$');
-	if( baseid )
-	{
-		sscanf(baseid+1, "%X", &typedir_objectID);
-		*baseid = '\0';
-	}
 
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 				" (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, NAME) "
@@ -431,8 +424,19 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	sql_exec(db, sql);
 	sqlite3_free(sql);
 
-	insert_directory(name, path, base, typedir_parentID, typedir_objectID);
-
+	if( *parentID )
+	{
+		typedir_objectID = 0;
+		typedir_parentID = strdup(parentID);
+		baseid = rindex(typedir_parentID, '$');
+		if( baseid )
+		{
+			sscanf(baseid+1, "%X", &typedir_objectID);
+			*baseid = '\0';
+		}
+		insert_directory(name, path, base, typedir_parentID, typedir_objectID);
+		free(typedir_parentID);
+	}
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 				" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 				"VALUES"
@@ -442,7 +446,6 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	sql_exec(db, sql);
 	sqlite3_free(sql);
 
-	free(typedir_parentID);
 
 	insert_containers(name, path, objectID, class, detailID);
 	return 0;
