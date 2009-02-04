@@ -79,7 +79,7 @@ get_next_available_id(const char * table, const char * parentID)
 
 long long int
 insert_container(const char * tmpTable, const char * item, const char * rootParent, const char *subParent,
-                 const char *class, const char *artist, const char *genre, const char *album_art)
+                 const char *class, const char *artist, const char *genre, const char *album_art, const char *art_dlna_pn)
 {
 	char **result;
 	char *sql;
@@ -100,7 +100,7 @@ insert_container(const char * tmpTable, const char * item, const char * rootPare
 	else
 	{
 		parentID = get_next_available_id("OBJECTS", rootParent);
-		detailID = GetFolderMetadata(item, artist, genre, album_art);
+		detailID = GetFolderMetadata(item, artist, genre, album_art, art_dlna_pn);
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 					" (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME) "
 					"VALUES"
@@ -147,7 +147,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			{
 				strncpy(date_taken, date, 10);
 			}
-			container = insert_container("DATES", date_taken, "3$12", NULL, "album.photoAlbum", NULL, NULL, NULL);
+			container = insert_container("DATES", date_taken, "3$12", NULL, "album.photoAlbum", NULL, NULL, NULL, NULL);
 			parentID = container>>32;
 			objectID = container;
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
@@ -160,12 +160,12 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		if( cam && date )
 		{
-			container = insert_container("CAMS", cam, "3$13", NULL, "storageFolder", NULL, NULL, NULL);
+			container = insert_container("CAMS", cam, "3$13", NULL, "storageFolder", NULL, NULL, NULL, NULL);
 			parentID = container>>32;
 			//objectID = container;
 			char parent[64];
 			sprintf(parent, "3$13$%X", parentID);
-			long long int subcontainer = insert_container("CAMDATE", date_taken, parent, cam, "storageFolder", NULL, NULL, NULL);
+			long long int subcontainer = insert_container("CAMDATE", date_taken, parent, cam, "storageFolder", NULL, NULL, NULL, NULL);
 			int subParentID = subcontainer>>32;
 			int subObjectID = subcontainer;
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
@@ -187,8 +187,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		char *artist = cols ? result[7+cols]:NULL, *album = cols ? result[8+cols]:NULL;
-		char *genre = cols ? result[9+cols]:NULL, *album_art = cols ? result[19+cols]:NULL;
+		char *artist = cols ? result[7+cols]:NULL, *album = cols ? result[8+cols]:NULL, *genre = cols ? result[9+cols]:NULL;
+		char *album_art = cols ? result[19+cols]:NULL, *art_dlna_pn = cols ? result[20+cols]:NULL;
 		static char last_artist[1024] = "0";
 		static int  last_artist_parentID, last_artist_objectID;
 		static char last_album[1024];
@@ -207,7 +207,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_artist, artist);
-				container = insert_container("ARTISTS", artist, "1$6", NULL, "person.musicArtist", NULL, genre, NULL);
+				container = insert_container("ARTISTS", artist, "1$6", NULL, "person.musicArtist", NULL, genre, NULL, NULL);
 				parentID = container>>32;
 				objectID = container;
 				last_artist_objectID = objectID;
@@ -231,7 +231,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_album, album);
-				container = insert_container("ALBUMS", album, "1$7", NULL, "album.musicAlbum", artist, genre, album_art);
+				container = insert_container("ALBUMS", album, "1$7", NULL, "album.musicAlbum", artist, genre, album_art, art_dlna_pn);
 				parentID = container>>32;
 				objectID = container;
 				last_album_objectID = objectID;
@@ -255,7 +255,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_genre, genre);
-				container = insert_container("GENRES", genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL);
+				container = insert_container("GENRES", genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL, NULL);
 				parentID = container>>32;
 				objectID = container;
 				last_genre_objectID = objectID;
@@ -361,7 +361,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 		return 1;
 	}
 
-	detailID = GetFolderMetadata(name, NULL, NULL, NULL);
+	detailID = GetFolderMetadata(name, NULL, NULL, NULL, NULL);
 	sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 				" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
 				"VALUES"
@@ -513,7 +513,8 @@ CreateDatabase(void)
 					"CREATOR TEXT, "
 					"DLNA_PN TEXT, "
 					"MIME TEXT, "
-					"ALBUM_ART INTEGER DEFAULT 0"
+					"ALBUM_ART INTEGER DEFAULT 0, "
+					"ART_DLNA_PN TEXT DEFAULT NULL"
 					");");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
@@ -529,7 +530,7 @@ CreateDatabase(void)
 		sprintf(sql_buf, "INSERT into OBJECTS (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME)"
 				 " values "
 				 "('%s', '%s', %lld, 'container.storageFolder', '%s')",
-				 containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL, NULL, NULL), containers[i+2]);
+				 containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL, NULL, NULL, NULL), containers[i+2]);
 		ret = sql_exec(db, sql_buf);
 		if( ret != SQLITE_OK )
 			goto sql_failed;

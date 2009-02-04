@@ -100,17 +100,18 @@ get_fourcc(const char *s)
 }
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * artist, const char * genre, const char * album_art)
+GetFolderMetadata(const char * name, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn)
 {
 	char * sql;
 	int ret;
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, CREATOR, ARTIST, GENRE, ALBUM_ART) "
+				" (TITLE, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
 				"VALUES"
-				" ('%q', %Q, %Q, %Q, %lld);",
+				" ('%q', %Q, %Q, %Q, %lld, %Q);",
 				name, artist, artist, genre,
-				album_art ? strtoll(album_art, NULL, 10) : 0);
+				album_art ? strtoll(album_art, NULL, 10) : 0,
+				art_dlna_pn);
 
 	if( sql_exec(db, sql) != SQLITE_OK )
 		ret = 0;
@@ -136,6 +137,8 @@ GetAudioMetadata(const char * path, char * name)
 	char *zErrMsg = NULL;
 	char *title, *artist, *album, *genre, *comment;
 	int free_flags = 0;
+	sqlite_int64 album_art;
+	char art_dlna_pn[9];
 
 	if ( stat(path, &file) == 0 )
 		size = file.st_size;
@@ -248,11 +251,13 @@ GetAudioMetadata(const char * path, char * name)
 		strcpy(mime, "audio/mp4");
 	}
 
+	album_art = find_album_art(path, art_dlna_pn);
+
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
-				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME, ALBUM_ART) "
+				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME, ALBUM_ART, ART_DLNA_PN) "
 				"VALUES"
-				" (%Q, %llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s', %lld);",
+				" (%Q, %llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s', %lld, %Q);",
 				path, size, duration, taglib_audioproperties_channels(properties),
 				taglib_audioproperties_bitrate(properties)*1024,
 				taglib_audioproperties_samplerate(properties),
@@ -264,7 +269,7 @@ GetAudioMetadata(const char * path, char * name)
 				comment,
 				taglib_tag_track(tag),
 				dlna_pn, mime,
-				find_album_art(path) );
+				album_art, album_art?art_dlna_pn:NULL );
 	taglib_tag_free_strings();
 	taglib_file_free(audio_file);
 

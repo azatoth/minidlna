@@ -209,8 +209,8 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 	struct Response { char *resp; int returned; int requested; int total; char *filter; } *passed_args = (struct Response *)args;
 	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *detailID = argv[5], *size = argv[9], *title = argv[10],
 	     *duration = argv[11], *bitrate = argv[12], *sampleFrequency = argv[13], *artist = argv[14], *album = argv[15],
-	     *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18], *track = argv[19], *date = argv[20],
-	     *resolution = argv[21], *tn = argv[22], *creator = argv[23], *dlna_pn = argv[24], *mime = argv[25], *album_art = argv[26];
+	     *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18], *track = argv[19], *date = argv[20], *resolution = argv[21],
+	     *tn = argv[22], *creator = argv[23], *dlna_pn = argv[24], *mime = argv[25], *album_art = argv[26], *art_dlna_pn = argv[27];
 	char dlna_buf[64];
 	char str_buf[4096];
 	char **result;
@@ -269,10 +269,12 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 			strcat(passed_args->resp, str_buf);
 		}
 		if( album_art && atoi(album_art) && (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI")) ) {
-			sprintf(str_buf, "&lt;upnp:albumArtURI %s"
-					 "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
-					 (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI@dlna:profileID")) ?
-						"dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"" : "",
+			strcat(passed_args->resp, "&lt;upnp:albumArtURI ");
+			if( !passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI@dlna:profileID") ) {
+				sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", art_dlna_pn);
+				strcat(passed_args->resp, str_buf);
+			}
+			sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
 					 lan_addr[0].str, runtime_vars.port, album_art);
 			strcat(passed_args->resp, str_buf);
 		}
@@ -368,8 +370,13 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 			strcat(passed_args->resp, str_buf);
 		}
 		if( album_art && atoi(album_art) && (!passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI")) ) {
-			sprintf(str_buf, "&lt;upnp:albumArtURI dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\""
-					 "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;", lan_addr[0].str, runtime_vars.port, album_art);
+			strcat(passed_args->resp, "&lt;upnp:albumArtURI ");
+			if( !passed_args->filter || strstr(passed_args->filter, "upnp:albumArtURI@dlna:profileID") ) {
+				sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", art_dlna_pn);
+				strcat(passed_args->resp, str_buf);
+			}
+			sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
+					 lan_addr[0].str, runtime_vars.port, album_art);
 			strcat(passed_args->resp, str_buf);
 		}
 		sprintf(str_buf, "&lt;/container&gt;");

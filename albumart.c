@@ -38,6 +38,24 @@ static void libjpeg_error_handler(j_common_ptr cinfo)
 	return;
 }
 
+int
+check_res(int width, int height, char * dlna_pn)
+{
+	if( (width <= 0) || (height <= 0) )
+		return 0;
+	if( width <= 160 && height <= 160 )
+		strcpy(dlna_pn, "JPEG_TN");
+	else if( width <= 640 && height <= 480 )
+		strcpy(dlna_pn, "JPEG_SM");
+	else if( width <= 1024 && height <= 768 )
+		strcpy(dlna_pn, "JPEG_MED");
+	else if( width <= 4096 && height <= 4096 )
+		strcpy(dlna_pn, "JPEG_LRG");
+	else
+		return 0;
+	return 1;
+}
+
 #ifdef HAVE_LIBID3TAG
 #include <id3tag.h>
 
@@ -101,9 +119,9 @@ jpeg_memory_src(j_decompress_ptr cinfo, unsigned char const *buffer, size_t bufs
         src->pub.bytes_in_buffer = bufsize;
 }
 
-/* And our main album art function */
+/* And our main album art functions */
 int
-check_embedded_art(const char * path)
+check_embedded_art(const char * path, char * dlna_pn)
 {
 	struct id3_file *file;
 	struct id3_tag *pid3tag;
@@ -148,21 +166,22 @@ check_embedded_art(const char * path)
 	}
 	id3_file_close(file);
 
-	/* It's not a valid DLNA_PN JPEG_TN unless it's JPEG <= 160x160 */
-	return( (width > 0 && width <= 160) && (height > 0 && height <= 160) );
+	return( check_res(width, height, dlna_pn) );
 }
 #endif // HAVE_LIBID3TAG
 
 char *
-check_for_album_file(char * dir)
+check_for_album_file(char * dir, char * dlna_pn)
 {
 	char * file = malloc(PATH_MAX);
 	char * album_art_names[] =
 	{
-		"Cover.jpg",  "cover.jpg",
-		"Album.jpg",  "album.jpg",
-		"Folder.jpg", "folder.jpg",
-		"Thumb.jpg",  "thumb.jpg",
+		"AlbumArtSmall.jpg", "albumartsmall.jpg",
+		"Cover.jpg",         "cover.jpg",
+		"AlbumArt.jpg",      "albumart.jpg",
+		"Album.jpg",         "album.jpg",
+		"Folder.jpg",        "folder.jpg",
+		"Thumb.jpg",         "thumb.jpg",
 		0
 	};
 	struct jpeg_decompress_struct cinfo;
@@ -191,8 +210,10 @@ check_for_album_file(char * dir)
 			jpeg_destroy_decompress(&cinfo);
 			fclose(infile);
 
-			if( (width > 0 && width <= 160) && (height > 0 && height <= 160) )
+			if( check_res(width, height, dlna_pn) )
 				return(file);
+			else
+				return(NULL);
 		}
 	}
 	free(file);
@@ -200,7 +221,7 @@ check_for_album_file(char * dir)
 }
 
 sqlite_int64
-find_album_art(const char * path)
+find_album_art(const char * path, char * dlna_pn)
 {
 	char * album_art = NULL;
 	char * sql;
@@ -210,9 +231,9 @@ find_album_art(const char * path)
 	char * mypath = strdup(path);
 
 	#ifdef HAVE_LIBID3TAG
-	if( check_embedded_art(path) || (album_art = check_for_album_file(dirname(mypath))) )
+	if( check_embedded_art(path, dlna_pn) || (album_art = check_for_album_file(dirname(mypath), dlna_pn)) )
 	#else
-	if( (album_art = check_for_album_file(dirname(mypath))) )
+	if( (album_art = check_for_album_file(dirname(mypath), dlna_pn)) )
 	#endif
 	{
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
