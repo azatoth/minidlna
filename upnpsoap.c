@@ -206,7 +206,7 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 
 static int callback(void *args, int argc, char **argv, char **azColName)
 {
-	struct Response { char *resp; int returned; int requested; int total; char *filter; } *passed_args = (struct Response *)args;
+	struct Response *passed_args = (struct Response *)args;
 	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *detailID = argv[5], *size = argv[9], *title = argv[10],
 	     *duration = argv[11], *bitrate = argv[12], *sampleFrequency = argv[13], *artist = argv[14], *album = argv[15],
 	     *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18], *track = argv[19], *date = argv[20], *resolution = argv[21],
@@ -229,6 +229,16 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
+		if( passed_args->client == EXbox )
+		{
+			if( strcmp(mime, "video/divx") == 0 )
+			{
+				mime[6] = 'a';
+				mime[7] = 'v';
+				mime[8] = 'i';
+				mime[9] = '\0';
+			}
+		}
 		sprintf(str_buf, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
 		strcat(passed_args->resp, str_buf);
 		if( refID && (!passed_args->filter || strstr(passed_args->filter, "@refID")) ) {
@@ -404,7 +414,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	char *zErrMsg = 0;
 	char *sql;
 	int ret;
-	struct Response { char *resp; int returned; int requested; int total; char *filter; } args;
+	struct Response args;
 
 	struct NameValueParserData data;
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
@@ -430,6 +440,16 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.requested = RequestedCount;
 	args.resp = NULL;
 	args.filter = NULL;
+	args.client = h->req_client;
+	if( h->req_client == EXbox )
+	{
+		if( strcmp(ObjectId, "16") == 0 )
+			ObjectId = strdup("3$16");
+		else if( strcmp(ObjectId, "15") == 0 )
+			ObjectId = strdup("2$15");
+		else
+			ObjectId = strdup(ObjectId);
+	}
 	printf("Asked for ObjectID: %s\n", ObjectId);
 	printf("Asked for Count: %d\n", RequestedCount);
 	printf("Asked for StartingIndex: %d\n", StartingIndex);
@@ -475,6 +495,10 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	BuildSendAndCloseSoapResp(h, resp, strlen(resp));
 	ClearNameValueList(&data);
 	free(resp);
+	if( h->req_client == EXbox )
+	{
+		free(ObjectId);
+	}
 }
 
 static void
@@ -494,7 +518,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char *sql;
 	char str_buf[4096];
 	int ret;
-	struct Response { char *resp; int returned; int requested; int total; char *filter; } args;
+	struct Response args;
 
 	struct NameValueParserData data;
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
@@ -513,6 +537,19 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	args.requested = RequestedCount;
 	args.resp = NULL;
 	args.filter = NULL;
+	if( h->req_client == EXbox )
+	{
+		if( strcmp(ContainerID, "4") == 0 )
+			ContainerID = strdup("1$4");
+		else if( strcmp(ContainerID, "5") == 0 )
+			ContainerID = strdup("1$5");
+		else if( strcmp(ContainerID, "6") == 0 )
+			ContainerID = strdup("1$6");
+		else if( strcmp(ContainerID, "7") == 0 )
+			ContainerID = strdup("1$7");
+		else
+			ContainerID = strdup(ContainerID);
+	}
 	printf("Asked for ContainerID: %s\n", ContainerID);
 	printf("Asked for Count: %d\n", RequestedCount);
 	printf("Asked for StartingIndex: %d\n", StartingIndex);
@@ -595,6 +632,10 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	if( newSearchCriteria )
 		free(newSearchCriteria);
 	free(resp);
+	if( h->req_client == EXbox )
+	{
+		free(ContainerID);
+	}
 }
 
 /*

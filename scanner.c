@@ -207,7 +207,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		/* All Images */
 		if( !last_all_objectID )
 		{
-			last_all_objectID = get_next_available_id("OBJECTS", "1$4");
+			last_all_objectID = get_next_available_id("OBJECTS", "3$11");
 		}
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -323,7 +323,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		/* All Videos */
 		if( !last_all_objectID )
 		{
-			last_all_objectID = get_next_available_id("OBJECTS", "1$4");
+			last_all_objectID = get_next_available_id("OBJECTS", "2$8");
 		}
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -436,7 +436,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	if( is_image(name) )
 	{
 		strcpy(base, IMAGE_DIR_ID);
-		strcpy(class, "item.imageItem");
+		strcpy(class, "item.imageItem.photo");
 		detailID = GetImageMetadata(path, name);
 	}
 	else if( is_audio(name) )
@@ -504,15 +504,15 @@ CreateDatabase(void)
 					 "1$5", "1", "Genre",
 					 "1$6", "1", "Artist",
 					 "1$7", "1", "Album",
-					"1$20", "1", "Folders",
+					"1$14", "1", "Folders",
 					   "2", "0", "Video",
 					 "2$8", "2", "All Video",
-					"2$21", "2", "Folders",
+					"3$15", "2", "Folders",
 					   "3", "0", "Pictures",
 					"3$11", "3", "All Pictures",
-					"3$12", "3", "Date Taken",
-					"3$13", "3", "Camera",
-					"3$22", "3", "Folders",
+					 "3$C", "3", "Date Taken",
+					 "3$D", "3", "Camera",
+					"3$16", "3", "Folders",
 					  "64", "0", "Browse Folders",
 					0 };
 

@@ -71,11 +71,7 @@ getsysaddr(char * buf, int len)
 		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
 			break;
 		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
-		{
-			syslog(LOG_ERR, "ioctl(s, SIOCGIFADDR, ...): %m");
-			close(s);
-			return -1;
-		}
+			continue;
 		if(strncmp(inet_ntoa(addr->sin_addr), "127.", 4) == 0)
 			continue;
 		if(!inet_ntop(AF_INET, &addr->sin_addr, buf, len))

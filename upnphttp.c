@@ -184,6 +184,16 @@ intervening space) by either an integer or the keyword "infinite". */
 			{
 				h->reqflags |= FLAG_HOST;
 			}
+			else if(strncasecmp(line, "User-Agent", 10)==0)
+			{
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				if(strncasecmp(p, "Xbox/", 5)==0)
+				{
+					h->req_client = EXbox;
+				}
+			}
 			else if(strncasecmp(line, "Transfer-Encoding", 17)==0)
 			{
 				p = colon + 1;

@@ -640,7 +640,6 @@ main(int argc, char * * argv)
 					ScanDirectory(media_path->path, NULL, media_path->type);
 					media_path = media_path->next;
 				}
-				ScanDirectory(media_dirs->path, NULL, media_dirs->type);
 				freopen("/proc/self/fd/2", "a", stderr);
 				#if USE_FORK
 				_exit(0);

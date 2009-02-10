@@ -14,6 +14,16 @@
 #define DLNA_NAMESPACE \
 	" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\""
 
+struct Response
+{
+	char *resp;
+	int returned;
+	int requested;
+	int total;
+	char *filter;
+	enum clientType client;
+};
+
 /* ExecuteSoapAction():
  * this method executes the requested Soap Action */
 void

@@ -31,6 +31,10 @@ enum httpCommands {
 	EUnSubscribe
 };
 
+enum clientType {
+	EXbox = 1
+};
+
 struct upnphttp {
 	int socket;
 	struct in_addr clientaddr;	/* client address */
@@ -42,6 +46,7 @@ struct upnphttp {
 	int req_contentlen;
 	int req_contentoff;     /* header length */
 	enum httpCommands req_command;
+	enum clientType req_client;
 	const char * req_soapAction;
 	int req_soapActionLen;
 #ifdef ENABLE_EVENTS

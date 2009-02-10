@@ -11,9 +11,9 @@
 #define __SCANNER_H__
 
 #define BROWSEDIR_ID	"64"
-#define MUSIC_DIR_ID	"1$20"
-#define VIDEO_DIR_ID	"2$21"
-#define IMAGE_DIR_ID	"3$22"
+#define MUSIC_DIR_ID	"1$14"
+#define VIDEO_DIR_ID	"2$15"
+#define IMAGE_DIR_ID	"3$16"
 
 sqlite_int64
 get_next_available_id(const char * table, const char * parentID);
