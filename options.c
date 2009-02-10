@@ -28,14 +28,14 @@ static const struct {
 	{ UPNPPRESENTATIONURL, "presentation_url" },
 	{ UPNPNOTIFY_INTERVAL, "notify_interval" },
 	{ UPNPSYSTEM_UPTIME, "system_uptime" },
-	{ UPNPPACKET_LOG, "packet_log" },
 	{ UPNPUUID, "uuid"},
 	{ UPNPSERIAL, "serial"},
 	{ UPNPMODEL_NUMBER, "model_number"},
 	{ UPNPENABLE, "enable_upnp"},
 	{ UPNPFRIENDLYNAME, "friendly_name"},
 	{ UPNPMEDIADIR, "media_dir"},
-	{ UPNPSECUREMODE, "secure_mode"}
+	{ UPNPALBUMART_NAMES, "album_art_names"},
+	{ UPNPINOTIFY, "inotify" }
 };
 
 int

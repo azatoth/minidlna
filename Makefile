@@ -28,7 +28,7 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            upnpreplyparse.o minixml.o \
            getifaddr.o daemonize.o upnpglobalvars.o \
            options.o minissdp.o upnpevents.o \
-           sql.o utils.o metadata.o albumart.o scanner.o
+           sql.o utils.o metadata.o albumart.o scanner.o inotify.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 

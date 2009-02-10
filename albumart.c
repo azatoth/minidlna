@@ -174,25 +174,15 @@ char *
 check_for_album_file(char * dir, char * dlna_pn)
 {
 	char * file = malloc(PATH_MAX);
-	char * album_art_names[] =
-	{
-		"AlbumArtSmall.jpg", "albumartsmall.jpg",
-		"Cover.jpg",         "cover.jpg",
-		"AlbumArt.jpg",      "albumart.jpg",
-		"Album.jpg",         "album.jpg",
-		"Folder.jpg",        "folder.jpg",
-		"Thumb.jpg",         "thumb.jpg",
-		0
-	};
+	struct album_art_name_s * album_art_name;
 	struct jpeg_decompress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	FILE *infile;
 	int width=0, height=0;
-	int i;
 
-	for( i=0; album_art_names[i]; i++ )
+	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
 	{
-		sprintf(file, "%s/%s", dir, album_art_names[i]);
+		sprintf(file, "%s/%s", dir, album_art_name->name);
 		if( access(file, R_OK) == 0 )
 		{
 			infile = fopen(file, "r");

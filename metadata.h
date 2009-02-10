@@ -44,7 +44,7 @@ char *
 modifyString(char * string, const char * before, const char * after, short like);
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn);
+GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn);
 
 sqlite_int64
 GetAudioMetadata(const char * path, char * name);

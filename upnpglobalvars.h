@@ -8,6 +8,8 @@
 #define __UPNPGLOBALVARS_H__
 
 #include <time.h>
+#include <signal.h> // Defines __u32
+
 #include "minidlnatypes.h"
 #include "config.h"
 
@@ -50,10 +52,9 @@ extern time_t startup_time;
 extern struct runtime_vars_s runtime_vars;
 /* runtime boolean flags */
 extern int runtime_flags;
-#define LOGPACKETSMASK		0x0001
+#define INOTIFYMASK		0x0001
 #define SYSUPTIMEMASK		0x0002
 #define CHECKCLIENTIPMASK	0x0008
-#define SECUREMODEMASK		0x0010
 
 #define SETFLAG(mask)	runtime_flags |= mask
 #define GETFLAG(mask)	runtime_flags & mask
@@ -81,9 +82,10 @@ extern struct lan_addr_s lan_addr[];
 
 /* UPnP-A/V [DLNA] */
 extern sqlite3 *db;
-#define MEDIADIR_MAX_LEN (256)
-extern struct media_dir_s * media_dirs;
 #define FRIENDLYNAME_MAX_LEN (64)
 extern char friendly_name[];
+extern struct media_dir_s * media_dirs;
+extern struct album_art_name_s * album_art_names;
+extern __u32 updateID;
 
 #endif

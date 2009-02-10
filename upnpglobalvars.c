@@ -17,17 +17,8 @@
 /* startup time */
 time_t startup_time = 0;
 
-#if 0
-/* use system uptime */
-int sysuptime = 0;
-
-/* log packets flag */
-int logpackets = 0;
-
-#endif
-
 struct runtime_vars_s runtime_vars;
-int runtime_flags = 0;
+int runtime_flags = INOTIFYMASK;
 
 const char * pidfilename = "/var/run/minidlna.pid";
 
@@ -44,6 +35,8 @@ int n_lan_addr = 0;
 struct lan_addr_s lan_addr[MAX_LAN_ADDR];
 
 /* UPnP-A/V [DLNA] */
-sqlite3 *db;
-struct media_dir_s * media_dirs = NULL;
+sqlite3 * db;
 char friendly_name[FRIENDLYNAME_MAX_LEN];
+struct media_dir_s * media_dirs = NULL;
+struct album_art_name_s * album_art_names = NULL;
+__u32 updateID = 0;

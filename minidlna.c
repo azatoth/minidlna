@@ -24,19 +24,13 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/param.h>
-#if defined(sun)
-#include <kstat.h>
-#else
-/* for BSD's sysctl */
-#include <sys/sysctl.h>
-#endif
-
-#include <sqlite3.h>
+#include <pthread.h>
 
 /* unix sockets */
 #include "config.h"
 
 #include "upnpglobalvars.h"
+#include "sql.h"
 #include "upnphttp.h"
 #include "upnpdescgen.h"
 #include "minidlnapath.h"
@@ -48,6 +42,7 @@
 #include "daemonize.h"
 #include "upnpevents.h"
 #include "scanner.h"
+#include "inotify.h"
 #include "commonrdr.h"
 
 /* MAX_LAN_ADDR : maximum number of interfaces
@@ -303,10 +298,6 @@ init(int argc, char * * argv)
 				if(strcmp(ary_options[i].value, "yes") == 0)
 					SETFLAG(SYSUPTIMEMASK);	/*sysuptime = 1;*/
 				break;
-			case UPNPPACKET_LOG:
-				if(strcmp(ary_options[i].value, "yes") == 0)
-					SETFLAG(LOGPACKETSMASK);	/*logpackets = 1;*/
-				break;
 			case UPNPSERIAL:
 				strncpy(serialnumber, ary_options[i].value, SERIALNUMBER_MAX_LEN);
 				serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
@@ -314,10 +305,6 @@ init(int argc, char * * argv)
 			case UPNPMODEL_NUMBER:
 				strncpy(modelnumber, ary_options[i].value, MODELNUMBER_MAX_LEN);
 				modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
-				break;
-			case UPNPSECUREMODE:
-				if(strcmp(ary_options[i].value, "yes") == 0)
-					SETFLAG(SECUREMODEMASK);
 				break;
 			case UPNPFRIENDLYNAME:
 				strncpy(friendly_name, ary_options[i].value, FRIENDLYNAME_MAX_LEN);
@@ -373,6 +360,29 @@ init(int argc, char * * argv)
 					break;
 				}
 				break;
+			case UPNPALBUMART_NAMES:
+				usleep(1);
+				char *string, *word;
+				for( string = ary_options[i].value; (word = strtok(string, "/")); string = NULL ) {
+					struct album_art_name_s * this_name = calloc(1, sizeof(struct album_art_name_s));
+					this_name->name = strdup(word);
+					if( !album_art_names )
+					{
+						album_art_names = this_name;
+					}
+					else
+					{
+						struct album_art_name_s * all_names = album_art_names;
+						while( all_names->next )
+							all_names = all_names->next;
+						all_names->next = this_name;
+					}
+				}
+				break;
+			case UPNPINOTIFY:
+				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
+					CLEARFLAG(INOTIFYMASK);
+				break;
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",
 				        optionsfile);
@@ -416,13 +426,6 @@ init(int argc, char * * argv)
 		/*case 'l':
 			logfilename = argv[++i];
 			break;*/
-		case 'L':
-			/*logpackets = 1;*/
-			SETFLAG(LOGPACKETSMASK);
-			break;
-		case 'S':
-			SETFLAG(SECUREMODEMASK);
-			break;
 		case 'p':
 			if(i+1 < argc)
 				runtime_vars.port = atoi(argv[++i]);
@@ -594,43 +597,26 @@ main(int argc, char * * argv)
 #endif
 	struct timeval timeout, timeofday, lasttimeofday = {0, 0};
 	int max_fd = -1;
+	int last_changecnt = 0;
+	char * sql;
+	pthread_t thread;
 
 	if(init(argc, argv) != 0)
 		return 1;
 
 	LIST_INIT(&upnphttphead);
 
-	if( access(DB_PATH, F_OK) )
+	if( sqlite3_open(DB_PATH, &db) != SQLITE_OK )
 	{
-		struct media_dir_s * media_path = media_dirs;
-		sqlite3_open(DB_PATH, &db);
-		freopen("/dev/null", "a", stderr);
-		if( CreateDatabase() != 0 )
-		{
-			fprintf(stderr, "Error creating database!\n");
-			return -1;
-		}
-		#if USE_FORK
-		pid_t newpid = fork();
-		if( newpid )
-			goto fork_done;
-		#endif
-		while( media_path )
-		{
-			ScanDirectory(media_path->path, NULL, media_path->type);
-			media_path = media_path->next;
-		}
-		freopen("/proc/self/fd/2", "a", stderr);
-		#if USE_FORK
-		_exit(0);
-		#endif
+		fprintf(stderr, "ERROR: Failed to open sqlite database!  Exiting...\n");
+		exit(-1);
 	}
 	else
 	{
 		char **result;
 		int rows;
-		sqlite3_open(DB_PATH, &db);
-		if( sqlite3_get_table(db, "pragma user_version", &result, &rows, 0, 0) == SQLITE_OK )
+		sqlite3_busy_timeout(db, 2000);
+		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
 				struct media_dir_s * media_path = media_dirs;
@@ -661,6 +647,11 @@ main(int argc, char * * argv)
 				#endif
 			}
 			sqlite3_free_table(result);
+		}
+		if( GETFLAG(INOTIFYMASK) && pthread_create(&thread, NULL, start_inotify, NULL) )
+		{
+			printf("ERROR: pthread_create() failed\n");
+			exit(-1);
 		}
 	}
 	#if USE_FORK
@@ -697,6 +688,8 @@ main(int argc, char * * argv)
 	{
 		/* Check if we need to send SSDP NOTIFY messages and do it if
 		 * needed */
+		/* Also check if we need to increment our SystemUpdateID
+		 * at most once every 2 seconds */
 		if(gettimeofday(&timeofday, 0) < 0)
 		{
 			syslog(LOG_ERR, "gettimeofday(): %m");
@@ -728,6 +721,15 @@ main(int argc, char * * argv)
 				else
 				{
 					timeout.tv_usec = lasttimeofday.tv_usec - timeofday.tv_usec;
+				}
+			}
+			if(timeofday.tv_sec >= (lasttimeofday.tv_sec + 2))
+			{
+				if( sqlite3_total_changes(db) != last_changecnt )
+				{
+					updateID++;
+					last_changecnt = sqlite3_total_changes(db);
+					upnp_event_var_change_notify(EContentDirectory);
 				}
 			}
 		}
@@ -868,6 +870,9 @@ shutdown:
 	for(i=0; i<n_lan_addr; i++)
 		close(snotify[i]);
 
+	asprintf(&sql, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
+	sql_exec(db, sql);
+	free(sql);
 	sqlite3_close(db);
 
 	if(unlink(pidfilename) < 0)

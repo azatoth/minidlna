@@ -20,14 +20,13 @@ enum upnpconfigoptions {
 	UPNPPRESENTATIONURL,	/* presentation_url */
 	UPNPNOTIFY_INTERVAL,	/* notify_interval */
 	UPNPSYSTEM_UPTIME,		/* "system_uptime" */
-	UPNPPACKET_LOG,			/* "packet_log" */
 	UPNPUUID,				/* uuid */
 	UPNPSERIAL,				/* serial */
 	UPNPMODEL_NUMBER,		/* model_number */
-	UPNPENABLENATPMP,		/* enable_natpmp */
-	UPNPSECUREMODE,			/* secure_mode */
 	UPNPFRIENDLYNAME,		/* how the system should show up to DLNA clients */
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */
+	UPNPALBUMART_NAMES,			/* list of '/'-delimited file names to check for album art */
+	UPNPINOTIFY,			/* enable inotify on the media directories */
 	UPNPENABLE				/* enable_upnp */
 };
 

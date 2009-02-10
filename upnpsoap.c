@@ -78,7 +78,7 @@ GetSystemUpdateID(struct upnphttp * h, const char * action)
 
 	bodylen = snprintf(body, sizeof(body), resp,
 		action, "urn:schemas-upnp-org:service:ContentDirectory:1",
-		1, action);	
+		updateID, action);
 	BuildSendAndCloseSoapResp(h, body, bodylen);
 }
 
@@ -397,7 +397,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			"&lt;DIDL-Lite"
 			CONTENT_DIRECTORY_SCHEMAS;
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
-        static const char resp2[] = "<UpdateID>0</UpdateID></u:BrowseResponse>";
+	static const char resp2[] = "</u:BrowseResponse>";
 
 	char *resp = calloc(1, 1048576);
 	char str_buf[4096];
@@ -466,7 +466,10 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		sqlite3_free(zErrMsg);
 	}
 	strcat(resp, resp1);
-	sprintf(str_buf, "\n<NumberReturned>%u</NumberReturned>\n<TotalMatches>%u</TotalMatches>\n", args.returned, args.total);
+	sprintf(str_buf, "\n<NumberReturned>%u</NumberReturned>\n"
+	                 "<TotalMatches>%u</TotalMatches>\n"
+	                 "<UpdateID>%u</UpdateID>",
+	                 args.returned, args.total, updateID);
 	strcat(resp, str_buf);
 	strcat(resp, resp2);
 	BuildSendAndCloseSoapResp(h, resp, strlen(resp));
@@ -484,7 +487,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			"&lt;DIDL-Lite"
 			CONTENT_DIRECTORY_SCHEMAS;
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
-        static const char resp2[] = "<UpdateID>0</UpdateID></u:SearchResponse>";
+	static const char resp2[] = "</u:SearchResponse>";
 
 	char *resp = calloc(1, 1048576);
 	char *zErrMsg = 0;
@@ -581,7 +584,10 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	}
 	sqlite3_free(sql);
 	strcat(resp, resp1);
-	sprintf(str_buf, "\n<NumberReturned>%u</NumberReturned>\n<TotalMatches>%u</TotalMatches>\n", args.returned, args.total);
+	sprintf(str_buf, "\n<NumberReturned>%u</NumberReturned>\n"
+	                 "<TotalMatches>%u</TotalMatches>\n"
+	                 "<UpdateID>%u</UpdateID>",
+	                 args.returned, args.total, updateID);
 	strcat(resp, str_buf);
 	strcat(resp, resp2);
 	BuildSendAndCloseSoapResp(h, resp, strlen(resp));

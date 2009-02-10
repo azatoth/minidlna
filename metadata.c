@@ -100,16 +100,16 @@ get_fourcc(const char *s)
 }
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn)
+GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn)
 {
 	char * sql;
 	int ret;
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
+				" (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
 				"VALUES"
-				" ('%q', %Q, %Q, %Q, %lld, %Q);",
-				name, artist, artist, genre,
+				" ('%q', %Q, %Q, %Q, %Q, %lld, %Q);",
+				name, path, artist, artist, genre,
 				album_art ? strtoll(album_art, NULL, 10) : 0,
 				art_dlna_pn);
 
@@ -134,7 +134,6 @@ GetAudioMetadata(const char * path, char * name)
 	TagLib_Tag *tag;
 	const TagLib_AudioProperties *properties;
 	char *sql;
-	char *zErrMsg = NULL;
 	char *title, *artist, *album, *genre, *comment;
 	int free_flags = 0;
 	sqlite_int64 album_art;
@@ -285,11 +284,9 @@ GetAudioMetadata(const char * path, char * name)
 		free(comment);
 
 	//DEBUG printf("SQL: %s\n", sql);
-	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
+	if( sql_exec(db, sql) != SQLITE_OK )
 	{
-		fprintf(stderr, "Error inserting details for '%s'! [%s]\n", path, zErrMsg);
-		if (zErrMsg)
-			sqlite3_free(zErrMsg);
+		fprintf(stderr, "Error inserting details for '%s'!\n", path);
 		ret = 0;
 	}
 	else
@@ -327,7 +324,6 @@ GetImageMetadata(const char * path, char * name)
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
-	char *zErrMsg = NULL;
 	metadata_t m;
 	memset(&m, '\0', sizeof(metadata_t));
 
@@ -442,11 +438,9 @@ GetImageMetadata(const char * path, char * name)
 				" (%Q, '%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
 				path, name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
 	//DEBUG printf("SQL: %s\n", sql);
-	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
+	if( sql_exec(db, sql) != SQLITE_OK )
 	{
-		fprintf(stderr, "Error inserting details for '%s'! [%s]\n", path, zErrMsg);
-		if (zErrMsg)
-			sqlite3_free(zErrMsg);
+		fprintf(stderr, "Error inserting details for '%s'!\n", path);
 		ret = 0;
 	}
 	else
@@ -499,7 +493,6 @@ GetVideoMetadata(const char * path, char * name)
 	off_t size = 0;
 	struct stat file;
 	char *sql;
-	char *zErrMsg = NULL;
 	int ret, i;
 	struct tm *modtime;
 	char date[20];
@@ -876,11 +869,9 @@ GetVideoMetadata(const char * path, char * name)
 				m.resolution,
 				name, m.dlna_pn, m.mime);
 	//DEBUG printf("SQL: %s\n", sql);
-	if( sqlite3_exec(db, sql, 0, 0, &zErrMsg) != SQLITE_OK )
+	if( sql_exec(db, sql) != SQLITE_OK )
 	{
-		fprintf(stderr, "Error inserting details for '%s'! [%s]\n", path, zErrMsg);
-		if (zErrMsg)
-			sqlite3_free(zErrMsg);
+		fprintf(stderr, "Error inserting details for '%s'!\n", path);
 		ret = 0;
 	}
 	else
