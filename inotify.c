@@ -10,8 +10,8 @@
 #ifdef HAVE_INOTIFY_H
 #include <sys/inotify.h>
 #else
-#include "inotify-includes/inotify.h"
-#include "inotify-includes/inotify-syscalls.h"
+#include "linux/inotify.h"
+#include "linux/inotify-syscalls.h"
 #endif
 
 #include "upnpglobalvars.h"
