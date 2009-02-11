@@ -7,7 +7,12 @@
 #include <libgen.h>
 #include <errno.h>
 #include <sys/types.h>
+#ifdef HAVE_INOTIFY_H
 #include <sys/inotify.h>
+#else
+#include "inotify-includes/inotify.h"
+#include "inotify-includes/inotify-syscalls.h"
+#endif
 
 #include "upnpglobalvars.h"
 #include "utils.h"

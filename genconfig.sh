@@ -138,6 +138,14 @@ echo " * of BSD daemon() */" >> ${CONFIGFILE}
 echo "#define USE_DAEMON" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
+echo "/* Enable if the system inotify.h exists.  Otherwise our own inotify.h will be used. */" >> ${CONFIGFILE}
+if [ -f /usr/include/sys/inotify.h ]; then
+echo "#define HAVE_INOTIFY_H" >> ${CONFIGFILE}
+else
+echo "/*#define HAVE_INOTIFY_H*/" >> ${CONFIGFILE}
+fi
+echo "" >> ${CONFIGFILE}
+
 echo "/* Experimental UPnP Events support. */" >> ${CONFIGFILE}
 echo "#define ENABLE_EVENTS" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
