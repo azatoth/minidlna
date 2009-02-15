@@ -37,6 +37,7 @@
 #include "getifaddr.h"
 #include "upnpsoap.h"
 #include "options.h"
+#include "utils.h"
 #include "minissdp.h"
 #include "minidlnatypes.h"
 #include "daemonize.h"
@@ -606,7 +607,13 @@ main(int argc, char * * argv)
 
 	LIST_INIT(&upnphttphead);
 
-	if( sqlite3_open(DB_PATH, &db) != SQLITE_OK )
+	if( access(DB_PATH, F_OK) != 0 )
+	{
+		char *db_path = strdup(DB_PATH);
+		make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
+		free(db_path);
+	}
+	if( sqlite3_open(DB_PATH "/files.db", &db) != SQLITE_OK )
 	{
 		fprintf(stderr, "ERROR: Failed to open sqlite database!  Exiting...\n");
 		exit(-1);
@@ -622,8 +629,9 @@ main(int argc, char * * argv)
 				struct media_dir_s * media_path = media_dirs;
 				printf("Database version mismatch; need to recreate...\n");
 				sqlite3_close(db);
-				unlink(DB_PATH);
-				sqlite3_open(DB_PATH, &db);
+				unlink(DB_PATH "/files.db");
+				system("rm -rf " DB_PATH "/art_cache");
+				sqlite3_open(DB_PATH "/files.db", &db);
 				freopen("/dev/null", "a", stderr);
 				if( CreateDatabase() != 0 )
 				{

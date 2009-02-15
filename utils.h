@@ -22,4 +22,7 @@ modifyString(char * string, const char * before, const char * after, short like)
 void
 strip_ext(char * name);
 
+int
+make_dir(char * path, mode_t mode);
+
 #endif

@@ -404,6 +404,7 @@ int
 inotify_remove_file(const char * path)
 {
 	char * sql;
+	char * art_cache;
 	char **result;
 	sqlite_int64 detailID = 0;
 	int rows, ret = 1;
@@ -428,6 +429,12 @@ inotify_remove_file(const char * path)
 		sql_exec(db, sql);
 		free(sql);
 	}
+	asprintf(&art_cache, "%s/art_cache%s", DB_PATH, path);
+	if( access(art_cache, F_OK) == 0 )
+	{
+		remove(art_cache);
+	}
+	free(art_cache);
 
 	return ret;
 }

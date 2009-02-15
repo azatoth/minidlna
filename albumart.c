@@ -21,13 +21,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include <libgen.h>
 #include <setjmp.h>
 
 #include <jpeglib.h>
+#include <gd.h>
 
 #include "upnpglobalvars.h"
 #include "sql.h"
+#include "utils.h"
 
 /* For libjpeg error handling */
 jmp_buf setjmp_buffer;
@@ -55,6 +58,68 @@ check_res(int width, int height, char * dlna_pn)
 		return 0;
 	return 1;
 }
+
+char *
+save_resized_album_art(void * ptr, const char * path, int srcw, int srch, int file, int size)
+{
+	FILE *dstfile;
+	gdImagePtr imsrc = 0, imdst = 0;
+	int dstw, dsth;
+	char * cache_file;
+	char * cache_dir;
+
+	asprintf(&cache_file, DB_PATH "/art_cache%s", path);
+	if( access(cache_file, F_OK) == 0 )
+		return cache_file;
+
+	cache_dir = strdup(cache_file);
+	make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+	free(cache_dir);
+
+	if( file )
+		imsrc = gdImageCreateFromJpeg((FILE *)ptr);
+	else
+		imsrc = gdImageCreateFromJpegPtr(size, ptr);
+	if( !imsrc )
+		goto error;
+
+	dstfile = fopen(cache_file, "w");
+	if( !dstfile )
+		goto error;
+
+	if( srcw > srch )
+	{
+		dstw = 160;
+		dsth = (srch<<8) / ((srcw<<8)/160);
+	}
+	else
+	{
+		dstw = (srcw<<8) / ((srch<<8)/160);
+		dsth = 160;
+	}
+	imdst = gdImageCreateTrueColor(dstw, dsth);
+	if( !imdst )
+	{
+		gdImageDestroy(imsrc);  
+		fclose(dstfile);
+		goto error;
+	}
+	#ifdef __sparc__
+	gdImageCopyResized(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	#else
+	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	#endif
+	gdImageJpeg(imdst, dstfile, -1);
+	fclose(dstfile);
+	gdImageDestroy(imsrc);  
+	gdImageDestroy(imdst);  
+
+	return cache_file;
+error:
+	free(cache_file);
+	return NULL;
+}
+
 
 #ifdef HAVE_LIBID3TAG
 #include <id3tag.h>
@@ -120,7 +185,7 @@ jpeg_memory_src(j_decompress_ptr cinfo, unsigned char const *buffer, size_t bufs
 }
 
 /* And our main album art functions */
-int
+char *
 check_embedded_art(const char * path, char * dlna_pn)
 {
 	struct id3_file *file;
@@ -130,9 +195,10 @@ check_embedded_art(const char * path, char * dlna_pn)
 	id3_latin1_t const *mime;
 	id3_length_t length;
 	int index;
-        struct jpeg_decompress_struct cinfo;
-        struct jpeg_error_mgr jerr;
-        int width = 0, height = 0;
+	struct jpeg_decompress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	int width = 0, height = 0;
+	char * art_path = NULL;
 
 	file = id3_file_open(path, ID3_FILE_MODE_READONLY);
 	if( !file )
@@ -164,9 +230,17 @@ check_embedded_art(const char * path, char * dlna_pn)
 			break;
 		}
 	}
+	if( width > 160 || height > 160 )
+	{
+		art_path = save_resized_album_art((void *)image, path, width, height, 0, length);
+	}
+	else if( width > 0 && height > 0 )
+	{
+		art_path = path;
+	}
 	id3_file_close(file);
 
-	return( check_res(width, height, dlna_pn) );
+	return(art_file);
 }
 #endif // HAVE_LIBID3TAG
 
@@ -177,8 +251,9 @@ check_for_album_file(char * dir, char * dlna_pn)
 	struct album_art_name_s * album_art_name;
 	struct jpeg_decompress_struct cinfo;
 	struct jpeg_error_mgr jerr;
-	FILE *infile;
+	static FILE * infile;
 	int width=0, height=0;
+	char * art_file;
 
 	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
 	{
@@ -196,14 +271,18 @@ check_for_album_file(char * dir, char * dlna_pn)
 			jpeg_start_decompress(&cinfo);
 			width = cinfo.output_width;
 			height = cinfo.output_height;
+			if( width > 160 || height > 160 )
+			{
+				art_file = file;
+				rewind(infile);
+				file = save_resized_album_art((void *)infile, art_file, width, height, 1, 0);
+				free(art_file);
+			}
 			error:
 			jpeg_destroy_decompress(&cinfo);
 			fclose(infile);
 
-			if( check_res(width, height, dlna_pn) )
-				return(file);
-			else
-				return(NULL);
+			return(file);
 		}
 	}
 	free(file);
@@ -226,6 +305,7 @@ find_album_art(const char * path, char * dlna_pn)
 	if( (album_art = check_for_album_file(dirname(mypath), dlna_pn)) )
 	#endif
 	{
+		strcpy(dlna_pn, "JPEG_TN");
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
 		if( (sql_get_table(db, sql, &result, &rows, &cols) == SQLITE_OK) && rows )
 		{

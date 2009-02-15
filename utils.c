@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 int
 ends_with(const char * haystack, const char * needle)
@@ -101,4 +102,48 @@ strip_ext(char * name)
 	period = rindex(name, '.');
 	if( period )
 		*period = '\0';
+}
+
+/* Code basically stolen from busybox */
+int
+make_dir(char * path, mode_t mode)
+{
+	char * s = path;
+	char c;
+	struct stat st;
+
+	do {
+		c = 0;
+
+		/* Bypass leading non-'/'s and then subsequent '/'s. */
+		while (*s) {
+			if (*s == '/') {
+				do {
+					++s;
+				} while (*s == '/');
+				c = *s;     /* Save the current char */
+				*s = 0;     /* and replace it with nul. */
+				break;
+			}
+			++s;
+		}
+
+		if (mkdir(path, mode) < 0) {
+			/* If we failed for any other reason than the directory
+			 * already exists, output a diagnostic and return -1.*/
+			if (errno != EEXIST
+			    || (stat(path, &st) < 0 || !S_ISDIR(st.st_mode))) {
+				break;
+			}
+		}
+	        if (!c)
+			return 0;
+
+		/* Remove any inserted nul from the path. */
+		*s = c;
+
+	} while (1);
+
+	printf("make_dir: cannot create directory '%s'", path);
+	return -1;
 }

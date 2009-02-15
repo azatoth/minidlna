@@ -15,7 +15,7 @@ UPNP_VERSION=20070827
 # Facility to syslog
 LOG_MINIDLNA="LOG_DAEMON"
 # Database path
-DB_PATH="/tmp/files.db"
+DB_PATH="/tmp/minidlna"
 
 # detecting the OS name and version
 OS_NAME=`uname -s`
