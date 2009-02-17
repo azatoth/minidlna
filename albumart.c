@@ -109,7 +109,7 @@ save_resized_album_art(void * ptr, const char * path, int srcw, int srch, int fi
 	#else
 	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
 	#endif
-	gdImageJpeg(imdst, dstfile, -1);
+	gdImageJpeg(imdst, dstfile, 96);
 	fclose(dstfile);
 	gdImageDestroy(imsrc);  
 	gdImageDestroy(imdst);  
