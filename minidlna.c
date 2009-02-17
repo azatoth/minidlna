@@ -600,7 +600,7 @@ main(int argc, char * * argv)
 	int max_fd = -1;
 	int last_changecnt = 0;
 	char * sql;
-	pthread_t thread;
+	pthread_t thread[2];
 
 	if(init(argc, argv) != 0)
 		return 1;
@@ -622,48 +622,34 @@ main(int argc, char * * argv)
 	{
 		char **result;
 		int rows;
-		sqlite3_busy_timeout(db, 2000);
+		sqlite3_busy_timeout(db, 2500);
 		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
-				struct media_dir_s * media_path = media_dirs;
 				printf("Database version mismatch; need to recreate...\n");
 				sqlite3_close(db);
 				unlink(DB_PATH "/files.db");
 				system("rm -rf " DB_PATH "/art_cache");
 				sqlite3_open(DB_PATH "/files.db", &db);
-				freopen("/dev/null", "a", stderr);
 				if( CreateDatabase() != 0 )
 				{
 					fprintf(stderr, "Error creating database!\n");
 					return -1;
 				}
-				#if USE_FORK
-				pid_t newpid = fork();
-				if( newpid )
-					goto fork_done;
-				#endif
-				while( media_path )
+				if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
 				{
-					ScanDirectory(media_path->path, NULL, media_path->type);
-					media_path = media_path->next;
+					printf("ERROR: pthread_create() failed\n");
+					exit(-1);
 				}
-				freopen("/proc/self/fd/2", "a", stderr);
-				#if USE_FORK
-				_exit(0);
-				#endif
 			}
 			sqlite3_free_table(result);
 		}
-		if( GETFLAG(INOTIFYMASK) && pthread_create(&thread, NULL, start_inotify, NULL) )
+		if( GETFLAG(INOTIFYMASK) && pthread_create(&thread[1], NULL, start_inotify, NULL) )
 		{
 			printf("ERROR: pthread_create() failed\n");
 			exit(-1);
 		}
 	}
-	#if USE_FORK
-	fork_done:
-	#endif
 
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
 	if(sudp < 0)

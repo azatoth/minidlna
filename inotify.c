@@ -120,6 +120,7 @@ inotify_create_watches(int fd)
 	unsigned int num_watches = 0, watch_limit = 8192;
 	char **result;
 	int i, rows = 0;
+	struct media_dir_s * media_path;
 
 	if( sql_get_table(db, "SELECT count(ID) from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL) == SQLITE_OK )
 	{
@@ -168,6 +169,12 @@ inotify_create_watches(int fd)
 		       "Hopefully it is enough to cover %u current directories plus any new ones added.\n", num_watches);
 	}
 
+	media_path = media_dirs;
+	while( media_path )
+	{
+		add_watch(fd, media_path->path);
+		media_path = media_path->next;
+	}
 	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
 	for( i=1; i <= rows; i++ )
 	{
@@ -310,7 +317,8 @@ inotify_insert_file(char * name, const char * path)
 
 		if( strcmp(parent_buf, "/") == 0 )
 		{
-			printf("No parents found!\n");
+			id = strdup("");
+			depth = 0;
 			break;
 		}
 		strcpy(path_buf, path);
@@ -353,6 +361,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 		else
 		{
 			sqlite3_free_table(result);
+			insert_directory(name, path, BROWSEDIR_ID, "", get_next_available_id("OBJECTS", id));
 		}
 	}
 	free(parent_buf);
@@ -493,6 +502,10 @@ start_inotify()
 		perror( "inotify_init" );
 	}
 
+	while( scanning )
+	{
+		sleep(1);
+	}
 	inotify_create_watches(fd);
 	while( 1 )
 	{

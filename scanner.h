@@ -27,7 +27,7 @@ insert_file(char * name, const char * path, const char * parentID, int object);
 int
 CreateDatabase(void);
 
-void
-ScanDirectory(const char * dir, const char * parent, enum media_types type);
+void *
+start_scanner();
 
 #endif

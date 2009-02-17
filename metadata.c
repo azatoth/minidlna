@@ -153,6 +153,8 @@ GetAudioMetadata(const char * path, char * name)
 
 	tag = taglib_file_tag(audio_file);
 	properties = taglib_file_audioproperties(audio_file);
+	if( !properties )
+		return 0;
 
 	seconds = taglib_audioproperties_length(properties) % 60;
 	minutes = (taglib_audioproperties_length(properties) - seconds) / 60;

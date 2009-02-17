@@ -716,3 +716,21 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 		printf("Scanning %s finished!\n", dir);
 	}
 }
+
+void *
+start_scanner()
+{
+	struct media_dir_s * media_path = media_dirs;
+
+	scanning = 1;
+	freopen("/dev/null", "a", stderr);
+	while( media_path )
+	{
+		ScanDirectory(media_path->path, NULL, media_path->type);
+		media_path = media_path->next;
+	}
+	freopen("/proc/self/fd/2", "a", stderr);
+	scanning = 0;
+
+	return 0;
+}
