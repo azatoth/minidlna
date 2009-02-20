@@ -11,12 +11,13 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <syslog.h>
+#include <errno.h>
 #include <string.h>
 #include <signal.h>
 
 #include "daemonize.h"
 #include "config.h"
+#include "log.h"
 
 #ifndef USE_DAEMON
 
@@ -72,22 +73,22 @@ writepidfile(const char * fname, int pid)
 	
 	if( (pidfile = open(fname, O_WRONLY|O_CREAT|O_EXCL, 0666)) < 0)
 	{
-		syslog(LOG_ERR, "Unable to open pidfile for writing %s: %m", fname);
+		DPRINTF(E_ERROR, L_GENERAL, "Unable to open pidfile for writing %s: %s\n", fname, strerror(errno));
 		return -1;
 	}
 
 	pidstringlen = snprintf(pidstring, sizeof(pidstring), "%d\n", pid);
 	if(pidstringlen <= 0)
 	{
-		syslog(LOG_ERR, 
-			"Unable to write to pidfile %s: snprintf(): FAILED", fname);
+		DPRINTF(E_ERROR, L_GENERAL, 
+			"Unable to write to pidfile %s: snprintf(): FAILED\n", fname);
 		close(pidfile);
 		return -1;
 	}
 	else
 	{
 		if(write(pidfile, pidstring, pidstringlen) < 0)
-			syslog(LOG_ERR, "Unable to write to pidfile %s: %m", fname);
+			DPRINTF(E_ERROR, L_GENERAL, "Unable to write to pidfile %s: %s\n", fname, strerror(errno));
 	}
 
 	close(pidfile);

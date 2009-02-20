@@ -28,7 +28,8 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            upnpreplyparse.o minixml.o \
            getifaddr.o daemonize.o upnpglobalvars.o \
            options.o minissdp.o upnpevents.o \
-           sql.o utils.o metadata.o albumart.o scanner.o inotify.o
+           sql.o utils.o metadata.o albumart.o scanner.o inotify.o \
+           log.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
@@ -78,26 +79,29 @@ depend:	config.h
 minidlna.o: config.h upnpglobalvars.h minidlnatypes.h
 minidlna.o: upnphttp.h upnpdescgen.h minidlnapath.h getifaddr.h upnpsoap.h
 minidlna.o: options.h minissdp.h daemonize.h upnpevents.h
-minidlna.o: commonrdr.h
+minidlna.o: commonrdr.h log.h
 upnphttp.o: config.h upnphttp.h upnpdescgen.h minidlnapath.h upnpsoap.h
-upnphttp.o: upnpevents.h
+upnphttp.o: upnpevents.h log.h
 upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
-upnpdescgen.o: minidlnatypes.h upnpdescstrings.h
-upnpsoap.o: config.h upnpglobalvars.h minidlnatypes.h
-upnpsoap.o: upnphttp.h upnpsoap.h upnpreplyparse.h getifaddr.h
-upnpreplyparse.o: upnpreplyparse.h minixml.h
+upnpdescgen.o: minidlnatypes.h upnpdescstrings.h log.h
+upnpsoap.o: config.h upnpglobalvars.h minidlnatypes.h log.h utils.h sql.h
+upnpsoap.o: upnphttp.h upnpsoap.h upnpreplyparse.h getifaddr.h log.h
+upnpreplyparse.o: upnpreplyparse.h minixml.h log.h
 minixml.o: minixml.h
-getifaddr.o: getifaddr.h
-daemonize.o: daemonize.h config.h
+getifaddr.o: getifaddr.h log.h
+daemonize.o: daemonize.h config.h log.h
 upnpglobalvars.o: config.h upnpglobalvars.h
 upnpglobalvars.o: minidlnatypes.h
 options.o: options.h config.h upnpglobalvars.h
 options.o: minidlnatypes.h
 minissdp.o: config.h upnpdescstrings.h minidlnapath.h upnphttp.h
-minissdp.o: upnpglobalvars.h minidlnatypes.h minissdp.h
+minissdp.o: upnpglobalvars.h minidlnatypes.h minissdp.h log.h
 upnpevents.o: config.h upnpevents.h minidlnapath.h upnpglobalvars.h
-upnpevents.o: minidlnatypes.h upnpdescgen.h
-netfilter/iptcrdr.o: netfilter/iptcrdr.h commonrdr.h config.h
+upnpevents.o: minidlnatypes.h upnpdescgen.h log.h
 testupnpdescgen.o: config.h upnpdescgen.h
 upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
 upnpdescgen.o: minidlnatypes.h upnpdescstrings.h
+scanner.o: upnpglobalvars.h metadata.h utils.h sql.h scanner.h log.h
+metadata.o: upnpglobalvars.h metadata.h albumart.h utils.h sql.h log.h
+sql.o: sql.h
+log.o: log.h

@@ -18,6 +18,7 @@
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
+#include "log.h"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
@@ -157,16 +158,16 @@ inotify_create_watches(int fd)
 			}
 			else
 			{
-				printf("WARNING: Inotify max_user_watches [%u] is low or close to the number of used watches [%u] "
-				       "and I do not have permission to increase this limit.  Please do so manually by "
-				       "writing a higher value into /proc/sys/fs/inotify/max_user_watches.\n", watch_limit, num_watches);
+				DPRINTF(E_WARN, L_INOTIFY, "WARNING: Inotify max_user_watches [%u] is low or close to the number of used watches [%u] "
+				                        "and I do not have permission to increase this limit.  Please do so manually by "
+				                        "writing a higher value into /proc/sys/fs/inotify/max_user_watches.\n", watch_limit, num_watches);
 			}
 		}
 	}
 	else
 	{
-		printf("WARNING: Could not read inotify max_user_watches!  "
-		       "Hopefully it is enough to cover %u current directories plus any new ones added.\n", num_watches);
+		DPRINTF(E_WARN, L_INOTIFY, "WARNING: Could not read inotify max_user_watches!  "
+		                        "Hopefully it is enough to cover %u current directories plus any new ones added.\n", num_watches);
 	}
 
 	media_path = media_dirs;
@@ -178,7 +179,7 @@ inotify_create_watches(int fd)
 	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
 	for( i=1; i <= rows; i++ )
 	{
-		//DEBUG printf("Add watch to %s\n", result[i]);
+		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", result[i]);
 		add_watch(fd, result[i]);
 	}
 	sqlite3_free_table(result);
@@ -222,7 +223,7 @@ int add_dir_watch(int fd, char * path, char * filename)
 	}
 	else
 	{
-		printf("Added watch to %s [%d]\n", buf, wd);
+		DPRINTF(E_INFO, L_INOTIFY, "Added watch to %s [%d]\n", buf, wd);
 	}
 
 	ds = opendir(buf);
@@ -289,7 +290,7 @@ inotify_insert_file(char * name, const char * path)
 
 		do
 		{
-			printf("Checking %s\n", parent_buf);
+			DPRINTF(E_DEBUG, L_INOTIFY, "Checking %s\n", parent_buf);
 			sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 			                      " where d.PATH = '%q' and REF_ID is NULL", parent_buf);
 			if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) && rows )
@@ -299,7 +300,7 @@ inotify_insert_file(char * name, const char * path)
 				sqlite3_free(sql);
 				if( !depth )
 					break;
-				printf("Found first known parentID: %s\n", id);
+				DPRINTF(E_DEBUG, L_INOTIFY, "Found first known parentID: %s\n", id);
 				/* Insert newly-found directory */
 				strcpy(base_name, last_dir);
 				base_copy = basename(base_name);
@@ -374,7 +375,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	}
 	else
 	{
-		printf("Added watch to %s [%d]\n", path, wd);
+		DPRINTF(E_INFO, L_INOTIFY, "Added watch to %s [%d]\n", path, wd);
 	}
 
 	ds = opendir(path);
@@ -525,22 +526,22 @@ start_inotify()
 				asprintf(&path_buf, "%s/%s", get_path_from_wd(event->wd), event->name);
 				if ( event->mask & IN_CREATE && event->mask & IN_ISDIR )
 				{
-					//DEBUG printf( "The directory %s was created.\n", path_buf );
+					DPRINTF(E_DEBUG, L_INOTIFY,  "The directory %s was created.\n", path_buf );
 					inotify_insert_directory(fd, esc_name, path_buf);
 				}
 				else if ( event->mask & IN_CLOSE_WRITE )
 				{
-					//DEBUG printf( "The file %s was changed.\n", path_buf );
+					DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was changed.\n", path_buf );
 					inotify_insert_file(esc_name, path_buf);
 				}
 				else if ( event->mask & IN_DELETE )
 				{
 					if ( event->mask & IN_ISDIR ) {
-						//DEBUG printf("The directory %s was deleted.\n", path_buf);
+						DPRINTF(E_DEBUG, L_INOTIFY, "The directory %s was deleted.\n", path_buf);
 						inotify_remove_directory(fd, path_buf);
 					}
 					else {
-						//DEBUG printf( "The file %s was deleted.\n", path_buf);
+						DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was deleted.\n", path_buf);
 						inotify_remove_file(path_buf);
 					}
 				}

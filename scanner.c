@@ -31,6 +31,7 @@
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
+#include "log.h"
 
 struct virtual_item
 {
@@ -155,7 +156,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(last_date.name, date_taken) == 0 )
 			{
 				last_date.objectID++;
-				//DEBUG printf("Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
 			}
 			else
 			{
@@ -163,7 +164,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				sprintf(last_date.parentID, "3$12$%llX", container>>32);
 				last_date.objectID = (int)container;
 				strcpy(last_date.name, date_taken);
-				//DEBUG printf("Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -185,7 +186,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				if( strcmp(last_camdate.name, date_taken) == 0 )
 				{
 					last_camdate.objectID++;
-					//DEBUG printf("Using last camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
+					DPRINTF(E_DEBUG, L_SCANNER, "Using last camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
 				}
 				else
 				{
@@ -193,7 +194,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 					sprintf(last_camdate.parentID, "%s$%llX", last_cam.parentID, container>>32);
 					last_camdate.objectID = (int)container;
 					strcpy(last_camdate.name, date_taken);
-					//DEBUG printf("Creating cached camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
+					DPRINTF(E_DEBUG, L_SCANNER, "Creating cached camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
 				}
 				sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 							" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -232,7 +233,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(album, last_album.name) == 0 )
 			{
 				last_album.objectID++;
-				//DEBUG printf("Using last album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Using last album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
 			}
 			else
 			{
@@ -240,7 +241,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				container = insert_container(album, "1$7", NULL, "album.musicAlbum", artist, genre, album_art, art_dlna_pn);
 				sprintf(last_album.parentID, "1$7$%llX", container>>32);
 				last_album.objectID = (int)container;
-				//DEBUG printf("Creating cached album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -262,7 +263,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(album?album:"Unknown", last_artistalbum.name) == 0 )
 			{
 				last_artistalbum.objectID++;
-				//DEBUG printf("Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			else
 			{
@@ -270,7 +271,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				sprintf(last_artistalbum.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistalbum.objectID = (int)container;
 				strcpy(last_artistalbum.name, album?album:"Unknown");
-				//DEBUG printf("Creating cached artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -285,7 +286,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(genre, last_genre.name) == 0 )
 			{
 				last_genre.objectID++;
-				//DEBUG printf("Using last genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Using last genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
 			}
 			else
 			{
@@ -293,7 +294,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				container = insert_container(genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL, NULL);
 				sprintf(last_genre.parentID, "1$5$%llX", container>>32);
 				last_genre.objectID = (int)container;
-				//DEBUG printf("Creating cached genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
+				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -409,7 +410,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 				"VALUES"
 				" ('%s%s$%X', '%s%s', %Q, '%lld', '%s', '%q')",
 				base, parentID, objectID, base, parentID, refID, detailID, class, name);
-	//DEBUG printf("SQL: %s\n", sql);
+	DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
 	ret = sql_exec(db, sql);
 	sqlite3_free(sql);
 	if( refID )
@@ -430,9 +431,6 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	int typedir_objectID;
 	char * baseid;
 
-	static long unsigned int fileno = 0;
-	printf("Scanned %lu files...\r", fileno++); fflush(stdout);
-
 	if( is_image(name) )
 	{
 		strcpy(base, IMAGE_DIR_ID);
@@ -451,7 +449,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		strcpy(class, "item.videoItem");
 		detailID = GetVideoMetadata(path, name);
 	}
-	//DEBUG printf("Got DetailID %lu!\n", detailID);
+	DPRINTF(E_DEBUG, L_SCANNER, "Got DetailID %lu!\n", detailID);
 	if( !detailID )
 		return -1;
 
@@ -462,7 +460,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 				"VALUES"
 				" ('%s', '%s%s', '%s', %lu, '%q')",
 				objectID, BROWSEDIR_ID, parentID, class, detailID, name);
-	//DEBUG printf("SQL: %s\n", sql);
+	DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
 
@@ -484,7 +482,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 				"VALUES"
 				" ('%s%s$%X', '%s%s', '%s', '%s', %lu, '%q')",
 				base, parentID, object, base, parentID, objectID, class, detailID, name);
-	//DEBUG printf("SQL: %s\n", sql);
+	DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
 
@@ -652,12 +650,13 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	char parent_id[PATH_MAX];
 	char full_path[PATH_MAX];
 	char * name = NULL;
+	static long long unsigned int fileno = 0;
 
 	setlocale(LC_COLLATE, "");
 	if( chdir(dir) != 0 )
 		return;
 
-	printf("\nScanning %s\n", dir);
+	DPRINTF(E_INFO, L_SCANNER, "Scanning %s\n", dir);
 	switch( type )
 	{
 		case ALL_MEDIA:
@@ -697,7 +696,8 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 		}
 		else
 		{
-			insert_file(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i+startID);
+			if( insert_file(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i+startID) == 0 )
+				fileno++;
 		}
 		if( name )
 		{
@@ -713,7 +713,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	}
 	else
 	{
-		printf("Scanning %s finished!\n", dir);
+		DPRINTF(E_INFO, L_SCANNER, "Scanning %s finished (%llu files)!\n", dir, fileno);
 	}
 }
 

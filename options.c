@@ -10,7 +10,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <syslog.h>
 #include "options.h"
 #include "upnpglobalvars.h"
 

@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <syslog.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -17,11 +16,13 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <errno.h>
 #if defined(sun)
 #include <sys/sockio.h>
 #endif
 
 #include "getifaddr.h"
+#include "log.h"
 
 int
 getifaddr(const char * ifname, char * buf, int len)
@@ -35,20 +36,20 @@ getifaddr(const char * ifname, char * buf, int len)
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if(s < 0)
 	{
-		syslog(LOG_ERR, "socket(PF_INET, SOCK_DGRAM): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "socket(PF_INET, SOCK_DGRAM): %s\n", strerror(errno));
 		return -1;
 	}
 	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
 	if(ioctl(s, SIOCGIFADDR, &ifr, &ifrlen) < 0)
 	{
-		syslog(LOG_ERR, "ioctl(s, SIOCGIFADDR, ...): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "ioctl(s, SIOCGIFADDR, ...): %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
 	addr = (struct sockaddr_in *)&ifr.ifr_addr;
 	if(!inet_ntop(AF_INET, &addr->sin_addr, buf, len))
 	{
-		syslog(LOG_ERR, "inet_ntop(): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
@@ -76,7 +77,7 @@ getsysaddr(char * buf, int len)
 			continue;
 		if(!inet_ntop(AF_INET, &addr->sin_addr, buf, len))
 		{
-			syslog(LOG_ERR, "inet_ntop(): %m");
+			DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));
 			close(s);
 			return -1;
 		}
@@ -105,13 +106,13 @@ getifhwaddr(const char * ifname, char * buf, int len)
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if(s < 0)
 	{
-		syslog(LOG_ERR, "socket(PF_INET, SOCK_DGRAM): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "socket(PF_INET, SOCK_DGRAM): %s\n", strerror(errno));
 		return -1;
 	}
 	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
 	if(ioctl(s, SIOCGIFHWADDR, &ifr, &ifrlen) < 0)
 	{
-		syslog(LOG_ERR, "ioctl(s, SIOCGIFHWADDR, ...): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "ioctl(s, SIOCGIFHWADDR, ...): %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}

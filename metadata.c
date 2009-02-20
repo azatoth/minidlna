@@ -40,6 +40,7 @@
 #include "albumart.h"
 #include "utils.h"
 #include "sql.h"
+#include "log.h"
 
 #define FLAG_TITLE	0x00000001
 #define FLAG_ARTIST	0x00000002
@@ -285,7 +286,7 @@ GetAudioMetadata(const char * path, char * name)
 	if( free_flags & FLAG_COMMENT )
 		free(comment);
 
-	//DEBUG printf("SQL: %s\n", sql);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
@@ -332,13 +333,13 @@ GetImageMetadata(const char * path, char * name)
 	date[0] = '\0';
 	model[0] = '\0';
 
-	//DEBUG printf("Parsing %s...\n", path);
+	DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
 		size = file.st_size;
 	else
 		return 0;
 	strip_ext(name);
-	//DEBUG printf(" * size: %d\n", size);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
 	asprintf(&m.mime, "image/jpeg");
@@ -357,7 +358,7 @@ GetImageMetadata(const char * path, char * name)
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
 	if( e )
 		height = atoi( exif_entry_get_value(e, b, sizeof(b)) );
-	//DEBUG printf(" * resolution: %dx%d\n", width, height);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * resolution: %dx%d\n", width, height);
 
 	tag = EXIF_TAG_DATE_TIME_ORIGINAL;
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
@@ -376,7 +377,7 @@ GetImageMetadata(const char * path, char * name)
 	else {
 		strcpy(date, "0000-00-00");
 	}
-	//DEBUG printf(" * date: %s\n", date);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * date: %s\n", date);
 
 	model[0] = '\0';
 	tag = EXIF_TAG_MAKE;
@@ -395,13 +396,13 @@ GetImageMetadata(const char * path, char * name)
 	}
 	if( !strlen(model) )
 		strcpy(model, "Unknown");
-	//DEBUG printf(" * model: %s\n", model);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * model: %s\n", model);
 
 	if( ed->size )
 		thumb = 1;
 	else
 		thumb = 0;
-	//DEBUG printf(" * thumbnail: %d\n", thumb);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * thumbnail: %d\n", thumb);
 
 	exif_data_unref(ed);
 
@@ -439,7 +440,7 @@ GetImageMetadata(const char * path, char * name)
 				"VALUES"
 				" (%Q, '%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
 				path, name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
-	//DEBUG printf("SQL: %s\n", sql);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
@@ -508,7 +509,7 @@ GetVideoMetadata(const char * path, char * name)
 	memset(&m, '\0', sizeof(m));
 	date[0] = '\0';
 
-	//DEBUG printf("Parsing %s...\n", path);
+	DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
 	{
 		modtime = localtime(&file.st_mtime);
@@ -516,7 +517,7 @@ GetVideoMetadata(const char * path, char * name)
 		size = file.st_size;
 	}
 	strip_ext(name);
-	//DEBUG printf(" * size: %d\n", size);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	av_register_all();
 	if( av_open_input_file(&ctx, path, NULL, 0, NULL) == 0 )
@@ -549,7 +550,7 @@ GetVideoMetadata(const char * path, char * name)
 					if( !ctx->streams[audio_stream]->codec->extradata_size ||
 					    !ctx->streams[audio_stream]->codec->extradata )
 					{
-						printf("No AAC type\n");
+						DPRINTF(E_DEBUG, L_METADATA, "No AAC type\n");
 					}
 					else
 					{
@@ -565,7 +566,7 @@ GetVideoMetadata(const char * path, char * name)
 							if( ctx->streams[audio_stream]->codec->sample_rate < 8000 ||
 							    ctx->streams[audio_stream]->codec->sample_rate > 48000 )
 							{
-								printf("Unsupported AAC: sample rate is not 8000 < %d < 48000\n",
+								DPRINTF(E_DEBUG, L_METADATA, "Unsupported AAC: sample rate is not 8000 < %d < 48000\n",
 									ctx->streams[audio_stream]->codec->sample_rate);
 								break;
 							}
@@ -577,12 +578,12 @@ GetVideoMetadata(const char * path, char * name)
 								 ctx->streams[audio_stream]->codec->bit_rate <= 1440000 )
 								audio_profile = AAC_MULT5;
 							else
-								printf("Unhandled AAC: %d channels, %d bitrate\n",
+								DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC: %d channels, %d bitrate\n",
 									ctx->streams[audio_stream]->codec->channels,
 									ctx->streams[audio_stream]->codec->bit_rate);
 							break;
 						default:
-							printf("Unhandled AAC type [%d]\n", aac_type);
+							DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC type [%d]\n", aac_type);
 							break;
 					}
 					break;
@@ -612,7 +613,7 @@ GetVideoMetadata(const char * path, char * name)
 					    (ctx->streams[audio_stream]->codec->codec_id < CODEC_ID_ADPCM_IMA_QT) )
 						audio_profile = PCM;
 					else
-						printf("Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
+						DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
 					break;
 			}
 			asprintf(&m.frequency, "%u", ctx->streams[audio_stream]->codec->sample_rate);
@@ -625,7 +626,7 @@ GetVideoMetadata(const char * path, char * name)
 		}
 		if( video_stream >= 0 )
 		{
-			//DEBUG printf("Container: '%s' [%s]\n", ctx->iformat->name, path);
+			DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, path);
 			asprintf(&m.resolution, "%dx%d", ctx->streams[video_stream]->codec->width, ctx->streams[video_stream]->codec->height);
 			asprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
 			if( ctx->duration > 0 ) {
@@ -649,7 +650,7 @@ GetVideoMetadata(const char * path, char * name)
 				case CODEC_ID_MPEG2VIDEO:
 					if( strcmp(ctx->iformat->name, "mpegts") == 0 )
 					{
-						printf("Stream %d of %s is %s MPEG2 TS\n", video_stream, path, m.resolution);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS\n", video_stream, path, m.resolution);
 						char res;
 						tsinfo_t * ts = ctx->priv_data;
 						if( ts->packet_size == 192 )
@@ -670,7 +671,7 @@ GetVideoMetadata(const char * path, char * name)
 					}
 					else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
 					{
-						printf("Stream %d of %s is %s MPEG2 PS\n", video_stream, path, m.resolution);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 PS\n", video_stream, path, m.resolution);
 						char region[5];
 						if( (ctx->streams[video_stream]->codec->height == 576) ||
 						    (ctx->streams[video_stream]->codec->height == 288) )
@@ -682,7 +683,7 @@ GetVideoMetadata(const char * path, char * name)
 					}
 					else
 					{
-						printf("Stream %d of %s [UNKNOWN CONTAINER] is %s MPEG2\n", video_stream, path, m.resolution);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s [UNKNOWN CONTAINER] is %s MPEG2\n", video_stream, path, m.resolution);
 					}
 					break;
 				case CODEC_ID_H264:
@@ -722,7 +723,7 @@ GetVideoMetadata(const char * path, char * name)
 										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
 									break;
 								default:
-									printf("No DLNA profile found for TS/AVC/%cD file %s\n", res, path);
+									DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for TS/AVC/%cD file %s\n", res, path);
 									break;
 							}
 							if( m.dlna_pn && (ts_timestamp != NONE) )
@@ -730,7 +731,7 @@ GetVideoMetadata(const char * path, char * name)
 						}
 						else
 						{
-							printf("Unsupported h.264 video profile! [%dx%d, %dbps]\n",
+							DPRINTF(E_DEBUG, L_METADATA, "Unsupported h.264 video profile! [%dx%d, %dbps]\n",
 								ctx->streams[video_stream]->codec->width,
 								ctx->streams[video_stream]->codec->height,
 								ctx->streams[video_stream]->codec->bit_rate);
@@ -752,37 +753,37 @@ GetVideoMetadata(const char * path, char * name)
 									asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AAC_MULT5;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 									break;
 								default:
-									printf("No DLNA profile found for MP4/AVC/SD file %s\n", path);
+									DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for MP4/AVC/SD file %s\n", path);
 									break;
 							}
 						}
 					}
-					printf("Stream %d of %s is h.264\n", video_stream, path);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.264\n", video_stream, path);
 					break;
 				case CODEC_ID_MPEG4:
 					if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("XVID") )
 					{
-						printf("Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
 						asprintf(&m.mime, "video/divx");
 					}
 					else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DX50") )
 					{
-						printf("Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
 						asprintf(&m.mime, "video/divx");
 					}
 					else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DIVX") )
 					{
-						printf("Stream %d of %s is DiVX\n", video_stream, path);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is DiVX\n", video_stream, path);
 						asprintf(&m.mime, "video/divx");
 					}
 					else
 					{
-						printf("Stream %d of %s is MPEG4 [%X]\n", video_stream, path, ctx->streams[video_stream]->codec->codec_tag);
+						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MPEG4 [%X]\n", video_stream, path, ctx->streams[video_stream]->codec->codec_tag);
 					}
 					break;
 				case CODEC_ID_WMV3:
 				case CODEC_ID_VC1:
-					printf("Stream %d of %s is VC1\n", video_stream, path);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is VC1\n", video_stream, path);
 					char profile[5]; profile[0] = '\0';
 					asprintf(&m.mime, "video/x-ms-wmv");
 					if( (ctx->streams[video_stream]->codec->width  <= 352) &&
@@ -819,22 +820,22 @@ GetVideoMetadata(const char * path, char * name)
 					}
 					break;
 				case CODEC_ID_XVID:
-					printf("Stream %d of %s is %s UNKNOWN XVID\n", video_stream, path, m.resolution);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s UNKNOWN XVID\n", video_stream, path, m.resolution);
 					break;
 				case CODEC_ID_MSMPEG4V1:
-					printf("Stream %d of %s is %s MS MPEG4 v1\n", video_stream, path, m.resolution);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v1\n", video_stream, path, m.resolution);
 				case CODEC_ID_MSMPEG4V3:
-					printf("Stream %d of %s is %s MS MPEG4 v3\n", video_stream, path, m.resolution);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v3\n", video_stream, path, m.resolution);
 					asprintf(&m.mime, "video/avi");
 					break;
 				case CODEC_ID_H263I:
-					printf("Stream %d of %s is h.263i\n", video_stream, path);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.263i\n", video_stream, path);
 					break;
 				case CODEC_ID_MJPEG:
-					printf("Stream %d of %s is MJPEG\n", video_stream, path);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MJPEG\n", video_stream, path);
 					break;
 				default:
-					printf("Stream %d of %s is %d\n", video_stream, path, ctx->streams[video_stream]->codec->codec_id);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %d\n", video_stream, path, ctx->streams[video_stream]->codec->codec_id);
 					break;
 			}
 		}
@@ -855,7 +856,7 @@ GetVideoMetadata(const char * path, char * name)
 	}
 	else
 	{
-		printf("Opening %s failed!\n", path);
+		DPRINTF(E_WARN, L_METADATA, "Opening %s failed!\n", path);
 	}
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
@@ -870,7 +871,7 @@ GetVideoMetadata(const char * path, char * name)
 				m.frequency,
 				m.resolution,
 				name, m.dlna_pn, m.mime);
-	//DEBUG printf("SQL: %s\n", sql);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);

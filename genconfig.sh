@@ -12,8 +12,6 @@ CONFIGMACRO="__CONFIG_H__"
 
 # version reported in XML descriptions
 UPNP_VERSION=20070827
-# Facility to syslog
-LOG_MINIDLNA="LOG_DAEMON"
 # Database path
 DB_PATH="/tmp/minidlna"
 
@@ -115,10 +113,6 @@ echo "" >> ${CONFIGFILE}
 
 echo "/* full path of the file database */" >> ${CONFIGFILE}
 echo "#define DB_PATH		\"${DB_PATH}\"" >> ${CONFIGFILE}
-echo "" >> ${CONFIGFILE}
-
-echo "/* syslog facility to be used by miniupnpd */" >> ${CONFIGFILE}
-echo "#define LOG_MINIDLNA		 ${LOG_MINIDLNA}" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* Uncomment the following line to allow miniupnpd to be" >> ${CONFIGFILE}

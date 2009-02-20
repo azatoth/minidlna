@@ -19,11 +19,11 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/file.h>
-#include <syslog.h>
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
 #include <sys/param.h>
+#include <errno.h>
 #include <pthread.h>
 
 /* unix sockets */
@@ -45,6 +45,7 @@
 #include "scanner.h"
 #include "inotify.h"
 #include "commonrdr.h"
+#include "log.h"
 
 /* MAX_LAN_ADDR : maximum number of interfaces
  * to listen to SSDP traffic */
@@ -63,13 +64,13 @@ OpenAndConfHTTPSocket(unsigned short port)
 
 	if( (s = socket(PF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		syslog(LOG_ERR, "socket(http): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "socket(http): %s\n", strerror(errno));
 		return -1;
 	}
 
 	if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0)
 	{
-		syslog(LOG_WARNING, "setsockopt(http, SO_REUSEADDR): %m");
+		DPRINTF(E_WARN, L_GENERAL, "setsockopt(http, SO_REUSEADDR): %s\n", strerror(errno));
 	}
 
 	memset(&listenname, 0, sizeof(struct sockaddr_in));
@@ -79,14 +80,14 @@ OpenAndConfHTTPSocket(unsigned short port)
 
 	if(bind(s, (struct sockaddr *)&listenname, sizeof(struct sockaddr_in)) < 0)
 	{
-		syslog(LOG_ERR, "bind(http): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "bind(http): %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
 
 	if(listen(s, 6) < 0)
 	{
-		syslog(LOG_ERR, "listen(http): %m");
+		DPRINTF(E_ERROR, L_GENERAL, "listen(http): %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
@@ -102,7 +103,7 @@ sigterm(int sig)
 	/*int save_errno = errno;*/
 	signal(sig, SIG_IGN);	/* Ignore this signal while we are quitting */
 
-	syslog(LOG_NOTICE, "received signal %d, good-bye", sig);
+	DPRINTF(E_WARN, L_GENERAL, "received signal %d, good-bye\n", sig);
 
 	quitting = 1;
 	/*errno = save_errno;*/
@@ -121,14 +122,14 @@ set_startup_time(int sysuptime)
 		fd = open("/proc/uptime", O_RDONLY);
 		if(fd < 0)
 		{
-			syslog(LOG_ERR, "open(\"/proc/uptime\" : %m");
+			DPRINTF(E_ERROR, L_GENERAL, "Error opening /proc/uptime: %s\n", strerror(errno));
 		}
 		else
 		{
 			memset(buff, 0, sizeof(buff));
 			read(fd, buff, sizeof(buff) - 1);
 			uptime = atoi(buff);
-			syslog(LOG_INFO, "system uptime is %d seconds", uptime);
+			DPRINTF(E_DEBUG, L_GENERAL, "system uptime is %d seconds\n", uptime);
 			close(fd);
 			startup_time -= uptime;
 		}
@@ -203,11 +204,10 @@ getfriendlyname(char * buf, int len)
  * 1) read configuration file
  * 2) read command line arguments
  * 3) daemonize
- * 4) open syslog
- * 5) check and write pid file
- * 6) set startup time stamp
- * 7) compute presentation URL
- * 8) set signal handlers */
+ * 4) check and write pid file
+ * 5) set startup time stamp
+ * 6) compute presentation URL
+ * 7) set signal handlers */
 static int
 init(int argc, char * * argv)
 {
@@ -215,7 +215,6 @@ init(int argc, char * * argv)
 	int pid;
 	int debug_flag = 0;
 	int options_flag = 0;
-	int openlog_option;
 	struct sigaction sa;
 	/*const char * logfilename = 0;*/
 	const char * presurl = 0;
@@ -510,6 +509,7 @@ init(int argc, char * * argv)
 	if(debug_flag)
 	{
 		pid = getpid();
+		log_init(NULL, "general,artwork,database,inotify,scanner,metadata,http,ssdp=debug");
 	}
 	else
 	{
@@ -521,25 +521,13 @@ init(int argc, char * * argv)
 #else
 		pid = daemonize();
 #endif
-	}
+		log_init(DB_PATH "/minidlna.log", NULL);
 
-	openlog_option = LOG_PID|LOG_CONS;
-	if(debug_flag)
-	{
-		openlog_option |= LOG_PERROR;	/* also log on stderr */
-	}
-
-	openlog("minidlna", openlog_option, LOG_MINIDLNA);
-
-	if(!debug_flag)
-	{
-		/* speed things up and ignore LOG_INFO and LOG_DEBUG */
-		setlogmask(LOG_UPTO(LOG_NOTICE));
 	}
 
 	if(checkforrunning(pidfilename) < 0)
 	{
-		syslog(LOG_ERR, "MiniDLNA is already running. EXITING");
+		DPRINTF(E_ERROR, L_GENERAL, "MiniDLNA is already running. EXITING.\n");
 		return 1;
 	}	
 
@@ -563,17 +551,15 @@ init(int argc, char * * argv)
 	sa.sa_handler = sigterm;
 	if (sigaction(SIGTERM, &sa, NULL))
 	{
-		syslog(LOG_ERR, "Failed to set %s handler. EXITING", "SIGTERM");
-		return 1;
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to set SIGTERM handler. EXITING.\n");
 	}
 	if (sigaction(SIGINT, &sa, NULL))
 	{
-		syslog(LOG_ERR, "Failed to set %s handler. EXITING", "SIGINT");
-		return 1;
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to set SIGINT handler. EXITING.\n");
 	}
 
 	if(signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-		syslog(LOG_ERR, "Failed to ignore SIGPIPE signals");
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to ignore SIGPIPE signals. EXITING.\n");
 	}
 
 	writepidfile(pidfilename, pid);
@@ -605,6 +591,7 @@ main(int argc, char * * argv)
 	if(init(argc, argv) != 0)
 		return 1;
 
+	DPRINTF(E_ERROR, L_GENERAL, "Starting MiniDLNA...\n");
 	LIST_INIT(&upnphttphead);
 
 	if( access(DB_PATH, F_OK) != 0 )
@@ -654,24 +641,21 @@ main(int argc, char * * argv)
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
 	if(sudp < 0)
 	{
-		syslog(LOG_ERR, "Failed to open socket for receiving SSDP. EXITING");
-		return 1;
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to open socket for receiving SSDP. EXITING\n");
 	}
 	/* open socket for HTTP connections. Listen on the 1st LAN address */
 	shttpl = OpenAndConfHTTPSocket(runtime_vars.port);
 	if(shttpl < 0)
 	{
-		syslog(LOG_ERR, "Failed to open socket for HTTP. EXITING");
-		return 1;
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to open socket for HTTP. EXITING\n");
 	}
-	syslog(LOG_NOTICE, "HTTP listening on port %d", runtime_vars.port);
+	DPRINTF(E_WARN, L_GENERAL, "HTTP listening on port %d\n", runtime_vars.port);
 
 	/* open socket for sending notifications */
 	if(OpenAndConfSSDPNotifySockets(snotify) < 0)
 	{
-		syslog(LOG_ERR, "Failed to open sockets for sending SSDP notify "
-	                "messages. EXITING");
-		return 1;
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to open sockets for sending SSDP notify "
+	                "messages. EXITING\n");
 	}
 
 	SendSSDPGoodbye(snotify, n_lan_addr);
@@ -685,7 +669,7 @@ main(int argc, char * * argv)
 		 * at most once every 2 seconds */
 		if(gettimeofday(&timeofday, 0) < 0)
 		{
-			syslog(LOG_ERR, "gettimeofday(): %m");
+			DPRINTF(E_ERROR, L_GENERAL, "gettimeofday(): %s\n", strerror(errno));
 			timeout.tv_sec = runtime_vars.notify_interval;
 			timeout.tv_usec = 0;
 		}
@@ -756,7 +740,7 @@ main(int argc, char * * argv)
 #ifdef DEBUG
 		if(i > 1)
 		{
-			syslog(LOG_DEBUG, "%d active incoming HTTP connections", i);
+			DPRINTF(E_DEBUG, L_GENERAL, "%d active incoming HTTP connections\n", i);
 		}
 #endif
 
@@ -772,9 +756,8 @@ main(int argc, char * * argv)
 #endif
 		{
 			if(quitting) goto shutdown;
-			syslog(LOG_ERR, "select(all): %m");
-			syslog(LOG_ERR, "Failed to select open sockets. EXITING");
-			return 1;	/* very serious cause of error */
+			DPRINTF(E_ERROR, L_GENERAL, "select(all): %s\n", strerror(errno));
+			DPRINTF(E_FATAL, L_GENERAL, "Failed to select open sockets. EXITING\n");
 		}
 #ifdef ENABLE_EVENTS
 		upnpevents_processfds(&readset, &writeset);
@@ -782,7 +765,7 @@ main(int argc, char * * argv)
 		/* process SSDP packets */
 		if(sudp >= 0 && FD_ISSET(sudp, &readset))
 		{
-			/*syslog(LOG_INFO, "Received UDP Packet");*/
+			/*DPRINTF(E_DEBUG, L_GENERAL, "Received UDP Packet\n");*/
 			ProcessSSDPRequest(sudp, (unsigned short)runtime_vars.port);
 		}
 		/* process active HTTP connections */
@@ -805,16 +788,16 @@ main(int argc, char * * argv)
 			shttp = accept(shttpl, (struct sockaddr *)&clientname, &clientnamelen);
 			if(shttp<0)
 			{
-				syslog(LOG_ERR, "accept(http): %m");
+				DPRINTF(E_ERROR, L_GENERAL, "accept(http): %s\n", strerror(errno));
 			}
 			else
 			{
 				struct upnphttp * tmp = 0;
-				syslog(LOG_INFO, "HTTP connection from %s:%d",
+				DPRINTF(E_DEBUG, L_GENERAL, "HTTP connection from %s:%d\n",
 					inet_ntoa(clientname.sin_addr),
 					ntohs(clientname.sin_port) );
 				/*if (fcntl(shttp, F_SETFL, O_NONBLOCK) < 0) {
-					syslog(LOG_ERR, "fcntl F_SETFL, O_NONBLOCK");
+					DPRINTF(E_ERROR, L_GENERAL, "fcntl F_SETFL, O_NONBLOCK");
 				}*/
 				/* Create a new upnphttp object and add it to
 				 * the active upnphttp object list */
@@ -826,7 +809,7 @@ main(int argc, char * * argv)
 				}
 				else
 				{
-					syslog(LOG_ERR, "New_upnphttp() failed");
+					DPRINTF(E_ERROR, L_GENERAL, "New_upnphttp() failed\n");
 					close(shttp);
 				}
 			}
@@ -858,7 +841,7 @@ shutdown:
 	
 	if(SendSSDPGoodbye(snotify, n_lan_addr) < 0)
 	{
-		syslog(LOG_ERR, "Failed to broadcast good-bye notifications");
+		DPRINTF(E_ERROR, L_GENERAL, "Failed to broadcast good-bye notifications\n");
 	}
 	for(i=0; i<n_lan_addr; i++)
 		close(snotify[i]);
@@ -870,10 +853,9 @@ shutdown:
 
 	if(unlink(pidfilename) < 0)
 	{
-		syslog(LOG_ERR, "Failed to remove pidfile %s: %m", pidfilename);
+		DPRINTF(E_ERROR, L_GENERAL, "Failed to remove pidfile %s: %s\n", pidfilename, strerror(errno));
 	}
 
-	closelog();	
 	freeoptions();
 	
 	return 0;

@@ -9,12 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <syslog.h>
-
 #include "config.h"
-#ifdef ENABLE_EVENTS
 #include "getifaddr.h"
-#endif
 #include "upnpdescgen.h"
 #include "minidlnapath.h"
 #include "upnpglobalvars.h"

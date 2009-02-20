@@ -17,7 +17,6 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <syslog.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -31,8 +30,9 @@
 #include "upnpreplyparse.h"
 #include "getifaddr.h"
 
-#include "metadata.h"
+#include "utils.h"
 #include "sql.h"
+#include "log.h"
 
 static void
 BuildSendAndCloseSoapResp(struct upnphttp * h,
@@ -450,12 +450,15 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		else
 			ObjectId = strdup(ObjectId);
 	}
-	printf("Asked for ObjectID: %s\n", ObjectId);
-	printf("Asked for Count: %d\n", RequestedCount);
-	printf("Asked for StartingIndex: %d\n", StartingIndex);
-	printf("Asked for BrowseFlag: %s\n", BrowseFlag);
-	printf("Asked for Filter: %s\n", Filter);
-	if( SortCriteria ) printf("Asked for SortCriteria: %s\n", SortCriteria);
+	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
+	                         " * ObjectID: %s\n"
+	                         " * Count: %d\n"
+	                         " * StartingIndex: %d\n"
+	                         " * BrowseFlag: %s\n"
+	                         " * Filter: %s\n"
+	                         " * SortCriteria: %s\n",
+				ObjectId, RequestedCount, StartingIndex,
+	                        BrowseFlag, Filter, SortCriteria);
 
 	if( !Filter )
 	{
@@ -481,8 +484,9 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
 	sqlite3_free(sql);
-	if( ret != SQLITE_OK ){
-		printf("SQL error: %s\n", zErrMsg);
+	if( ret != SQLITE_OK )
+	{
+		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 	strcat(resp, resp1);
@@ -550,12 +554,15 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		else
 			ContainerID = strdup(ContainerID);
 	}
-	printf("Asked for ContainerID: %s\n", ContainerID);
-	printf("Asked for Count: %d\n", RequestedCount);
-	printf("Asked for StartingIndex: %d\n", StartingIndex);
-	printf("Asked for SearchCriteria: %s\n", SearchCriteria);
-	printf("Asked for Filter: %s\n", Filter);
-	if( SortCriteria ) printf("Asked for SortCriteria: %s\n", SortCriteria);
+	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
+	                         " * ObjectID: %s\n"
+	                         " * Count: %d\n"
+	                         " * StartingIndex: %d\n"
+	                         " * SearchCriteria: %s\n"
+	                         " * Filter: %s\n"
+	                         " * SortCriteria: %s\n",
+				ContainerID, RequestedCount, StartingIndex,
+	                        SearchCriteria, Filter, SortCriteria);
 
 	strcpy(resp, resp0);
 	/* See if we need to include DLNA namespace reference */
@@ -601,7 +608,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		}
 		#endif
 	}
-	printf("Translated SearchCriteria: %s\n", SearchCriteria);
+	DPRINTF(E_DEBUG, L_HTTP, "Translated SearchCriteria: %s\n", SearchCriteria);
 
 	args.resp = resp;
 	sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
@@ -613,10 +620,11 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	                      sqlite3_mprintf("UNION ALL SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 	    		                      " where OBJECT_ID = '%s' and (%s) ", ContainerID, SearchCriteria),
 		       	      StartingIndex);
-	printf("Search SQL: %s\n", sql);
+	DPRINTF(E_DEBUG, L_HTTP, "Search SQL: %s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
-	if( ret != SQLITE_OK ){
-		printf("SQL error: %s\nBAD SQL: %s\n", zErrMsg, sql);
+	if( ret != SQLITE_OK )
+	{
+		DPRINTF(E_WARN, L_HTTP, "SQL error: %s\nBAD SQL: %s\n", zErrMsg, sql);
 		sqlite3_free(zErrMsg);
 	}
 	sqlite3_free(sql);
@@ -665,7 +673,7 @@ QueryStateVariable(struct upnphttp * h, const char * action)
 	/*var_name = GetValueFromNameValueListIgnoreNS(&data, "varName");*/
 	var_name = GetValueFromNameValueList(&data, "varName");
 
-	/*syslog(LOG_INFO, "QueryStateVariable(%.40s)", var_name); */
+	DPRINTF(E_INFO, L_HTTP, "QueryStateVariable(%.40s)\n", var_name);
 
 	if(!var_name)
 	{
@@ -693,7 +701,7 @@ QueryStateVariable(struct upnphttp * h, const char * action)
 #endif
 	else
 	{
-		syslog(LOG_NOTICE, "%s: Unknown: %s", action, var_name?var_name:"");
+		DPRINTF(E_WARN, L_HTTP, "%s: Unknown: %s\n", action, var_name?var_name:"");
 		SoapError(h, 404, "Invalid Var");
 	}
 
@@ -739,7 +747,7 @@ ExecuteSoapAction(struct upnphttp * h, const char * action, int n)
 			methodlen = p2 - p;
 		else
 			methodlen = n - (p - action);
-		/*syslog(LOG_DEBUG, "SoapMethod: %.*s", methodlen, p);*/
+		DPRINTF(E_DEBUG, L_HTTP, "SoapMethod: %.*s\n", methodlen, p);
 		while(soapMethods[i].methodName)
 		{
 			len = strlen(soapMethods[i].methodName);
@@ -751,7 +759,7 @@ ExecuteSoapAction(struct upnphttp * h, const char * action, int n)
 			i++;
 		}
 
-		syslog(LOG_NOTICE, "SoapMethod: Unknown: %.*s", methodlen, p);
+		DPRINTF(E_WARN, L_HTTP, "SoapMethod: Unknown: %.*s\n", methodlen, p);
 	}
 
 	SoapError(h, 401, "Invalid Action");
@@ -799,7 +807,7 @@ SoapError(struct upnphttp * h, int errCode, const char * errDesc)
 	char body[2048];
 	int bodylen;
 
-	syslog(LOG_INFO, "Returning UPnPError %d: %s", errCode, errDesc);
+	DPRINTF(E_WARN, L_HTTP, "Returning UPnPError %d: %s\n", errCode, errDesc);
 	bodylen = snprintf(body, sizeof(body), resp, errCode, errDesc);
 	BuildResp2_upnphttp(h, 500, "Internal Server Error", body, bodylen);
 	SendResp_upnphttp(h);
