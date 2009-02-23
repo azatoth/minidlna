@@ -414,10 +414,11 @@ int
 inotify_remove_file(const char * path)
 {
 	char * sql;
-	char * art_cache;
 	char **result;
+	char **result2;
+	char * art_cache;
 	sqlite_int64 detailID = 0;
-	int rows, ret = 1;
+	int i, rows, children, ret = 1;
 
 	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH = '%q'", path);
 	if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
@@ -432,6 +433,46 @@ inotify_remove_file(const char * path)
 	sqlite3_free(sql);
 	if( detailID )
 	{
+		/* Delete the parent containers if we are about to empty them. */
+		asprintf(&sql, "SELECT PARENT_ID from OBJECTS where DETAIL_ID = %lld", detailID);
+		if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
+		{
+			for( i=1; i < rows; i++ )
+			{
+				free(sql);
+				asprintf(&sql, "SELECT count(OBJECT_ID) from OBJECTS where PARENT_ID = '%s'", result[i]);
+				if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
+				{
+					children = atoi(result2[1]);
+					if( children < 2 )
+					{
+						free(sql);
+						asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
+						sql_exec(db, sql);
+					}
+					sqlite3_free_table(result2);
+					if( children < 2 )
+					{
+						*rindex(result[i], '$') = '\0';
+						free(sql);
+						asprintf(&sql, "SELECT count(OBJECT_ID) from OBJECTS where PARENT_ID = '%s'", result[i]);
+						if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
+						{
+							if( atoi(result2[1]) == 0 )
+							{
+								free(sql);
+								asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
+								sql_exec(db, sql);
+							}
+							sqlite3_free_table(result2);
+						}
+					}
+				}
+			}
+			sqlite3_free_table(result);
+		}
+		free(sql);
+		/* Now delete the actual objects */
 		asprintf(&sql, "DELETE from DETAILS where ID = %lld", detailID);
 		sql_exec(db, sql);
 		free(sql);
@@ -440,10 +481,7 @@ inotify_remove_file(const char * path)
 		free(sql);
 	}
 	asprintf(&art_cache, "%s/art_cache%s", DB_PATH, path);
-	if( access(art_cache, F_OK) == 0 )
-	{
-		remove(art_cache);
-	}
+	remove(art_cache);
 	free(art_cache);
 
 	return ret;
