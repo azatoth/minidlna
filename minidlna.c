@@ -46,6 +46,9 @@
 #include "inotify.h"
 #include "commonrdr.h"
 #include "log.h"
+#ifdef ENABLE_TIVO
+#include "tivo_beacon.h"
+#endif
 
 /* MAX_LAN_ADDR : maximum number of interfaces
  * to listen to SSDP traffic */
@@ -509,7 +512,7 @@ init(int argc, char * * argv)
 	if(debug_flag)
 	{
 		pid = getpid();
-		log_init(NULL, "general,artwork,database,inotify,scanner,metadata,http,ssdp=debug");
+		log_init(NULL, "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=debug");
 	}
 	else
 	{
@@ -579,10 +582,8 @@ main(int argc, char * * argv)
 	struct upnphttp * e = 0;
 	struct upnphttp * next;
 	fd_set readset;	/* for select() */
-#ifdef ENABLE_EVENTS
 	fd_set writeset;
-#endif
-	struct timeval timeout, timeofday, lasttimeofday = {0, 0};
+	struct timeval timeout, timeofday, lasttimeofday = {0, 0}, lastupdatetime = {0, 0};
 	int max_fd = -1;
 	int last_changecnt = 0;
 	char * sql;
@@ -658,6 +659,21 @@ main(int argc, char * * argv)
 	                "messages. EXITING\n");
 	}
 
+	#ifdef ENABLE_TIVO
+	/* open socket for sending Tivo notifications */
+	unsigned short int loop_cnt = 0;
+	int sbeacon = OpenAndConfTivoBeaconSocket();
+	struct sockaddr_in bcast;
+	if(sbeacon < 0)
+	{
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to open sockets for sending Tivo beacon notify "
+	                "messages. EXITING\n");
+	}
+	bcast.sin_family = AF_INET;
+	bcast.sin_addr.s_addr = htonl(getBcastAddress());
+	bcast.sin_port = htons( 2190 );
+	#endif
+
 	SendSSDPGoodbye(snotify, n_lan_addr);
 
 	/* main loop */
@@ -700,7 +716,7 @@ main(int argc, char * * argv)
 					timeout.tv_usec = lasttimeofday.tv_usec - timeofday.tv_usec;
 				}
 			}
-			if(timeofday.tv_sec >= (lasttimeofday.tv_sec + 2))
+			if(timeofday.tv_sec >= (lastupdatetime.tv_sec + 2))
 			{
 				if( sqlite3_total_changes(db) != last_changecnt )
 				{
@@ -708,6 +724,23 @@ main(int argc, char * * argv)
 					last_changecnt = sqlite3_total_changes(db);
 					upnp_event_var_change_notify(EContentDirectory);
 				}
+				#ifdef ENABLE_TIVO
+				if( loop_cnt < 10 )
+				{
+   					sendBeaconMessage(sbeacon, &bcast, sizeof(struct sockaddr_in), 1);
+					loop_cnt++;
+				}
+				else
+				{
+   					if( loop_cnt == 30 )
+					{
+						sendBeaconMessage(sbeacon, &bcast, sizeof(struct sockaddr_in), 1);
+						loop_cnt = 10;
+					}
+					loop_cnt++;
+				}
+				#endif
+				memcpy(&lastupdatetime, &timeofday, sizeof(struct timeval));
 			}
 		}
 
@@ -744,24 +777,16 @@ main(int argc, char * * argv)
 		}
 #endif
 
-#ifdef ENABLE_EVENTS
 		FD_ZERO(&writeset);
 		upnpevents_selectfds(&readset, &writeset, &max_fd);
-#endif
 
-#ifdef ENABLE_EVENTS
 		if(select(max_fd+1, &readset, &writeset, 0, &timeout) < 0)
-#else
-		if(select(max_fd+1, &readset, 0, 0, &timeout) < 0)
-#endif
 		{
 			if(quitting) goto shutdown;
 			DPRINTF(E_ERROR, L_GENERAL, "select(all): %s\n", strerror(errno));
 			DPRINTF(E_FATAL, L_GENERAL, "Failed to select open sockets. EXITING\n");
 		}
-#ifdef ENABLE_EVENTS
 		upnpevents_processfds(&readset, &writeset);
-#endif
 		/* process SSDP packets */
 		if(sudp >= 0 && FD_ISSET(sudp, &readset))
 		{

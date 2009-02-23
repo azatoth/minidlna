@@ -33,6 +33,7 @@ enum _log_facility
   L_METADATA,
   L_HTTP,
   L_SSDP,
+  L_TIVO,
   L_MAX
 };
 

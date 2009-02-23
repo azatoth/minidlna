@@ -39,6 +39,10 @@
 #if 0 //JPEG_RESIZE
 #include <gd.h>
 #endif
+#ifdef ENABLE_TIVO
+#include "tivo_utils.h"
+#include "tivo_commands.h"
+#endif
 //#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 
@@ -122,7 +126,6 @@ ParseHttpHeaders(struct upnphttp * h)
 				h->req_soapAction = p;
 				h->req_soapActionLen = n;
 			}
-#ifdef ENABLE_EVENTS
 			else if(strncasecmp(line, "Callback", 8)==0)
 			{
 				p = colon;
@@ -161,8 +164,6 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_Timeout = atoi(p+7);
 				}
 			}
-#endif
-#if 1
 			// Range: bytes=xxx-yyy
 			else if(strncasecmp(line, "Range", 5)==0)
 			{
@@ -235,7 +236,6 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_XFERBACKGROUND;
 				}
 			}
-#endif
 		}
 		while(!(line[0] == '\r' && line[1] == '\n'))
 			line++;
@@ -406,7 +406,6 @@ ProcessHTTPPOST_upnphttp(struct upnphttp * h)
 	}
 }
 
-#ifdef ENABLE_EVENTS
 static void
 ProcessHTTPSubscribe_upnphttp(struct upnphttp * h, const char * path)
 {
@@ -472,7 +471,6 @@ ProcessHTTPUnSubscribe_upnphttp(struct upnphttp * h, const char * path)
 	SendResp_upnphttp(h);
 	CloseSocket_upnphttp(h);
 }
-#endif
 
 /* Parse and process Http Query 
  * called once all the HTTP headers have been received. */
@@ -589,6 +587,20 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			SendResp_albumArt(h, HttpUrl+10);
 			CloseSocket_upnphttp(h);
 		}
+		#ifdef ENABLE_TIVO
+		else if(strncmp(HttpUrl, "/TiVoConnect", 12) == 0)
+		{
+			if( *(HttpUrl+12) == '?' )
+			{
+				ProcessTiVoCommand(h, HttpUrl+13);
+			}
+			else if( *(HttpUrl+12) == '/' )
+			{
+				printf("TiVo request: %c\n", *(HttpUrl+12));
+				Send404(h);
+			}
+		}
+		#endif
 #if 0 //JPEG_RESIZE
 		else if(strncmp(HttpUrl, "/Resized/", 7) == 0)
 		{
@@ -734,7 +746,6 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 	                         (h->respflags&FLAG_HTML)?"text/html":"text/xml; charset=\"utf-8\"",
 							 bodylen);
 	/* Additional headers */
-#ifdef ENABLE_EVENTS
 	if(h->respflags & FLAG_TIMEOUT) {
 		h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 		                          h->res_buf_alloclen - h->res_buflen,
@@ -755,7 +766,6 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 		                          h->res_buf_alloclen - h->res_buflen,
 		                          "SID: %s\r\n", h->req_SID);
 	}
-#endif
 #if 0 // DLNA
 	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 	                          h->res_buf_alloclen - h->res_buflen,

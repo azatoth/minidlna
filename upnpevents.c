@@ -32,13 +32,6 @@
 #include <uuid/uuid.h>
 #endif
 
-#ifdef ENABLE_EVENTS
-/*enum subscriber_service_enum {
- EWanCFG = 1,
- EWanIPC,
- EL3F
-};*/
-
 /* stuctures definitions */
 struct subscriber {
 	LIST_ENTRY(subscriber) entries;
@@ -483,6 +476,3 @@ void write_events_details(int s) {
 	}
 }
 #endif
-
-#endif
-

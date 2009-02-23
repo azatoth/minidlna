@@ -49,13 +49,11 @@ struct upnphttp {
 	enum clientType req_client;
 	const char * req_soapAction;
 	int req_soapActionLen;
-#ifdef ENABLE_EVENTS
 	const char * req_Callback;	/* For SUBSCRIBE */
 	int req_CallbackLen;
 	int req_Timeout;
 	const char * req_SID;		/* For UNSUBSCRIBE */
 	int req_SIDLen;
-#endif
 	long long int req_RangeStart;
 	long long int req_RangeEnd;
 	long int req_chunklen;

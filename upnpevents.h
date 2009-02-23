@@ -6,7 +6,6 @@
 
 #ifndef __UPNPEVENTS_H__
 #define __UPNPEVENTS_H__
-#ifdef ENABLE_EVENTS
 enum subscriber_service_enum {
  EContentDirectory = 1,
  EConnectionManager,
@@ -34,5 +33,4 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset);
 void write_events_details(int s);
 #endif
 
-#endif
 #endif

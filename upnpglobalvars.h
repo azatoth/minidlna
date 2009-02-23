@@ -86,6 +86,6 @@ extern char friendly_name[];
 extern struct media_dir_s * media_dirs;
 extern struct album_art_name_s * album_art_names;
 extern short int scanning;
-extern __u32 updateID;
+extern volatile __u32 updateID;
 
 #endif

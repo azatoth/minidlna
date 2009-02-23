@@ -40,4 +40,4 @@ char friendly_name[FRIENDLYNAME_MAX_LEN];
 struct media_dir_s * media_dirs = NULL;
 struct album_art_name_s * album_art_names = NULL;
 short int scanning = 0;
-__u32 updateID = 0;
+volatile __u32 updateID = 0;

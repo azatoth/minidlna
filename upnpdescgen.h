@@ -68,7 +68,6 @@ genWANIPCn(int * len);
 char *
 genWANCfg(int * len);
 
-#ifdef ENABLE_EVENTS
 char *
 getVarsContentDirectory(int * len);
 
@@ -77,7 +76,6 @@ getVarsConnectionManager(int * len);
 
 char *
 getVarsX_MS_MediaReceiverRegistrar(int * len);
-#endif
 
 #endif
 

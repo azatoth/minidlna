@@ -691,13 +691,7 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 	{
 		str = strcat_str(str, len, &tmplen,
 				"<stateVariable sendEvents=\"");
-#ifdef ENABLE_EVENTS
 		str = strcat_str(str, len, &tmplen, (vars[i].itype & 0x80)?"yes":"no");
-#else
-		/* for the moment allways send no. Wait for SUBSCRIBE implementation
-		 * before setting it to yes */
-		str = strcat_str(str, len, &tmplen, "no");
-#endif
 		str = strcat_str(str, len, &tmplen, "\"><name>");
 		str = strcat_str(str, len, &tmplen, vars[i].name);
 		str = strcat_str(str, len, &tmplen, "</name><dataType>");
@@ -755,7 +749,6 @@ genX_MS_MediaReceiverRegistrar(int * len)
 	return genServiceDesc(len, &scpdX_MS_MediaReceiverRegistrar);
 }
 
-#ifdef ENABLE_EVENTS
 static char *
 genEventVars(int * len, const struct serviceDesc * s, const char * servns)
 {
@@ -825,4 +818,3 @@ getVarsX_MS_MediaReceiverRegistrar(int * l)
 	                    "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1");
 }
 
-#endif

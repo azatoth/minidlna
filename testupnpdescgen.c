@@ -109,8 +109,6 @@ main(int argc, char * * argv)
 	xml_pretty_print(s, l, stdout);
 	free(s);
 	printf("\n-------------\n");
-#ifdef ENABLE_EVENTS
-#endif
 /*
 	stupid_test();
 */

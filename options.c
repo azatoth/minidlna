@@ -30,7 +30,6 @@ static const struct {
 	{ UPNPUUID, "uuid"},
 	{ UPNPSERIAL, "serial"},
 	{ UPNPMODEL_NUMBER, "model_number"},
-	{ UPNPENABLE, "enable_upnp"},
 	{ UPNPFRIENDLYNAME, "friendly_name"},
 	{ UPNPMEDIADIR, "media_dir"},
 	{ UPNPALBUMART_NAMES, "album_art_names"},

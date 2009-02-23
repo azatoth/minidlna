@@ -29,6 +29,7 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            getifaddr.o daemonize.o upnpglobalvars.o \
            options.o minissdp.o upnpevents.o \
            sql.o utils.o metadata.o albumart.o scanner.o inotify.o \
+           tivo_utils.o tivo_beacon.o tivo_commands.o \
            log.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)

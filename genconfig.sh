@@ -140,10 +140,6 @@ echo "/*#define HAVE_INOTIFY_H*/" >> ${CONFIGFILE}
 fi
 echo "" >> ${CONFIGFILE}
 
-echo "/* Experimental UPnP Events support. */" >> ${CONFIGFILE}
-echo "#define ENABLE_EVENTS" >> ${CONFIGFILE}
-echo "" >> ${CONFIGFILE}
-
 echo "/* Enable NETGEAR ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
 echo "/*#define READYNAS*/" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}

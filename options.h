@@ -26,8 +26,7 @@ enum upnpconfigoptions {
 	UPNPFRIENDLYNAME,		/* how the system should show up to DLNA clients */
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */
 	UPNPALBUMART_NAMES,			/* list of '/'-delimited file names to check for album art */
-	UPNPINOTIFY,			/* enable inotify on the media directories */
-	UPNPENABLE				/* enable_upnp */
+	UPNPINOTIFY			/* enable inotify on the media directories */
 };
 
 /* readoptionsfile()
