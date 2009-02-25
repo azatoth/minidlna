@@ -478,7 +478,7 @@ static void
 ProcessHttpQuery_upnphttp(struct upnphttp * h)
 {
 	char HttpCommand[16];
-	char HttpUrl[128];
+	char HttpUrl[256];
 	char * HttpVer;
 	char * p;
 	int i;
@@ -496,7 +496,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		while(*p!='/')
 			p++;
 	}
-	for(i = 0; i<127 && *p != ' ' && *p != '\r'; i++)
+	for(i = 0; i<255 && *p != ' ' && *p != '\r'; i++)
 		HttpUrl[i] = *(p++);
 	HttpUrl[i] = '\0';
 	while(*p==' ')

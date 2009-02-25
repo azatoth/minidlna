@@ -2,9 +2,8 @@ Things left to do:
 
 * Persistent HTTP connection (Keep-Alive) support
 * PNG image support
-* DLNA Profile Name (DLNA.ORG_PN) support for more audio files
 * SortCriteria support
-* Completely redo the logging scheme.
-* Update scan support (do not require removing the database)
-* Inotify support
 * Upload support
+
+Wishlist:
+* Transcoding

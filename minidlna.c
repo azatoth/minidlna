@@ -614,7 +614,7 @@ main(int argc, char * * argv)
 		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
-				printf("Database version mismatch; need to recreate...\n");
+				DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
 				sqlite3_close(db);
 				unlink(DB_PATH "/files.db");
 				system("rm -rf " DB_PATH "/art_cache");

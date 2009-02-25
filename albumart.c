@@ -15,7 +15,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#undef HAVE_LIBID3TAG
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +30,7 @@
 #include "upnpglobalvars.h"
 #include "sql.h"
 #include "utils.h"
+#include "log.h"
 
 /* For libjpeg error handling */
 jmp_buf setjmp_buffer;
@@ -41,6 +41,7 @@ static void libjpeg_error_handler(j_common_ptr cinfo)
 	return;
 }
 
+#if 0 // Not needed currently
 int
 check_res(int width, int height, char * dlna_pn)
 {
@@ -57,6 +58,131 @@ check_res(int width, int height, char * dlna_pn)
 	else
 		return 0;
 	return 1;
+}
+#endif
+
+/* Use our own boxfilter resizer, because gdCopyImageResampled is slow,
+ * and gdCopyImageResized looks horrible when you downscale this much. */
+#define N_FRAC 8
+#define MASK_FRAC ((1 << N_FRAC) - 1)
+#define ROUND2(v) (((v) + (1 << (N_FRAC - 1))) >> N_FRAC)
+#define DIV(x, y) ( ((x) << (N_FRAC - 3)) / ((y) >> 3) )
+static void
+boxfilter_resize(gdImagePtr dst, gdImagePtr src,
+                 int dstX, int dstY, int srcX, int srcY,
+                 int dstW, int dstH, int srcW, int srcH)
+{
+	int x, y;
+	int sy1, sy2, sx1, sx2;
+
+	if(!dst->trueColor)
+	{
+		gdImageCopyResized(dst, src, dstX, dstY, srcX, srcY, dstW, dstH,
+				   srcW, srcH);
+		return;
+	}
+	for(y = dstY; y < (dstY + dstH); y++)
+	{
+		sy1 = (((y - dstY) * srcH) << N_FRAC) / dstH;
+		sy2 = (((y - dstY + 1) * srcH) << N_FRAC) / dstH;
+		for(x = dstX; x < (dstX + dstW); x++)
+		{
+			int sx, sy;
+			int spixels = 0;
+			int red = 0, green = 0, blue = 0, alpha = 0;
+			sx1 = (((x - dstX) * srcW) << N_FRAC) / dstW;
+			sx2 = (((x - dstX + 1) * srcW) << N_FRAC) / dstW;
+			sy = sy1;
+			do {
+				int yportion;
+				if((sy >> N_FRAC) == (sy1 >> N_FRAC))
+				{
+					yportion = (1 << N_FRAC) - (sy & MASK_FRAC);
+					if(yportion > sy2 - sy1)
+					{
+						yportion = sy2 - sy1;
+					}
+					sy = sy & ~MASK_FRAC;
+				}
+				else if(sy == (sy2 & ~MASK_FRAC))
+				{
+					yportion = sy2 & MASK_FRAC;
+				}
+				else
+				{
+					yportion = (1 << N_FRAC);
+				}
+				sx = sx1;
+				do {
+					int xportion;
+					int pcontribution;
+					int p;
+					if((sx >> N_FRAC) == (sx1 >> N_FRAC))
+					{
+						xportion = (1 << N_FRAC) - (sx & MASK_FRAC);
+						if(xportion > sx2 - sx1)
+						{
+							xportion = sx2 - sx1;
+						}
+						sx = sx & ~MASK_FRAC;
+					}
+					else if(sx == (sx2 & ~MASK_FRAC))
+					{
+						xportion = sx2 & MASK_FRAC;
+					}
+					else
+					{
+						xportion = (1 << N_FRAC);
+					}
+
+					if(xportion && yportion)
+					{
+						pcontribution = (xportion * yportion) >> N_FRAC;
+						p = gdImageGetTrueColorPixel(src, ROUND2(sx) + srcX, ROUND2(sy) + srcY);
+						if(pcontribution == (1 << N_FRAC))
+						{
+							// optimization for down-scaler, which many pixel has pcontribution=1
+							red += gdTrueColorGetRed(p) << N_FRAC;
+							green += gdTrueColorGetGreen(p) << N_FRAC;
+							blue += gdTrueColorGetBlue(p) << N_FRAC;
+							alpha += gdTrueColorGetAlpha(p) << N_FRAC;
+							spixels += (1 << N_FRAC);
+						}
+						else
+						{
+							red += gdTrueColorGetRed(p) * pcontribution;
+							green += gdTrueColorGetGreen(p) * pcontribution;
+							blue += gdTrueColorGetBlue(p) * pcontribution;
+							alpha += gdTrueColorGetAlpha(p) * pcontribution;
+							spixels += pcontribution;
+						}
+					}
+					sx += (1 << N_FRAC);
+				}
+				while(sx < sx2);
+				sy += (1 << N_FRAC);
+			}
+			while(sy < sy2);
+			if(spixels != 0)
+			{
+				red = DIV(red, spixels);
+				green = DIV(green, spixels);
+				blue = DIV(blue, spixels);
+				alpha = DIV(alpha, spixels);
+			}
+			/* Clamping to allow for rounding errors above */
+			if(red > (255 << N_FRAC))
+				red = (255 << N_FRAC);
+			if(green > (255 << N_FRAC))
+				green = (255 << N_FRAC);
+			if(blue > (255 << N_FRAC))
+				blue = (255 << N_FRAC);
+			if(alpha > (gdAlphaMax << N_FRAC))
+				alpha = (gdAlphaMax << N_FRAC);
+			gdImageSetPixel(dst, x, y,
+					gdTrueColorAlpha(ROUND2(red), ROUND2(green), ROUND2(blue), ROUND2(alpha)));
+		}
+	}
 }
 
 char *
@@ -104,10 +230,14 @@ save_resized_album_art(void * ptr, const char * path, int srcw, int srch, int fi
 		fclose(dstfile);
 		goto error;
 	}
+	#if 0 // Try our box filter resizer for now
 	#ifdef __sparc__
 	gdImageCopyResized(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
 	#else
 	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	#endif
+	#else
+	boxfilter_resize(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
 	#endif
 	gdImageJpeg(imdst, dstfile, 96);
 	fclose(dstfile);
@@ -119,10 +249,6 @@ error:
 	free(cache_file);
 	return NULL;
 }
-
-
-#ifdef HAVE_LIBID3TAG
-#include <id3tag.h>
 
 /* These next few functions are to allow loading JPEG data directly from memory for libjpeg.
  * The standard functions only allow you to read from a file.
@@ -184,68 +310,99 @@ jpeg_memory_src(j_decompress_ptr cinfo, unsigned char const *buffer, size_t bufs
         src->pub.bytes_in_buffer = bufsize;
 }
 
+/* Simple, efficient hash function from Daniel J. Bernstein */
+unsigned int DJBHash(const char* str, int len)
+{
+	unsigned int hash = 5381;
+	unsigned int i = 0;
+
+	for(i = 0; i < len; str++, i++)
+	{
+		hash = ((hash << 5) + hash) + (*str);
+	}
+
+	return hash;
+}
+
 /* And our main album art functions */
 char *
-check_embedded_art(const char * path, char * dlna_pn)
+check_embedded_art(const char * path, const char * image_data, int image_size)
 {
-	struct id3_file *file;
-	struct id3_tag *pid3tag;
-	struct id3_frame *pid3frame;
-	id3_byte_t const *image;
-	id3_latin1_t const *mime;
-	id3_length_t length;
-	int index;
 	struct jpeg_decompress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	int width = 0, height = 0;
 	char * art_path = NULL;
+	char * cache_dir;
+	FILE * dstfile;
+	size_t nwritten;
+	static char last_path[PATH_MAX];
+	static unsigned int last_hash = 0;
+	unsigned int hash;
 
-	file = id3_file_open(path, ID3_FILE_MODE_READONLY);
-	if( !file )
-		return 0;
-
-	pid3tag = id3_file_tag(file);
-
-	for( index=0; (pid3frame = id3_tag_findframe(pid3tag, "", index)); index++ )
+	/* If the embedded image matches the embedded image from the last file we
+	 * checked, just make a hard link.  No use in storing it on the disk twice. */
+	hash = DJBHash(image_data, image_size);
+	if( hash == last_hash )
 	{
-		if( strcmp(pid3frame->id, "APIC") == 0 )
+		asprintf(&art_path, DB_PATH "/art_cache%s", path);
+		if( link(last_path, art_path) == 0 )
 		{
-			mime = id3_field_getlatin1(&pid3frame->fields[1]);
-			if( strcmp((char*)mime, "image/jpeg") && strcmp((char*)mime, "jpeg") )
-				continue;
-			image = id3_field_getbinarydata(&pid3frame->fields[4], &length);
-
-			cinfo.err = jpeg_std_error(&jerr);
-			jerr.error_exit = libjpeg_error_handler;
-			jpeg_create_decompress(&cinfo);
-			if( setjmp(setjmp_buffer) )
-				goto error;
-			jpeg_memory_src(&cinfo, image, length);
-			jpeg_read_header(&cinfo, TRUE);
-			jpeg_start_decompress(&cinfo);
-			width = cinfo.output_width;
-			height = cinfo.output_height;
-			error:
-			jpeg_destroy_decompress(&cinfo);
-			break;
+			return(art_path);
+		}
+		else
+		{
+			printf("link failed\n");
+			free(art_path);
+			art_path = NULL;
 		}
 	}
+
+	cinfo.err = jpeg_std_error(&jerr);
+	jerr.error_exit = libjpeg_error_handler;
+	jpeg_create_decompress(&cinfo);
+	if( setjmp(setjmp_buffer) )
+		goto error;
+	jpeg_memory_src(&cinfo, (unsigned char *)image_data, image_size);
+	jpeg_read_header(&cinfo, TRUE);
+	jpeg_start_decompress(&cinfo);
+	width = cinfo.output_width;
+	height = cinfo.output_height;
+	error:
+	jpeg_destroy_decompress(&cinfo);
+
 	if( width > 160 || height > 160 )
 	{
-		art_path = save_resized_album_art((void *)image, path, width, height, 0, length);
+		art_path = save_resized_album_art((void *)image_data, path, width, height, 0, image_size);
 	}
 	else if( width > 0 && height > 0 )
 	{
-		art_path = path;
+		asprintf(&art_path, DB_PATH "/art_cache%s", path);
+		if( access(art_path, F_OK) == 0 )
+			return art_path;
+		cache_dir = strdup(art_path);
+		make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+		free(cache_dir);
+		dstfile = fopen(art_path, "w");
+		if( !dstfile )
+			return NULL;
+		nwritten = fwrite((void *)image_data, image_size, 1, dstfile);
+		fclose(dstfile);
+		if( nwritten != image_size )
+		{
+			free(art_path);
+			remove(art_path);
+			return NULL;
+		}
 	}
-	id3_file_close(file);
+	DPRINTF(E_DEBUG, L_METADATA, "Found new embedded album art in %s\n", basename((char *)path));
+	last_hash = hash;
+	strcpy(last_path, art_path);
 
-	return(art_file);
+	return(art_path);
 }
-#endif // HAVE_LIBID3TAG
 
 char *
-check_for_album_file(char * dir, char * dlna_pn)
+check_for_album_file(char * dir)
 {
 	char * file = malloc(PATH_MAX);
 	struct album_art_name_s * album_art_name;
@@ -290,7 +447,7 @@ check_for_album_file(char * dir, char * dlna_pn)
 }
 
 sqlite_int64
-find_album_art(const char * path, char * dlna_pn)
+find_album_art(const char * path, char * dlna_pn, const char * image_data, int image_size)
 {
 	char * album_art = NULL;
 	char * sql;
@@ -299,11 +456,8 @@ find_album_art(const char * path, char * dlna_pn)
 	sqlite_int64 ret = 0;
 	char * mypath = strdup(path);
 
-	#ifdef HAVE_LIBID3TAG
-	if( check_embedded_art(path, dlna_pn) || (album_art = check_for_album_file(dirname(mypath), dlna_pn)) )
-	#else
-	if( (album_art = check_for_album_file(dirname(mypath), dlna_pn)) )
-	#endif
+	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
+	    (album_art = check_for_album_file(dirname(mypath))) )
 	{
 		strcpy(dlna_pn, "JPEG_TN");
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
@@ -314,12 +468,7 @@ find_album_art(const char * path, char * dlna_pn)
 		else
 		{
 			sqlite3_free(sql);
-			sql = sqlite3_mprintf(	"INSERT into ALBUM_ART"
-						" (PATH, EMBEDDED) "
-						"VALUES"
-						" ('%s', %d);",
-						(album_art ? album_art : path),
-						(album_art ? 0 : 1) );
+			sql = sqlite3_mprintf("INSERT into ALBUM_ART (PATH) VALUES ('%q')", album_art);
 			if( sql_exec(db, sql) == SQLITE_OK )
 				ret = sqlite3_last_insert_rowid(db);
 		}

@@ -1,3 +1,4 @@
+#include "config.h"
 #ifdef ENABLE_TIVO
 #include <stdlib.h>
 #include <string.h>

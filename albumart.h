@@ -11,6 +11,6 @@
 #define __ALBUMART_H__
 
 sqlite_int64
-find_album_art(const char * path, char * dlna_pn);
+find_album_art(const char * path, char * dlna_pn, const char * image_data, int image_size);
 
 #endif

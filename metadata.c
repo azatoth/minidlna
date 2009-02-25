@@ -26,14 +26,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <sqlite3.h>
-#include <taglib/tag_c.h>
 #include <libexif/exif-loader.h>
 #include <jpeglib.h>
 #include <setjmp.h>
 #include <avutil.h>
 #include <avcodec.h>
 #include <avformat.h>
+#include "tagutils/tagutils.h"
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
@@ -126,47 +125,65 @@ GetFolderMetadata(const char * name, const char * path, const char * artist, con
 sqlite_int64
 GetAudioMetadata(const char * path, char * name)
 {
-	off_t size = 0;
-	char date[16], duration[16], dlna_pn[24], mime[16];
+	char duration[16], mime[16], type[4];
 	struct stat file;
-	int seconds, minutes;
 	sqlite_int64 ret;
-	TagLib_File *audio_file;
-	TagLib_Tag *tag;
-	const TagLib_AudioProperties *properties;
 	char *sql;
-	char *title, *artist, *album, *genre, *comment;
+	char *title, *artist = NULL, *album = NULL, *genre = NULL, *comment = NULL, *date = NULL;
 	int free_flags = 0;
-	sqlite_int64 album_art;
+	sqlite_int64 album_art = 0;
 	char art_dlna_pn[9];
+	struct song_metadata song;
+	char *dlna_pn = NULL;
 
-	if ( stat(path, &file) == 0 )
-		size = file.st_size;
-	else
+	if ( stat(path, &file) != 0 )
 		return 0;
 	strip_ext(name);
 
-	taglib_set_strings_unicode(1);
-
-	audio_file = taglib_file_new(path);
-	if(audio_file == NULL)
+	if( ends_with(path, ".mp3") )
+	{
+		strcpy(type, "mp3");
+		strcpy(mime, "audio/mpeg");
+	}
+	else if( ends_with(path, ".m4a") || ends_with(path, ".mp4") ||
+	         ends_with(path, ".aac") || ends_with(path, ".m4p") )
+	{
+		strcpy(type, "aac");
+		strcpy(mime, "audio/mp4");
+	}
+	else if( ends_with(path, ".wma") || ends_with(path, ".asf") )
+	{
+		strcpy(type, "asf");
+		strcpy(mime, "audio/x-ms-wma");
+	}
+	else if( ends_with(path, ".flac") || ends_with(path, ".fla") || ends_with(path, ".flc") )
+	{
+		strcpy(type, "flc");
+		strcpy(mime, "audio/x-flac");
+	}
+	else
+	{
+		DPRINTF(E_WARN, L_GENERAL, "Unhandled file extension on %s\n", path);
 		return 0;
+	}
 
-	tag = taglib_file_tag(audio_file);
-	properties = taglib_file_audioproperties(audio_file);
-	if( !properties )
+	if( readtags((char *)path, &song, &file, NULL, type) != 0 )
+	{
+		DPRINTF(E_WARN, L_GENERAL, "Cannot extract tags from %s\n", path);
 		return 0;
+	}
 
-	seconds = taglib_audioproperties_length(properties) % 60;
-	minutes = (taglib_audioproperties_length(properties) - seconds) / 60;
-
-	date[0] = '\0';
-	if( taglib_tag_year(tag) )
-		sprintf(date, "%04d-01-01", taglib_tag_year(tag));
-	sprintf(duration, "%d:%02d:%02d.000", minutes/60, minutes, seconds);
-
-	title = taglib_tag_title(tag);
-	if( strlen(title) )
+	if( song.dlna_pn )
+		asprintf(&dlna_pn, "%s;DLNA.ORG_OP=01", song.dlna_pn);
+	if( song.year )
+		asprintf(&date, "%04d-01-01", song.year);
+	sprintf(duration, "%d:%02d:%02d.%03d",
+	                  (song.song_length/3600000),
+	                  (song.song_length/60000),
+	                  (song.song_length/1000%60),
+	                  (song.song_length%1000));
+	title = song.title;
+	if( title )
 	{
 		title = trim(title);
 		if( index(title, '&') )
@@ -179,9 +196,9 @@ GetAudioMetadata(const char * path, char * name)
 	{
 		title = name;
 	}
-	artist = taglib_tag_artist(tag);
-	if( strlen(artist) )
+	if( song.contributor[ROLE_ARTIST] )
 	{
+		artist = song.contributor[ROLE_ARTIST];
 		artist = trim(artist);
 		if( index(artist, '&') )
 		{
@@ -189,13 +206,9 @@ GetAudioMetadata(const char * path, char * name)
 			artist = modifyString(strdup(artist), "&", "&amp;amp;", 0);
 		}
 	}
-	else
+	if( song.album )
 	{
-		artist = NULL;
-	}
-	album = taglib_tag_album(tag);
-	if( strlen(album) )
-	{
+		album = song.album;
 		album = trim(album);
 		if( index(album, '&') )
 		{
@@ -203,13 +216,9 @@ GetAudioMetadata(const char * path, char * name)
 			album = modifyString(strdup(album), "&", "&amp;amp;", 0);
 		}
 	}
-	else
+	if( song.genre )
 	{
-		album = NULL;
-	}
-	genre = taglib_tag_genre(tag);
-	if( strlen(genre) )
-	{
+		genre = song.genre;
 		genre = trim(genre);
 		if( index(genre, '&') )
 		{
@@ -217,13 +226,9 @@ GetAudioMetadata(const char * path, char * name)
 			genre = modifyString(strdup(genre), "&", "&amp;amp;", 0);
 		}
 	}
-	else
+	if( song.comment )
 	{
-		genre = NULL;
-	}
-	comment = taglib_tag_comment(tag);
-	if( strlen(comment) )
-	{
+		comment = song.comment;
 		comment = trim(comment);
 		if( index(comment, '&') )
 		{
@@ -231,50 +236,28 @@ GetAudioMetadata(const char * path, char * name)
 			comment = modifyString(strdup(comment), "&", "&amp;amp;", 0);
 		}
 	}
-	else
-	{
-		comment = NULL;
-	}
-		
 
-	/* Switch on audio file type */
-	if( ends_with(path, ".mp3") )
-	{
-		strcpy(dlna_pn, "MP3;DLNA.ORG_OP=01");
-		strcpy(mime, "audio/mpeg");
-	}
-	else if( ends_with(path, ".flac") || ends_with(path, ".fla") || ends_with(path, ".flc") )
-	{
-		strcpy(mime, "audio/x-flac");
-	}
-	else if( ends_with(path, ".m4a") || ends_with(path, ".aac") )
-	{
-		//strcpy(dlna_pn, "MP3;DLNA.ORG_OP=01");
-		strcpy(mime, "audio/mp4");
-	}
-
-	album_art = find_album_art(path, art_dlna_pn);
+	album_art = find_album_art(path, art_dlna_pn, song.image, song.image_size);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
 				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME, ALBUM_ART, ART_DLNA_PN) "
 				"VALUES"
-				" (%Q, %llu, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, '%s', '%s', %lld, %Q);",
-				path, size, duration, taglib_audioproperties_channels(properties),
-				taglib_audioproperties_bitrate(properties)*1024,
-				taglib_audioproperties_samplerate(properties),
-				strlen(date) ? date : NULL,
+				" (%Q, %d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %Q, '%s', %lld, %Q);",
+				path, song.file_size, duration, song.channels, song.bitrate, song.samplerate, date,
 				title,
 				artist, artist,
 				album,
 				genre,
 				comment,
-				taglib_tag_track(tag),
+				song.track,
 				dlna_pn, mime,
 				album_art, album_art?art_dlna_pn:NULL );
-	taglib_tag_free_strings();
-	taglib_file_free(audio_file);
-
+        freetags(&song);
+	if( dlna_pn )
+		free(dlna_pn);
+	if( date )
+		free(date);
 	if( free_flags & FLAG_TITLE )
 		free(title);
 	if( free_flags & FLAG_ARTIST )
@@ -297,6 +280,7 @@ GetAudioMetadata(const char * path, char * name)
 		ret = sqlite3_last_insert_rowid(db);
 	}
 	sqlite3_free(sql);
+
 	return ret;
 }
 
@@ -333,7 +317,7 @@ GetImageMetadata(const char * path, char * name)
 	date[0] = '\0';
 	model[0] = '\0';
 
-	DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
 		size = file.st_size;
 	else
@@ -459,36 +443,6 @@ GetImageMetadata(const char * path, char * name)
 		free(m.mime);
 	return ret;
 }
-
-typedef enum {
-  AAC_INVALID   =  0,
-  AAC_MAIN      =  1, /* AAC Main */
-  AAC_LC        =  2, /* AAC Low complexity */
-  AAC_SSR       =  3, /* AAC SSR */
-  AAC_LTP       =  4, /* AAC Long term prediction */
-  AAC_HE        =  5, /* AAC High efficiency (SBR) */
-  AAC_SCALE     =  6, /* Scalable */
-  AAC_TWINVQ    =  7, /* TwinVQ */
-  AAC_CELP      =  8, /* CELP */
-  AAC_HVXC      =  9, /* HVXC */
-  AAC_TTSI      = 12, /* TTSI */
-  AAC_MS        = 13, /* Main synthetic */
-  AAC_WAVE      = 14, /* Wavetable synthesis */
-  AAC_MIDI      = 15, /* General MIDI */
-  AAC_FX        = 16, /* Algorithmic Synthesis and Audio FX */
-  AAC_LC_ER     = 17, /* AAC Low complexity with error recovery */
-  AAC_LTP_ER    = 19, /* AAC Long term prediction with error recovery */
-  AAC_SCALE_ER  = 20, /* AAC scalable with error recovery */
-  AAC_TWINVQ_ER = 21, /* TwinVQ with error recovery */
-  AAC_BSAC_ER   = 22, /* BSAC with error recovery */
-  AAC_LD_ER     = 23, /* AAC LD with error recovery */
-  AAC_CELP_ER   = 24, /* CELP with error recovery */
-  AAC_HXVC_ER   = 25, /* HXVC with error recovery */
-  AAC_HILN_ER   = 26, /* HILN with error recovery */
-  AAC_PARAM_ER  = 27, /* Parametric with error recovery */
-  AAC_SSC       = 28, /* AAC SSC */
-  AAC_HE_L3     = 31, /* Reserved : seems to be HeAAC L3 */
-} aac_object_type_t;
 
 sqlite_int64
 GetVideoMetadata(const char * path, char * name)

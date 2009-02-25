@@ -1,3 +1,4 @@
+#include "config.h"
 #ifdef ENABLE_TIVO
 /*
  *  * A saved copy of a beacon from another tivo or another server

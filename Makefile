@@ -30,11 +30,12 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            options.o minissdp.o upnpevents.o \
            sql.o utils.o metadata.o albumart.o scanner.o inotify.o \
            tivo_utils.o tivo_beacon.o tivo_commands.o \
+           tagutils/textutils.o tagutils/misc.o tagutils/tagutils.o \
            log.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
-LIBS = -lexif -ljpeg -ltag_c -lid3tag -lsqlite3 -lavformat -luuid -lgd
+LIBS = -lexif -ljpeg -lsqlite3 -lavformat -lid3tag -lFLAC -luuid -lgd
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 
@@ -104,5 +105,8 @@ upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
 upnpdescgen.o: minidlnatypes.h upnpdescstrings.h
 scanner.o: upnpglobalvars.h metadata.h utils.h sql.h scanner.h log.h
 metadata.o: upnpglobalvars.h metadata.h albumart.h utils.h sql.h log.h
+tagutils/misc.o: tagutils/misc.h
+tagutils/textutils.o: tagutils/misc.h tagutils/textutils.h log.h
+tagutils/tagutils.o: tagutils/tagutils-asf.c tagutils/tagutils-flc.c tagutils/tagutils-plist.c tagutils/tagutils-aac.c tagutils/tagutils-asf.h tagutils/tagutils-flc.h tagutils/tagutils-mp3.c tagutils/tagutils-ogg.c tagutils/tagutils-aac.h tagutils/tagutils.h tagutils/tagutils-mp3.h tagutils/tagutils-ogg.h log.h
 sql.o: sql.h
 log.o: log.h

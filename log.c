@@ -104,7 +104,7 @@ log_init(const char *fname, const char *debug)
 			log_level[i] = default_log_level;
 	}
 
-	if (!fname)					// use default i.e. stderr
+	if (!fname)					// use default i.e. stdout
 		return 0;
 
 	if (!(fp = fopen(fname, "a")))
@@ -126,7 +126,7 @@ log_err(int level, enum _log_facility facility, char *fname, int lineno, char *f
 		return;
 
 	if (!log_fp)
-		log_fp = stderr;
+		log_fp = stdout;
 
 	// user log
 	va_start(ap, fmt);
@@ -135,7 +135,7 @@ log_err(int level, enum _log_facility facility, char *fname, int lineno, char *f
 	va_end(ap);
 
 	// timestamp
-	t = time(0);
+	t = time(NULL);
 	tm = localtime(&t);
 	fprintf(log_fp, "[%04d/%02d/%02d %02d:%02d:%02d] ",
 	        tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,

@@ -26,6 +26,7 @@
  * 
  * See the file "COPYING" for more details.
  */
+#include "config.h"
 #ifdef ENABLE_TIVO
 #include <stdlib.h>
 #include <stdio.h>
@@ -99,35 +100,29 @@ OpenAndConfTivoBeaconSocket()
  */
 uint32_t getBcastAddress( void )
 {
-   struct ifreq        ifr;
-   struct sockaddr_in *sin;
-   int                 s, rval;
-   static int          ifacePrinted = 0;
+	struct ifreq        ifr;
+	struct sockaddr_in *sin;
+	int                 s, rval;
 
-   s = socket( AF_INET, SOCK_DGRAM, 0 );
-   if ( s < 0 )
-   {
-      return INADDR_BROADCAST;
-   }
+	s = socket( AF_INET, SOCK_DGRAM, 0 );
+	if ( s < 0 )
+	{
+		return INADDR_BROADCAST;
+	}
 
-   strcpy( ifr.ifr_name, "eth0" );
-   rval = ioctl( s, SIOCGIFBRDADDR, &ifr );
-   if ( rval < 0 )
-   {
-      close(s);
-      return INADDR_BROADCAST;
-   }
+	strcpy( ifr.ifr_name, "eth0" );
+	rval = ioctl( s, SIOCGIFBRDADDR, &ifr );
+	if ( rval < 0 )
+	{
+		close(s);
+		return INADDR_BROADCAST;
+	}
 
-   sin = (struct sockaddr_in *)&ifr.ifr_broadaddr;
-   if( !ifacePrinted )
-   {
-      printf( "Interface: %s broadcast addr %s \n", "eth0", inet_ntoa(sin->sin_addr) );
-      ifacePrinted = 1;
-   }
+	sin = (struct sockaddr_in *)&ifr.ifr_broadaddr;
+	close(s);
+	DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s \n", "eth0", inet_ntoa(sin->sin_addr) );
 
-   close(s);
-
-   return ntohl((uint32_t)(sin->sin_addr.s_addr));
+	return ntohl((uint32_t)(sin->sin_addr.s_addr));
 }
 
 /*
@@ -139,7 +134,6 @@ sendBeaconMessage(int fd, struct sockaddr_in * client, int len, int broadcast)
 {
 	char * mesg;
 	int mesg_len;
-	time_t now = time(NULL);
 
 	mesg_len = asprintf(&mesg, "TiVoConnect=1\n"
 	                           "swversion=%s\n"
@@ -151,7 +145,7 @@ sendBeaconMessage(int fd, struct sockaddr_in * client, int len, int broadcast)
 	                           "1.0",
 	                           broadcast ? "broadcast" : "connected",
 	                           uuidvalue, friendly_name, runtime_vars.port);
-	printf("Sending beacon at %s%s", ctime(&now), mesg);
+	DPRINTF(E_DEBUG, L_TIVO, "Sending TiVo beacon\n");
 	sendto(fd, mesg, mesg_len, 0, (struct sockaddr*)client, len);
 	free(mesg);
 }

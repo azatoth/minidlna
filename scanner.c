@@ -55,8 +55,10 @@ int
 is_audio(const char * file)
 {
 	return (ends_with(file, ".mp3") || ends_with(file, ".flac") ||
+		ends_with(file, ".wma") || ends_with(file, ".asf")  ||
 		ends_with(file, ".fla") || ends_with(file, ".flc")  ||
-		ends_with(file, ".m4a") || ends_with(file, ".aac"));
+		ends_with(file, ".m4a") || ends_with(file, ".aac")  ||
+		ends_with(file, ".mp4") || ends_with(file, ".m4p"));
 }
 
 int
@@ -156,7 +158,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(last_date.name, date_taken) == 0 )
 			{
 				last_date.objectID++;
-				DPRINTF(E_DEBUG, L_SCANNER, "Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
 			}
 			else
 			{
@@ -164,7 +166,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				sprintf(last_date.parentID, "3$12$%llX", container>>32);
 				last_date.objectID = (int)container;
 				strcpy(last_date.name, date_taken);
-				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -186,7 +188,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				if( strcmp(last_camdate.name, date_taken) == 0 )
 				{
 					last_camdate.objectID++;
-					DPRINTF(E_DEBUG, L_SCANNER, "Using last camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
+					//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
 				}
 				else
 				{
@@ -194,7 +196,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 					sprintf(last_camdate.parentID, "%s$%llX", last_cam.parentID, container>>32);
 					last_camdate.objectID = (int)container;
 					strcpy(last_camdate.name, date_taken);
-					DPRINTF(E_DEBUG, L_SCANNER, "Creating cached camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
+					//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
 				}
 				sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 							" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -233,7 +235,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(album, last_album.name) == 0 )
 			{
 				last_album.objectID++;
-				DPRINTF(E_DEBUG, L_SCANNER, "Using last album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
 			}
 			else
 			{
@@ -241,7 +243,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				container = insert_container(album, "1$7", NULL, "album.musicAlbum", artist, genre, album_art, art_dlna_pn);
 				sprintf(last_album.parentID, "1$7$%llX", container>>32);
 				last_album.objectID = (int)container;
-				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -263,7 +265,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(album?album:"Unknown", last_artistalbum.name) == 0 )
 			{
 				last_artistalbum.objectID++;
-				DPRINTF(E_DEBUG, L_SCANNER, "Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			else
 			{
@@ -271,7 +273,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				sprintf(last_artistalbum.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistalbum.objectID = (int)container;
 				strcpy(last_artistalbum.name, album?album:"Unknown");
-				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -286,7 +288,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			if( strcmp(genre, last_genre.name) == 0 )
 			{
 				last_genre.objectID++;
-				DPRINTF(E_DEBUG, L_SCANNER, "Using last genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
 			}
 			else
 			{
@@ -294,7 +296,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				container = insert_container(genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL, NULL);
 				sprintf(last_genre.parentID, "1$5$%llX", container>>32);
 				last_genre.objectID = (int)container;
-				DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
@@ -410,7 +412,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 				"VALUES"
 				" ('%s%s$%X', '%s%s', %Q, '%lld', '%s', '%q')",
 				base, parentID, objectID, base, parentID, refID, detailID, class, name);
-	DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
+	//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
 	ret = sql_exec(db, sql);
 	sqlite3_free(sql);
 	if( refID )
@@ -443,15 +445,17 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		strcpy(class, "item.audioItem.musicTrack");
 		detailID = GetAudioMetadata(path, name);
 	}
-	else if( is_video(name) )
+	if( !detailID && is_video(name) )
 	{
 		strcpy(base, VIDEO_DIR_ID);
 		strcpy(class, "item.videoItem");
 		detailID = GetVideoMetadata(path, name);
 	}
-	DPRINTF(E_DEBUG, L_SCANNER, "Got DetailID %lu!\n", detailID);
 	if( !detailID )
+	{
+		DPRINTF(E_WARN, L_SCANNER, "Unsuccessful getting details for %s!\n", path);
 		return -1;
+	}
 
 	sprintf(objectID, "%s%s$%X", BROWSEDIR_ID, parentID, object);
 
@@ -460,7 +464,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 				"VALUES"
 				" ('%s', '%s%s', '%s', %lu, '%q')",
 				objectID, BROWSEDIR_ID, parentID, class, detailID, name);
-	DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
+	//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
 
@@ -482,7 +486,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 				"VALUES"
 				" ('%s%s$%X', '%s%s', '%s', '%s', %lu, '%q')",
 				base, parentID, object, base, parentID, objectID, class, detailID, name);
-	DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
+	//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "SQL: %s\n", sql);
 	sql_exec(db, sql);
 	sqlite3_free(sql);
 
@@ -556,19 +560,18 @@ CreateDatabase(void)
 					"MIME TEXT, "
 					"ALBUM_ART INTEGER DEFAULT 0, "
 					"ART_DLNA_PN TEXT DEFAULT NULL"
-					");");
+					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE ALBUM_ART ( "
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
-					"PATH TEXT NOT NULL, "
-					"EMBEDDED BOOL DEFAULT 0"
-					");");
+					"PATH TEXT NOT NULL"
+					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE SETTINGS ("
 					"UPDATE_ID INTEGER PRIMARY KEY"
-					");");
+					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	ret = sql_exec(db, "INSERT into SETTINGS values (0)");

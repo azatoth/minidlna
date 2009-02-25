@@ -5,10 +5,11 @@ Homepage : http://sourceforge.net/projects/minidlna/
 
 Prerequisites :
 
-- taglib (including C bindings)
 - libexif
-- libgd (either libgd-xpm or libgd-noxpm)
+- libgd2 (either libgd2-xpm or libgd2-noxpm)
 - libid3tag
+- libFLAC
+- libvorbis
 - sqlite3
 - libavformat (the ffmpeg libraries)
 - libuuid
