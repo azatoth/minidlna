@@ -509,7 +509,7 @@ CreateDatabase(void)
 					"1$14", "1", "Folders",
 					   "2", "0", "Video",
 					 "2$8", "2", "All Video",
-					"3$15", "2", "Folders",
+					"2$15", "2", "Folders",
 					   "3", "0", "Pictures",
 					"3$11", "3", "All Pictures",
 					 "3$C", "3", "Date Taken",
