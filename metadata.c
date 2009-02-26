@@ -744,33 +744,55 @@ GetVideoMetadata(const char * path, char * name)
 					    (ctx->streams[video_stream]->codec->height <= 288) &&
 					    (ctx->bit_rate/8 <= 384000) )
 					{
-						if( audio_profile == MP3 )
-							strcpy(profile, "MP3");
-						else if( audio_profile == WMA_BASE )
-							strcpy(profile, "BASE");
-						asprintf(&m.dlna_pn, "WMVSPML_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", profile);
+						switch( audio_profile )
+						{
+							case MP3:
+								asprintf(&m.dlna_pn, "WMVSPML_MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							case WMA_BASE:
+								asprintf(&m.dlna_pn, "WMVSPML_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							default:
+								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPML/0x%X file %s\n", audio_profile, path);
+								break;
+						}
 					}
 					else if( (ctx->streams[video_stream]->codec->width  <= 720) &&
 					         (ctx->streams[video_stream]->codec->height <= 576) &&
 					         (ctx->bit_rate/8 <= 10000000) )
 					{
-						if( audio_profile == WMA_PRO )
-							strcpy(profile, "PRO");
-						else if( audio_profile == WMA_FULL )
-							strcpy(profile, "FULL");
-						else if( audio_profile == WMA_BASE )
-							strcpy(profile, "BASE");
-						asprintf(&m.dlna_pn, "WMVMED_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", profile);
+						switch( audio_profile )
+						{
+							case WMA_PRO:
+								asprintf(&m.dlna_pn, "WMVMED_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							case WMA_FULL:
+								asprintf(&m.dlna_pn, "WMVMED_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							case WMA_BASE:
+								asprintf(&m.dlna_pn, "WMVMED_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							default:
+								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVMED/0x%X file %s\n", audio_profile, path);
+								break;
+						}
 					}
 					else if( (ctx->streams[video_stream]->codec->width  <= 1920) &&
 					         (ctx->streams[video_stream]->codec->height <= 1080) &&
 					         (ctx->bit_rate/8 <= 20000000) )
 					{
-						if( audio_profile == WMA_FULL )
-							strcpy(profile, "FULL");
-						else if( audio_profile == WMA_PRO )
-							strcpy(profile, "PRO");
-						asprintf(&m.dlna_pn, "WMVHIGH_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", profile);
+						switch( audio_profile )
+						{
+							case WMA_PRO:
+								asprintf(&m.dlna_pn, "WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							case WMA_FULL:
+								asprintf(&m.dlna_pn, "WMVHIGH_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								break;
+							default:
+								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVHIGH/0x%X file %s\n", audio_profile, path);
+								break;
+						}
 					}
 					break;
 				case CODEC_ID_XVID:
