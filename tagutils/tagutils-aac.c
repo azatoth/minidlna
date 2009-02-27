@@ -253,6 +253,7 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 	aac_object_type_t profile_id = 0;
 
 	psong->vbr_scale = -1;
+	psong->channels = 2; // A "normal" default in case we can't find this information
 
 	if(!(infile = fopen(file, "rb")))
 	{
@@ -333,6 +334,11 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 		if((atom_offset != -1) && (psong->song_length))
 		{
 			psong->bitrate = atom_length * 1000 / psong->song_length / 128;
+		}
+		/* If this is an obviously wrong bitrate, try something different */
+		if((psong->bitrate < 16000) && (psong->song_length))
+		{
+			psong->bitrate = (file_size * 8) / (psong->song_length / 1000);
 		}
 	}
 
