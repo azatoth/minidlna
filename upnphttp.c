@@ -46,6 +46,8 @@
 //#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 
+#include "icons.c"
+
 struct upnphttp * 
 New_upnphttp(int s)
 {
@@ -599,15 +601,25 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 				printf("TiVo request: %c\n", *(HttpUrl+12));
 				Send404(h);
 			}
+			else
+			{
+				printf("Invalid TiVo request! %s\n", HttpUrl+12);
+				Send404(h);
+			}
 		}
 		#endif
 #if 0 //JPEG_RESIZE
-		else if(strncmp(HttpUrl, "/Resized/", 7) == 0)
+		else if(strncmp(HttpUrl, "/Resized/", 9) == 0)
 		{
-			SendResp_resizedimg(h, HttpUrl+7);
+			SendResp_resizedimg(h, HttpUrl+9);
 			CloseSocket_upnphttp(h);
 		}
 #endif
+		else if(strncmp(HttpUrl, "/icons/", 7) == 0)
+		{
+			SendResp_icon(h, HttpUrl+7);
+			CloseSocket_upnphttp(h);
+		}
 		else
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", HttpUrl);
@@ -875,6 +887,69 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 		}*/
 	}
 }
+
+void
+SendResp_icon(struct upnphttp * h, char * icon)
+{
+	char * header;
+	char * data;
+	int size;
+	char mime[12];
+	char date[30];
+	time_t curtime = time(NULL);
+
+	if( strcmp(icon, "sm.png") == 0 )
+	{
+		DPRINTF(E_DEBUG, L_HTTP, "Sending small PNG icon\n");
+		data = (char *)png_sm;
+		size = sizeof(png_sm)-1;
+		strcpy(mime, "image/png");
+	}
+	else if( strcmp(icon, "lrg.png") == 0 )
+	{
+		DPRINTF(E_DEBUG, L_HTTP, "Sending large PNG icon\n");
+		data = (char *)png_lrg;
+		size = sizeof(png_lrg)-1;
+		strcpy(mime, "image/png");
+	}
+	else if( strcmp(icon, "sm.jpg") == 0 )
+	{
+		DPRINTF(E_DEBUG, L_HTTP, "Sending small JPEG icon\n");
+		data = (char *)jpeg_sm;
+		size = sizeof(jpeg_sm)-1;
+		strcpy(mime, "image/jpeg");
+	}
+	else if( strcmp(icon, "lrg.jpg") == 0 )
+	{
+		DPRINTF(E_DEBUG, L_HTTP, "Sending large JPEG icon\n");
+		data = (char *)jpeg_lrg;
+		size = sizeof(jpeg_lrg)-1;
+		strcpy(mime, "image/jpeg");
+	}
+	else
+	{
+		DPRINTF(E_WARN, L_HTTP, "Invalid icon request: %s\n", icon);
+		Send404(h);
+		return;
+	}
+
+
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+	asprintf(&header, "HTTP/1.1 200 OK\r\n"
+			  "Content-Type: %s\r\n"
+			  "Content-Length: %d\r\n"
+			  "Connection: close\r\n"
+			  "Date: %s\r\n"
+			  "Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n\r\n",
+			  mime, size, date);
+
+	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
+	{
+		send_data(h, data, size);
+	}
+	free(header);
+}
+
 
 void
 SendResp_albumArt(struct upnphttp * h, char * object)

@@ -16,6 +16,8 @@
 #include "upnpglobalvars.h"
 #include "upnpdescstrings.h"
 
+#undef DESC_DEBUG
+
 static const char * const upnptypes[] =
 {
 	"string",
@@ -101,7 +103,7 @@ static const struct XMLElt rootDesc[] =
 {
 	{root_device, INITHELPER(1,2)},
 	{"specVersion", INITHELPER(3,2)},
-	{"device", INITHELPER(5,13)},
+	{"device", INITHELPER(5,14)},
 	{"/major", "1"},
 	{"/minor", "0"},
 	{"/deviceType", "urn:schemas-upnp-org:device:MediaServer:1"},
@@ -116,10 +118,35 @@ static const struct XMLElt rootDesc[] =
 	{"/UDN", uuidvalue},	/* required */
 	{"/dlna:X_DLNADOC xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\"", "DMS-1.50"},
 	{"/presentationURL", presentationurl},	/* recommended */
-	{"serviceList", INITHELPER(18,3)},
-	{"service", INITHELPER(21,5)},
-	{"service", INITHELPER(26,5)},
-	{"service", INITHELPER(31,5)},
+	{"iconList", INITHELPER(19,4)},
+	{"serviceList", INITHELPER(43,3)},
+	{"icon", INITHELPER(23,5)},
+	{"icon", INITHELPER(28,5)},
+	{"icon", INITHELPER(33,5)},
+	{"icon", INITHELPER(38,5)},
+	{"/mimetype", "image/png"},
+	{"/width", "48"},
+	{"/height", "48"},
+	{"/depth", "32"},
+	{"/url", "/icons/sm.png"},
+	{"/mimetype", "image/png"},
+	{"/width", "120"},
+	{"/height", "120"},
+	{"/depth", "32"},
+	{"/url", "/icons/lrg.png"},
+	{"/mimetype", "image/jpeg"},
+	{"/width", "48"},
+	{"/height", "48"},
+	{"/depth", "32"},
+	{"/url", "/icons/sm.jpg"},
+	{"/mimetype", "image/jpeg"},
+	{"/width", "120"},
+	{"/height", "120"},
+	{"/depth", "32"},
+	{"/url", "/icons/lrg.jpg"},
+	{"service", INITHELPER(46,5)},
+	{"service", INITHELPER(51,5)},
+	{"service", INITHELPER(56,5)},
 	{"/serviceType", "urn:schemas-upnp-org:service:ContentDirectory:1"},
 	{"/serviceId", "urn:upnp-org:serviceId:ContentDirectory"},
 	{"/controlURL", CONTENTDIRECTORY_CONTROLURL},
@@ -530,7 +557,9 @@ genXML(char * str, int * len, int * tmplen,
 			return str;
 		if(eltname[0] == '/')
 		{
-			/*printf("<%s>%s<%s>\n", eltname+1, p[i].data, eltname); */
+			#ifdef DESC_DEBUG
+			printf("DBG: <%s>%s<%s>\n", eltname+1, p[i].data, eltname);
+			#endif
 			str = strcat_char(str, len, tmplen, '<');
 			str = strcat_str(str, len, tmplen, eltname+1);
 			str = strcat_char(str, len, tmplen, '>');
@@ -545,10 +574,14 @@ genXML(char * str, int * len, int * tmplen,
 					return str;
 				i = ++(pile[top].i);
 				j = pile[top].j;
-				/*printf("  pile[%d]\t%d %d\n", top, i, j); */
+				#ifdef DESC_DEBUG
+				printf("DBG:  pile[%d]\t%d %d\n", top, i, j); 
+				#endif
 				if(i==j)
 				{
-					/*printf("</%s>\n", pile[top].eltname); */
+					#ifdef DESC_DEBUG
+					printf("DBG: i==j, </%s>\n", pile[top].eltname); 
+					#endif
 					str = strcat_char(str, len, tmplen, '<');
 					str = strcat_char(str, len, tmplen, '/');
 					s = pile[top].eltname;
@@ -563,7 +596,9 @@ genXML(char * str, int * len, int * tmplen,
 		}
 		else
 		{
-			/*printf("<%s>\n", eltname); */
+			#ifdef DESC_DEBUG
+			printf("DBG: [%d] <%s>\n", i, eltname); 
+			#endif
 			str = strcat_char(str, len, tmplen, '<');
 			str = strcat_str(str, len, tmplen, eltname);
 			str = strcat_char(str, len, tmplen, '>');
@@ -573,7 +608,9 @@ genXML(char * str, int * len, int * tmplen,
 			i = (unsigned)p[k].data & 0xffff;
 			j = i + ((unsigned)p[k].data >> 16);
 			top++;
-			/*printf(" +pile[%d]\t%d %d\n", top, i, j); */
+			#ifdef DESC_DEBUG
+			printf("DBG: +pile[%d]\t%d %d\n", top, i, j); 
+			#endif
 			pile[top].i = i;
 			pile[top].j = j;
 			pile[top].eltname = eltname;

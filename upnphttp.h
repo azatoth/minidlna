@@ -125,6 +125,8 @@ void
 SendResp_upnphttp(struct upnphttp *);
 
 void
+SendResp_icon(struct upnphttp *, char * url);
+void
 SendResp_albumArt(struct upnphttp *, char * url);
 void
 SendResp_resizedimg(struct upnphttp *, char * url);
