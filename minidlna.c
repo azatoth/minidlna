@@ -524,8 +524,7 @@ init(int argc, char * * argv)
 #else
 		pid = daemonize();
 #endif
-		log_init(DB_PATH "/minidlna.log", NULL);
-
+		log_init(DB_PATH "/minidlna.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
 	}
 
 	if(checkforrunning(pidfilename) < 0)
@@ -592,7 +591,7 @@ main(int argc, char * * argv)
 	if(init(argc, argv) != 0)
 		return 1;
 
-	DPRINTF(E_ERROR, L_GENERAL, "Starting MiniDLNA...\n");
+	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA...\n");
 	LIST_INIT(&upnphttphead);
 
 	if( access(DB_PATH, F_OK) != 0 )

@@ -57,17 +57,17 @@ add_watch(int fd, const char * path)
 	struct watch *nw;
 	int wd;
 
-	wd = inotify_add_watch(fd, path, IN_CREATE|IN_CLOSE_WRITE|IN_DELETE);
+	wd = inotify_add_watch(fd, path, IN_CREATE|IN_CLOSE_WRITE|IN_DELETE|IN_MOVE);
 	if( wd < 0 )
 	{
-		perror("inotify_add_watch()");
+		DPRINTF(E_ERROR, L_INOTIFY, "inotify_add_watch() [%s]\n", strerror(errno));
 		return -1;
 	}
 
 	nw = malloc(sizeof(struct watch));
 	if( nw == NULL )
 	{
-		perror("malloc()");
+		DPRINTF(E_ERROR, L_INOTIFY, "malloc()\n");
 		return -1;
 	}
 	nw->wd = wd;
@@ -219,7 +219,7 @@ int add_dir_watch(int fd, char * path, char * filename)
 	wd = add_watch(fd, buf);
 	if( wd == -1 )
 	{
-		perror("add_watch()");
+		DPRINTF(E_ERROR, L_INOTIFY, "add_watch() [%s]\n", strerror(errno));
 	}
 	else
 	{
@@ -240,7 +240,7 @@ int add_dir_watch(int fd, char * path, char * filename)
 	}
 	else
 	{
-		perror(strerror(errno));
+		DPRINTF(E_ERROR, L_INOTIFY, "Opendir error! [%s]\n", strerror(errno));
 	}
 	closedir(ds);
 	i++;
@@ -296,6 +296,7 @@ inotify_insert_file(char * name, const char * path)
 			if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) && rows )
 			{
 				id = strdup(result[1]);
+printf("depth: %d, id: %s\n", depth, id);
 				sqlite3_free_table(result);
 				sqlite3_free(sql);
 				if( !depth )
@@ -318,7 +319,7 @@ inotify_insert_file(char * name, const char * path)
 
 		if( strcmp(parent_buf, "/") == 0 )
 		{
-			id = strdup("");
+			id = calloc(1, 3);
 			depth = 0;
 			break;
 		}
@@ -371,7 +372,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	wd = add_watch(fd, path);
 	if( wd == -1 )
 	{
-		perror("add_watch()");
+		DPRINTF(E_ERROR, L_INOTIFY, "add_watch() failed");
 	}
 	else
 	{
@@ -402,7 +403,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	}
 	else
 	{
-		perror(strerror(errno));
+		DPRINTF(E_ERROR, L_INOTIFY, "opendir failed! [%s]\n", strerror(errno));
 	}
 	closedir(ds);
 	i++;
@@ -538,7 +539,7 @@ start_inotify()
 	fd = inotify_init();
 
 	if ( fd < 0 ) {
-		perror( "inotify_init" );
+		DPRINTF(E_ERROR, L_INOTIFY, "inotify_init() failed!\n");
 	}
 
 	while( scanning )
@@ -551,7 +552,7 @@ start_inotify()
 		length = read(fd, buffer, BUF_LEN);  
 
 		if ( length < 0 ) {
-			perror( "read" );
+			DPRINTF(E_ERROR, L_INOTIFY, "read failed!\n");
 		}  
 
 		i = 0;
@@ -562,24 +563,27 @@ start_inotify()
 			{
 				esc_name = modifyString(strdup(event->name), "&", "&amp;amp;", 0);
 				asprintf(&path_buf, "%s/%s", get_path_from_wd(event->wd), event->name);
-				if ( event->mask & IN_CREATE && event->mask & IN_ISDIR )
+				if ( (event->mask & IN_CREATE && event->mask & IN_ISDIR) ||
+				     (event->mask & IN_MOVED_TO && event->mask & IN_ISDIR) )
 				{
-					DPRINTF(E_DEBUG, L_INOTIFY,  "The directory %s was created.\n", path_buf );
+					DPRINTF(E_DEBUG, L_INOTIFY,  "The directory %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
 					inotify_insert_directory(fd, esc_name, path_buf);
 				}
-				else if ( event->mask & IN_CLOSE_WRITE )
+				else if ( event->mask & IN_CLOSE_WRITE || event->mask & IN_MOVED_TO )
 				{
-					DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was changed.\n", path_buf );
+					DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
 					inotify_insert_file(esc_name, path_buf);
 				}
-				else if ( event->mask & IN_DELETE )
+				else if ( event->mask & IN_DELETE || event->mask & IN_MOVED_FROM )
 				{
-					if ( event->mask & IN_ISDIR ) {
-						DPRINTF(E_DEBUG, L_INOTIFY, "The directory %s was deleted.\n", path_buf);
+					if ( event->mask & IN_ISDIR )
+					{
+						DPRINTF(E_DEBUG, L_INOTIFY, "The directory %s was %s.\n", path_buf, (event->mask & IN_MOVED_FROM ? "moved away" : "deleted"));
 						inotify_remove_directory(fd, path_buf);
 					}
-					else {
-						DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was deleted.\n", path_buf);
+					else
+					{
+						DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_FROM ? "moved away" : "deleted"));
 						inotify_remove_file(path_buf);
 					}
 				}
