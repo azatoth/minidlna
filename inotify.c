@@ -296,7 +296,6 @@ inotify_insert_file(char * name, const char * path)
 			if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) && rows )
 			{
 				id = strdup(result[1]);
-printf("depth: %d, id: %s\n", depth, id);
 				sqlite3_free_table(result);
 				sqlite3_free(sql);
 				if( !depth )
