@@ -518,8 +518,8 @@ CreateDatabase(void)
 					"2$15", "2", "Folders",
 					   "3", "0", "Pictures",
 					"3$11", "3", "All Pictures",
-					 "3$C", "3", "Date Taken",
-					 "3$D", "3", "Camera",
+					"3$12", "3", "Date Taken",
+					"3$13", "3", "Camera",
 					"3$16", "3", "Folders",
 					  "64", "0", "Browse Folders",
 					0 };
