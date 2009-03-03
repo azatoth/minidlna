@@ -169,7 +169,8 @@ GetAudioMetadata(const char * path, char * name)
 
 	if( readtags((char *)path, &song, &file, NULL, type) != 0 )
 	{
-		DPRINTF(E_WARN, L_GENERAL, "Cannot extract tags from %s\n", path);
+		DPRINTF(E_WARN, L_GENERAL, "Cannot extract tags from %s!\n", path);
+        	freetags(&song);
 		return 0;
 	}
 
@@ -463,7 +464,7 @@ GetVideoMetadata(const char * path, char * name)
 	memset(&m, '\0', sizeof(m));
 	date[0] = '\0';
 
-	DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
+	DPRINTF(E_DEBUG, L_METADATA, "Parsing video %s...\n", path);
 	if ( stat(path, &file) == 0 )
 	{
 		modtime = localtime(&file.st_mtime);
@@ -474,366 +475,371 @@ GetVideoMetadata(const char * path, char * name)
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	av_register_all();
-	if( av_open_input_file(&ctx, path, NULL, 0, NULL) == 0 )
+	if( av_open_input_file(&ctx, path, NULL, 0, NULL) != 0 )
 	{
-		av_find_stream_info(ctx);
-		//dump_format(ctx, 0, NULL, 0);
-		for( i=0; i<ctx->nb_streams; i++)
+		DPRINTF(E_WARN, L_METADATA, "Opening %s failed!\n", path);
+		return 0;
+	}
+	av_find_stream_info(ctx);
+	//dump_format(ctx, 0, NULL, 0);
+	for( i=0; i<ctx->nb_streams; i++)
+	{
+		if( audio_stream == -1 &&
+		    ctx->streams[i]->codec->codec_type == CODEC_TYPE_AUDIO )
 		{
-			if( audio_stream == -1 &&
-			    ctx->streams[i]->codec->codec_type == CODEC_TYPE_AUDIO )
-			{
-				audio_stream = i;
-				continue;
-			}
-			else if( video_stream == -1 &&
-				 ctx->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
-			{
-				video_stream = i;
-				continue;
-			}
+			audio_stream = i;
+			continue;
 		}
-		if( audio_stream >= 0 )
+		else if( video_stream == -1 &&
+			 ctx->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
 		{
-			switch( ctx->streams[audio_stream]->codec->codec_id )
-			{
-				case CODEC_ID_MP3:
-					audio_profile = MP3;
-					break;
-				case CODEC_ID_AAC:
-					if( !ctx->streams[audio_stream]->codec->extradata_size ||
-					    !ctx->streams[audio_stream]->codec->extradata )
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "No AAC type\n");
-					}
-					else
-					{
-						uint8_t data;
-						memcpy(&data, ctx->streams[audio_stream]->codec->extradata, 1);
-						aac_type = data >> 3;
-					}
-					switch( aac_type )
-					{
-						/* AAC Low Complexity variants */
-						case AAC_LC:
-						case AAC_LC_ER:
-							if( ctx->streams[audio_stream]->codec->sample_rate < 8000 ||
-							    ctx->streams[audio_stream]->codec->sample_rate > 48000 )
-							{
-								DPRINTF(E_DEBUG, L_METADATA, "Unsupported AAC: sample rate is not 8000 < %d < 48000\n",
-									ctx->streams[audio_stream]->codec->sample_rate);
-								break;
-							}
-							/* AAC @ Level 1/2 */
-							if( ctx->streams[audio_stream]->codec->channels <= 2 &&
-							    ctx->streams[audio_stream]->codec->bit_rate <= 576000 )
-								audio_profile = AAC;
-							else if( ctx->streams[audio_stream]->codec->channels <= 6 &&
-								 ctx->streams[audio_stream]->codec->bit_rate <= 1440000 )
-								audio_profile = AAC_MULT5;
-							else
-								DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC: %d channels, %d bitrate\n",
-									ctx->streams[audio_stream]->codec->channels,
-									ctx->streams[audio_stream]->codec->bit_rate);
+			video_stream = i;
+			continue;
+		}
+	}
+	/* This must not be a video file. */
+	if( video_stream == -1 )
+	{
+		av_close_input_file(ctx);
+		DPRINTF(E_WARN, L_METADATA, "File %s does not contain a video stream!\n", path);
+		return 0;
+	}
+	if( audio_stream >= 0 )
+	{
+		switch( ctx->streams[audio_stream]->codec->codec_id )
+		{
+			case CODEC_ID_MP3:
+				audio_profile = MP3;
+				break;
+			case CODEC_ID_AAC:
+				if( !ctx->streams[audio_stream]->codec->extradata_size ||
+				    !ctx->streams[audio_stream]->codec->extradata )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "No AAC type\n");
+				}
+				else
+				{
+					uint8_t data;
+					memcpy(&data, ctx->streams[audio_stream]->codec->extradata, 1);
+					aac_type = data >> 3;
+				}
+				switch( aac_type )
+				{
+					/* AAC Low Complexity variants */
+					case AAC_LC:
+					case AAC_LC_ER:
+						if( ctx->streams[audio_stream]->codec->sample_rate < 8000 ||
+						    ctx->streams[audio_stream]->codec->sample_rate > 48000 )
+						{
+							DPRINTF(E_DEBUG, L_METADATA, "Unsupported AAC: sample rate is not 8000 < %d < 48000\n",
+								ctx->streams[audio_stream]->codec->sample_rate);
 							break;
-						default:
-							DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC type [%d]\n", aac_type);
-							break;
-					}
-					break;
-				case CODEC_ID_AC3:
-				case CODEC_ID_DTS:
-					audio_profile = AC3;
-					break;
-				case CODEC_ID_WMAV1:
-				case CODEC_ID_WMAV2:
-					/* WMA Baseline: stereo, up to 48 KHz, up to 192,999 bps */
-					if ( ctx->streams[audio_stream]->codec->bit_rate <= 193000 )
-						audio_profile = WMA_BASE;
-					/* WMA Full: stereo, up to 48 KHz, up to 385 Kbps */
-					else if ( ctx->streams[audio_stream]->codec->bit_rate <= 385000 )
-						audio_profile = WMA_FULL;
-					break;
-				#ifdef CODEC_ID_WMAPRO
-				case CODEC_ID_WMAPRO:
-					audio_profile = WMA_PRO;
-					break;
-				#endif
-				case CODEC_ID_MP2:
-					audio_profile = MP2;
-					break;
-				default:
-					if( (ctx->streams[audio_stream]->codec->codec_id >= CODEC_ID_PCM_S16LE) &&
-					    (ctx->streams[audio_stream]->codec->codec_id < CODEC_ID_ADPCM_IMA_QT) )
-						audio_profile = PCM;
-					else
-						DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
-					break;
-			}
-			asprintf(&m.frequency, "%u", ctx->streams[audio_stream]->codec->sample_rate);
-			#if LIBAVCODEC_VERSION_MAJOR >= 52
-			asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_coded_sample);
-			#else
-			asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_sample);
+						}
+						/* AAC @ Level 1/2 */
+						if( ctx->streams[audio_stream]->codec->channels <= 2 &&
+						    ctx->streams[audio_stream]->codec->bit_rate <= 576000 )
+							audio_profile = AAC;
+						else if( ctx->streams[audio_stream]->codec->channels <= 6 &&
+							 ctx->streams[audio_stream]->codec->bit_rate <= 1440000 )
+							audio_profile = AAC_MULT5;
+						else
+							DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC: %d channels, %d bitrate\n",
+								ctx->streams[audio_stream]->codec->channels,
+								ctx->streams[audio_stream]->codec->bit_rate);
+						break;
+					default:
+						DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC type [%d]\n", aac_type);
+						break;
+				}
+				break;
+			case CODEC_ID_AC3:
+			case CODEC_ID_DTS:
+				audio_profile = AC3;
+				break;
+			case CODEC_ID_WMAV1:
+			case CODEC_ID_WMAV2:
+				/* WMA Baseline: stereo, up to 48 KHz, up to 192,999 bps */
+				if ( ctx->streams[audio_stream]->codec->bit_rate <= 193000 )
+					audio_profile = WMA_BASE;
+				/* WMA Full: stereo, up to 48 KHz, up to 385 Kbps */
+				else if ( ctx->streams[audio_stream]->codec->bit_rate <= 385000 )
+					audio_profile = WMA_FULL;
+				break;
+			#ifdef CODEC_ID_WMAPRO
+			case CODEC_ID_WMAPRO:
+				audio_profile = WMA_PRO;
+				break;
 			#endif
-			asprintf(&m.channels, "%u", ctx->streams[audio_stream]->codec->channels);
+			case CODEC_ID_MP2:
+				audio_profile = MP2;
+				break;
+			default:
+				if( (ctx->streams[audio_stream]->codec->codec_id >= CODEC_ID_PCM_S16LE) &&
+				    (ctx->streams[audio_stream]->codec->codec_id < CODEC_ID_ADPCM_IMA_QT) )
+					audio_profile = PCM;
+				else
+					DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
+				break;
 		}
-		if( video_stream >= 0 )
+		asprintf(&m.frequency, "%u", ctx->streams[audio_stream]->codec->sample_rate);
+		#if LIBAVCODEC_VERSION_MAJOR >= 52
+		asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_coded_sample);
+		#else
+		asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_sample);
+		#endif
+		asprintf(&m.channels, "%u", ctx->streams[audio_stream]->codec->channels);
+	}
+	if( video_stream >= 0 )
+	{
+		DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, path);
+		asprintf(&m.resolution, "%dx%d", ctx->streams[video_stream]->codec->width, ctx->streams[video_stream]->codec->height);
+		asprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
+		if( ctx->duration > 0 ) {
+			duration = (int)(ctx->duration / AV_TIME_BASE);
+			hours = (int)(duration / 3600);
+			min = (int)(duration / 60 % 60);
+			sec = (int)(duration % 60);
+			ms = (int)(ctx->duration / (AV_TIME_BASE/1000) % 1000);
+			asprintf(&m.duration, "%d:%02d:%02d.%03d", hours, min, sec, ms);
+		}
+		/* NOTE: The DLNA spec only provides for ASF (WMV), TS, PS, and MP4 containers -- not AVI. */
+		switch( ctx->streams[video_stream]->codec->codec_id )
 		{
-			DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, path);
-			asprintf(&m.resolution, "%dx%d", ctx->streams[video_stream]->codec->width, ctx->streams[video_stream]->codec->height);
-			asprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
-			if( ctx->duration > 0 ) {
-				duration = (int)(ctx->duration / AV_TIME_BASE);
-				hours = (int)(duration / 3600);
-				min = (int)(duration / 60 % 60);
-				sec = (int)(duration % 60);
-				ms = (int)(ctx->duration / (AV_TIME_BASE/1000) % 1000);
-				asprintf(&m.duration, "%d:%02d:%02d.%03d", hours, min, sec, ms);
-			}
-			/* NOTE: The DLNA spec only provides for ASF (WMV), TS, PS, and MP4 containers -- not AVI. */
-			switch( ctx->streams[video_stream]->codec->codec_id )
-			{
-				case CODEC_ID_MPEG1VIDEO:
-					if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+			case CODEC_ID_MPEG1VIDEO:
+				if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+				{
+					asprintf(&m.dlna_pn, "MPEG1;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+					asprintf(&m.mime, "video/mpeg");
+				}
+				break;
+			case CODEC_ID_MPEG2VIDEO:
+				if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS\n", video_stream, path, m.resolution);
+					char res;
+					tsinfo_t * ts = ctx->priv_data;
+					if( ts->packet_size == 192 )
 					{
-						asprintf(&m.dlna_pn, "MPEG1;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-						asprintf(&m.mime, "video/mpeg");
+						asprintf(&m.dlna_pn, "MPEG_TS_HD_NA;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
 					}
-					break;
-				case CODEC_ID_MPEG2VIDEO:
-					if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+					else if( ts->packet_size == 188 )
 					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS\n", video_stream, path, m.resolution);
-						char res;
-						tsinfo_t * ts = ctx->priv_data;
-						if( ts->packet_size == 192 )
-						{
-							asprintf(&m.dlna_pn, "MPEG_TS_HD_NA;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-							asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
-						}
-						else if( ts->packet_size == 188 )
-						{
-							if( (ctx->streams[video_stream]->codec->width  >= 1280) &&
-							    (ctx->streams[video_stream]->codec->height >= 720) )
-								res = 'H';
-							else
-								res = 'S';
-							asprintf(&m.dlna_pn, "MPEG_TS_%cD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0", res);
-							asprintf(&m.mime, "video/mpeg");
-						}
-					}
-					else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 PS\n", video_stream, path, m.resolution);
-						char region[5];
-						if( (ctx->streams[video_stream]->codec->height == 576) ||
-						    (ctx->streams[video_stream]->codec->height == 288) )
-							strcpy(region, "PAL");
-						else
-							strcpy(region, "NTSC");
-						asprintf(&m.dlna_pn, "MPEG_PS_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", region);
-						asprintf(&m.mime, "video/mpeg");
-					}
-					else
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s [UNKNOWN CONTAINER] is %s MPEG2\n", video_stream, path, m.resolution);
-					}
-					break;
-				case CODEC_ID_H264:
-					if( strcmp(ctx->iformat->name, "mpegts") == 0 )
-					{
-						tsinfo_t * ts = ctx->priv_data;
-						if( ts->packet_size == 192 )
-						{
-							if( dlna_timestamp_is_present(path) )
-								ts_timestamp = VALID;
-							else
-								ts_timestamp = EMPTY;
-						}
-						char res = '\0';
-						if( ctx->streams[video_stream]->codec->width  <= 720 &&
-						    ctx->streams[video_stream]->codec->height <= 576 &&
-						    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
-							res = 'S';
-						else if( ctx->streams[video_stream]->codec->width  <= 1920 &&
-						         ctx->streams[video_stream]->codec->height <= 1152 &&
-						         ctx->streams[video_stream]->codec->bit_rate <= 20000000 )
+						if( (ctx->streams[video_stream]->codec->width  >= 1280) &&
+						    (ctx->streams[video_stream]->codec->height >= 720) )
 							res = 'H';
-						if( res )
-						{
-							switch( audio_profile )
-							{
-								case MP3:
-									asprintf(&m.dlna_pn, "AVC_TS_MP_HD_MPEG1_L3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
-										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
-									break;
-								case AC3:
-									asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AC3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
-										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
-									break;
-								case AAC_MULT5:
-									asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AAC_MULT5%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
-										ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
-									break;
-								default:
-									DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for TS/AVC/%cD file %s\n", res, path);
-									break;
-							}
-							if( m.dlna_pn && (ts_timestamp != NONE) )
-								asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
-						}
 						else
-						{
-							DPRINTF(E_DEBUG, L_METADATA, "Unsupported h.264 video profile! [%dx%d, %dbps]\n",
-								ctx->streams[video_stream]->codec->width,
-								ctx->streams[video_stream]->codec->height,
-								ctx->streams[video_stream]->codec->bit_rate);
-						}
+							res = 'S';
+						asprintf(&m.dlna_pn, "MPEG_TS_%cD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0", res);
+						asprintf(&m.mime, "video/mpeg");
 					}
-					else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
-					{
-						/* AVC wrapped in MP4 only has SD profiles - 10 Mbps max */
-						if( ctx->streams[video_stream]->codec->width  <= 720 &&
-						    ctx->streams[video_stream]->codec->height <= 576 &&
-						    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
-						{
-							switch( audio_profile )
-							{
-								case AC3:
-									asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AC3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-									break;
-								case AAC_MULT5:
-									asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AAC_MULT5;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-									break;
-								default:
-									DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for MP4/AVC/SD file %s\n", path);
-									break;
-							}
-						}
-					}
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.264\n", video_stream, path);
-					break;
-				case CODEC_ID_MPEG4:
-					if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("XVID") )
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
-						asprintf(&m.mime, "video/divx");
-					}
-					else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DX50") )
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
-						asprintf(&m.mime, "video/divx");
-					}
-					else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DIVX") )
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is DiVX\n", video_stream, path);
-						asprintf(&m.mime, "video/divx");
-					}
+				}
+				else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 PS\n", video_stream, path, m.resolution);
+					char region[5];
+					if( (ctx->streams[video_stream]->codec->height == 576) ||
+					    (ctx->streams[video_stream]->codec->height == 288) )
+						strcpy(region, "PAL");
 					else
+						strcpy(region, "NTSC");
+					asprintf(&m.dlna_pn, "MPEG_PS_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", region);
+					asprintf(&m.mime, "video/mpeg");
+				}
+				else
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s [UNKNOWN CONTAINER] is %s MPEG2\n", video_stream, path, m.resolution);
+				}
+				break;
+			case CODEC_ID_H264:
+				if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+				{
+					tsinfo_t * ts = ctx->priv_data;
+					if( ts->packet_size == 192 )
 					{
-						DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MPEG4 [%X]\n", video_stream, path, ctx->streams[video_stream]->codec->codec_tag);
+						if( dlna_timestamp_is_present(path) )
+							ts_timestamp = VALID;
+						else
+							ts_timestamp = EMPTY;
 					}
-					break;
-				case CODEC_ID_WMV3:
-				case CODEC_ID_VC1:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is VC1\n", video_stream, path);
-					char profile[5]; profile[0] = '\0';
-					asprintf(&m.mime, "video/x-ms-wmv");
-					if( (ctx->streams[video_stream]->codec->width  <= 352) &&
-					    (ctx->streams[video_stream]->codec->height <= 288) &&
-					    (ctx->bit_rate/8 <= 384000) )
+					char res = '\0';
+					if( ctx->streams[video_stream]->codec->width  <= 720 &&
+					    ctx->streams[video_stream]->codec->height <= 576 &&
+					    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
+						res = 'S';
+					else if( ctx->streams[video_stream]->codec->width  <= 1920 &&
+					         ctx->streams[video_stream]->codec->height <= 1152 &&
+					         ctx->streams[video_stream]->codec->bit_rate <= 20000000 )
+						res = 'H';
+					if( res )
 					{
 						switch( audio_profile )
 						{
 							case MP3:
-								asprintf(&m.dlna_pn, "WMVSPML_MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_MPEG1_L3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
+									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
 								break;
-							case WMA_BASE:
-								asprintf(&m.dlna_pn, "WMVSPML_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							case AC3:
+								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AC3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
+									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+								break;
+							case AAC_MULT5:
+								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AAC_MULT5%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
+									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
 								break;
 							default:
-								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPML/0x%X file %s\n", audio_profile, path);
+								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for TS/AVC/%cD file %s\n", res, path);
 								break;
 						}
+						if( m.dlna_pn && (ts_timestamp != NONE) )
+							asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
 					}
-					else if( (ctx->streams[video_stream]->codec->width  <= 720) &&
-					         (ctx->streams[video_stream]->codec->height <= 576) &&
-					         (ctx->bit_rate/8 <= 10000000) )
+					else
+					{
+						DPRINTF(E_DEBUG, L_METADATA, "Unsupported h.264 video profile! [%dx%d, %dbps]\n",
+							ctx->streams[video_stream]->codec->width,
+							ctx->streams[video_stream]->codec->height,
+							ctx->streams[video_stream]->codec->bit_rate);
+					}
+				}
+				else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
+				{
+					/* AVC wrapped in MP4 only has SD profiles - 10 Mbps max */
+					if( ctx->streams[video_stream]->codec->width  <= 720 &&
+					    ctx->streams[video_stream]->codec->height <= 576 &&
+					    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
 					{
 						switch( audio_profile )
 						{
-							case WMA_PRO:
-								asprintf(&m.dlna_pn, "WMVMED_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							case AC3:
+								asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AC3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 								break;
-							case WMA_FULL:
-								asprintf(&m.dlna_pn, "WMVMED_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-								break;
-							case WMA_BASE:
-								asprintf(&m.dlna_pn, "WMVMED_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							case AAC_MULT5:
+								asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AAC_MULT5;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 								break;
 							default:
-								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVMED/0x%X file %s\n", audio_profile, path);
+								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for MP4/AVC/SD file %s\n", path);
 								break;
 						}
 					}
-					else if( (ctx->streams[video_stream]->codec->width  <= 1920) &&
-					         (ctx->streams[video_stream]->codec->height <= 1080) &&
-					         (ctx->bit_rate/8 <= 20000000) )
-					{
-						switch( audio_profile )
-						{
-							case WMA_PRO:
-								asprintf(&m.dlna_pn, "WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-								break;
-							case WMA_FULL:
-								asprintf(&m.dlna_pn, "WMVHIGH_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-								break;
-							default:
-								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVHIGH/0x%X file %s\n", audio_profile, path);
-								break;
-						}
-					}
-					break;
-				case CODEC_ID_XVID:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s UNKNOWN XVID\n", video_stream, path, m.resolution);
-					break;
-				case CODEC_ID_MSMPEG4V1:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v1\n", video_stream, path, m.resolution);
-				case CODEC_ID_MSMPEG4V3:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v3\n", video_stream, path, m.resolution);
-					asprintf(&m.mime, "video/avi");
-					break;
-				case CODEC_ID_H263I:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.263i\n", video_stream, path);
-					break;
-				case CODEC_ID_MJPEG:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MJPEG\n", video_stream, path);
-					break;
-				default:
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %d\n", video_stream, path, ctx->streams[video_stream]->codec->codec_id);
-					break;
-			}
-		}
-		if( !m.mime )
-		{
-			if( strcmp(ctx->iformat->name, "avi") == 0 )
-				asprintf(&m.mime, "video/x-msvideo");
-			else if( strcmp(ctx->iformat->name, "mpegts") == 0 )
-				asprintf(&m.mime, "video/mpeg");
-			else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
-				asprintf(&m.mime, "video/mpeg");
-			else if( strcmp(ctx->iformat->name, "asf") == 0 )
+				}
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.264\n", video_stream, path);
+				break;
+			case CODEC_ID_MPEG4:
+				if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("XVID") )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
+					asprintf(&m.mime, "video/divx");
+				}
+				else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DX50") )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
+					asprintf(&m.mime, "video/divx");
+				}
+				else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DIVX") )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is DiVX\n", video_stream, path);
+					asprintf(&m.mime, "video/divx");
+				}
+				else
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MPEG4 [%X]\n", video_stream, path, ctx->streams[video_stream]->codec->codec_tag);
+				}
+				break;
+			case CODEC_ID_WMV3:
+			case CODEC_ID_VC1:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is VC1\n", video_stream, path);
+				char profile[5]; profile[0] = '\0';
 				asprintf(&m.mime, "video/x-ms-wmv");
-			else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
-				asprintf(&m.mime, "video/mp4");
+				if( (ctx->streams[video_stream]->codec->width  <= 352) &&
+				    (ctx->streams[video_stream]->codec->height <= 288) &&
+				    (ctx->bit_rate/8 <= 384000) )
+				{
+					switch( audio_profile )
+					{
+						case MP3:
+							asprintf(&m.dlna_pn, "WMVSPML_MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						case WMA_BASE:
+							asprintf(&m.dlna_pn, "WMVSPML_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						default:
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPML/0x%X file %s\n", audio_profile, path);
+							break;
+					}
+				}
+				else if( (ctx->streams[video_stream]->codec->width  <= 720) &&
+				         (ctx->streams[video_stream]->codec->height <= 576) &&
+				         (ctx->bit_rate/8 <= 10000000) )
+				{
+					switch( audio_profile )
+					{
+						case WMA_PRO:
+							asprintf(&m.dlna_pn, "WMVMED_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						case WMA_FULL:
+							asprintf(&m.dlna_pn, "WMVMED_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						case WMA_BASE:
+							asprintf(&m.dlna_pn, "WMVMED_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						default:
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVMED/0x%X file %s\n", audio_profile, path);
+							break;
+					}
+				}
+				else if( (ctx->streams[video_stream]->codec->width  <= 1920) &&
+				         (ctx->streams[video_stream]->codec->height <= 1080) &&
+				         (ctx->bit_rate/8 <= 20000000) )
+				{
+					switch( audio_profile )
+					{
+						case WMA_PRO:
+							asprintf(&m.dlna_pn, "WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						case WMA_FULL:
+							asprintf(&m.dlna_pn, "WMVHIGH_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							break;
+						default:
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVHIGH/0x%X file %s\n", audio_profile, path);
+							break;
+					}
+				}
+				break;
+			case CODEC_ID_XVID:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s UNKNOWN XVID\n", video_stream, path, m.resolution);
+				break;
+			case CODEC_ID_MSMPEG4V1:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v1\n", video_stream, path, m.resolution);
+			case CODEC_ID_MSMPEG4V3:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v3\n", video_stream, path, m.resolution);
+				asprintf(&m.mime, "video/avi");
+				break;
+			case CODEC_ID_H263I:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.263i\n", video_stream, path);
+				break;
+			case CODEC_ID_MJPEG:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MJPEG\n", video_stream, path);
+				break;
+			default:
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %d\n", video_stream, path, ctx->streams[video_stream]->codec->codec_id);
+				break;
 		}
-		av_close_input_file(ctx);
 	}
-	else
+	if( !m.mime )
 	{
-		DPRINTF(E_WARN, L_METADATA, "Opening %s failed!\n", path);
+		if( strcmp(ctx->iformat->name, "avi") == 0 )
+			asprintf(&m.mime, "video/x-msvideo");
+		else if( strcmp(ctx->iformat->name, "mpegts") == 0 )
+			asprintf(&m.mime, "video/mpeg");
+		else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+			asprintf(&m.mime, "video/mpeg");
+		else if( strcmp(ctx->iformat->name, "asf") == 0 )
+			asprintf(&m.mime, "video/x-ms-wmv");
+		else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
+			asprintf(&m.mime, "video/mp4");
 	}
+	av_close_input_file(ctx);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"

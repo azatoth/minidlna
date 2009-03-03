@@ -432,6 +432,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 	char * typedir_parentID;
 	int typedir_objectID;
 	char * baseid;
+	char * orig_name = NULL;
 
 	if( is_image(name) )
 	{
@@ -439,18 +440,23 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		strcpy(class, "item.imageItem.photo");
 		detailID = GetImageMetadata(path, name);
 	}
-	else if( is_audio(name) )
+	else if( is_video(name) )
+	{
+ 		orig_name = strdup(name);
+		strcpy(base, VIDEO_DIR_ID);
+		strcpy(class, "item.videoItem");
+		detailID = GetVideoMetadata(path, name);
+		if( !detailID )
+			strcpy(name, orig_name);
+	}
+	if( !detailID && is_audio(name) )
 	{
 		strcpy(base, MUSIC_DIR_ID);
 		strcpy(class, "item.audioItem.musicTrack");
 		detailID = GetAudioMetadata(path, name);
 	}
-	if( !detailID && is_video(name) )
-	{
-		strcpy(base, VIDEO_DIR_ID);
-		strcpy(class, "item.videoItem");
-		detailID = GetVideoMetadata(path, name);
-	}
+	if( orig_name )
+		free(orig_name);
 	if( !detailID )
 	{
 		DPRINTF(E_WARN, L_SCANNER, "Unsuccessful getting details for %s!\n", path);
