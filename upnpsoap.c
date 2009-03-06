@@ -479,7 +479,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	else
 	{
 		sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-				      " where PARENT_ID = '%s' order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
+				      " where PARENT_ID = '%s' order by d.TRACK, d.ARTIST, d.TITLE, o.NAME limit %d, -1;",
 				      ObjectId, StartingIndex);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}

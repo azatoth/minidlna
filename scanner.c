@@ -182,7 +182,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				{
 					container = insert_container(cam, "3$13", NULL, "storageFolder", NULL, NULL, NULL, NULL);
 					sprintf(last_cam.parentID, "3$13$%llX", container>>32);
-					strcpy(last_cam.name, cam);
+					strncpy(last_cam.name, cam, 255);
 					last_camdate.name[0] = '\0';
 				}
 				if( strcmp(last_camdate.name, date_taken) == 0 )
@@ -226,8 +226,11 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		char *album_art = cols ? result[19+cols]:NULL, *art_dlna_pn = cols ? result[20+cols]:NULL;
 		static struct virtual_item last_album;
 		static struct virtual_item last_artist;
-		static struct virtual_item last_artistalbum;
+		static struct virtual_item last_artistAlbum;
+		static struct virtual_item last_artistAlbumAll;
 		static struct virtual_item last_genre;
+		static struct virtual_item last_genreArtist;
+		static struct virtual_item last_genreArtistAll;
 		static sqlite_int64 last_all_objectID = 0;
 
 		if( album )
@@ -260,49 +263,77 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				container = insert_container(artist, "1$6", NULL, "person.musicArtist", NULL, genre, NULL, NULL);
 				sprintf(last_artist.parentID, "1$6$%llX", container>>32);
 				strcpy(last_artist.name, artist);
-				last_artistalbum.name[0] = '\0';
+				last_artistAlbum.name[0] = '\0';
+				/* Add this file to the "- All Albums -" container as well */
+				container = insert_container("- All Albums -", last_artist.parentID, NULL, "storageFolder", NULL, genre, NULL, NULL);
+				sprintf(last_artistAlbumAll.parentID, "%s$%llX", last_artist.parentID, container>>32);
+				last_artistAlbumAll.objectID = (int)container;
 			}
-			if( strcmp(album?album:"Unknown", last_artistalbum.name) == 0 )
+			if( strcmp(album?album:"Unknown Album", last_artistAlbum.name) == 0 )
 			{
-				last_artistalbum.objectID++;
+				last_artistAlbum.objectID++;
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			else
 			{
-				container = insert_container(album?album:"Unknown", last_artist.parentID, album?last_album.parentID:NULL, "album.musicAlbum", artist, genre, album_art, art_dlna_pn);
-				sprintf(last_artistalbum.parentID, "%s$%llX", last_artist.parentID, container>>32);
-				last_artistalbum.objectID = (int)container;
-				strcpy(last_artistalbum.name, album?album:"Unknown");
+				container = insert_container(album?album:"Unknown Album", last_artist.parentID, album?last_album.parentID:NULL, "album.musicAlbum", artist, genre, album_art, art_dlna_pn);
+				sprintf(last_artistAlbum.parentID, "%s$%llX", last_artist.parentID, container>>32);
+				last_artistAlbum.objectID = (int)container;
+				strcpy(last_artistAlbum.name, album?album:"Unknown Album");
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
 						" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
-						last_artistalbum.parentID, last_artistalbum.objectID, last_artistalbum.parentID, refID, class, detailID, name);
+						last_artistAlbum.parentID, last_artistAlbum.objectID, last_artistAlbum.parentID, refID, class, detailID, name);
+			sql_exec(db, sql);
+			sqlite3_free(sql);
+			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+						"VALUES"
+						" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
+						last_artistAlbumAll.parentID, last_artistAlbumAll.objectID, last_artistAlbumAll.parentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
 		if( genre )
 		{
-			if( strcmp(genre, last_genre.name) == 0 )
+			if( strcmp(genre, last_genre.name) != 0 )
 			{
-				last_genre.objectID++;
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
+				container = insert_container(genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL, NULL);
+				sprintf(last_genre.parentID, "1$5$%llX", container>>32);
+				strcpy(last_genre.name, genre);
+				last_genreArtist.name[0] = '\0';
+				/* Add this file to the "- All Artists -" container as well */
+				container = insert_container("- All Artists -", last_genre.parentID, NULL, "storageFolder", NULL, genre, NULL, NULL);
+				sprintf(last_genreArtistAll.parentID, "%s$%llX", last_genre.parentID, container>>32);
+				last_genreArtistAll.objectID = (int)container;
+			}
+			if( strcmp(artist?artist:"Unknown Artist", last_genreArtist.name) == 0 )
+			{
+				last_genreArtist.objectID++;
 			}
 			else
 			{
-				strcpy(last_genre.name, genre);
-				container = insert_container(genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL, NULL);
-				sprintf(last_genre.parentID, "1$5$%llX", container>>32);
-				last_genre.objectID = (int)container;
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre item: %s/%s/%X\n", last_genre.name, last_genre.parentID, last_genre.objectID);
+				container = insert_container(artist?artist:"Unknown Artist", last_genre.parentID, artist?last_artist.parentID:NULL, "person.musicArtist", NULL, genre, NULL, NULL);
+				sprintf(last_genreArtist.parentID, "%s$%llX", last_genre.parentID, container>>32);
+				last_genreArtist.objectID = (int)container;
+				strcpy(last_genreArtist.name, artist?artist:"Unknown Artist");
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/artist item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 						"VALUES"
 						" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
-						last_genre.parentID, last_genre.objectID, last_genre.parentID, refID, class, detailID, name);
+						last_genreArtist.parentID, last_genreArtist.objectID, last_genreArtist.parentID, refID, class, detailID, name);
+			sql_exec(db, sql);
+			sqlite3_free(sql);
+			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+						"VALUES"
+						" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
+						last_genreArtistAll.parentID, last_genreArtistAll.objectID, last_genreArtistAll.parentID, refID, class, detailID, name);
 			sql_exec(db, sql);
 			sqlite3_free(sql);
 		}
