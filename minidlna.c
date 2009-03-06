@@ -524,7 +524,11 @@ init(int argc, char * * argv)
 #else
 		pid = daemonize();
 #endif
+		#ifdef READYNAS
+		log_init("/var/log/upnp-av.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
+		#else
 		log_init(DB_PATH "/minidlna.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
+		#endif
 	}
 
 	if(checkforrunning(pidfilename) < 0)
