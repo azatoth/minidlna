@@ -720,7 +720,14 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	}
 
 	if( !parent )
+	{
 		startID = get_next_available_id("OBJECTS", BROWSEDIR_ID);
+		#ifdef READYNAS
+		FILE * flag = fopen("/ramfs/.upnp-av_scan", "w");
+		if( flag )
+			fclose(flag);
+		#endif
+	}
 
 	for (i=0; i < n; i++) {
 		sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
@@ -753,6 +760,11 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	}
 	else
 	{
+		#ifdef READYNAS
+		if( access("/ramfs/.rescan_done", F_OK) == 0 )
+			system("/bin/sh /ramfs/.rescan_done");
+		unlink("/ramfs/.upnp-av_scan");
+		#endif
 		DPRINTF(E_WARN, L_SCANNER, "Scanning %s finished (%llu files)!\n", dir, fileno);
 	}
 }
