@@ -351,7 +351,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 		}
 		else
 		{
-			printf("link failed\n");
+			DPRINTF(E_WARN, L_METADATA, "Linking %s to %s failed\n", art_path, last_path);
 			free(art_path);
 			art_path = NULL;
 		}
@@ -389,10 +389,15 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 		fclose(dstfile);
 		if( nwritten != image_size )
 		{
-			free(art_path);
 			remove(art_path);
+			free(art_path);
 			return NULL;
 		}
+	}
+	if( !art_path )
+	{
+		DPRINTF(E_WARN, L_METADATA, "Invalid embedded album art in %s\n", basename((char *)path));
+		return NULL;
 	}
 	DPRINTF(E_DEBUG, L_METADATA, "Found new embedded album art in %s\n", basename((char *)path));
 	last_hash = hash;
