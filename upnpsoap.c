@@ -112,11 +112,10 @@ GetProtocolInfo(struct upnphttp * h, const char * action)
 		"<Sink></Sink>"
 		"</u:%sResponse>";
 
-
-	char body[1536];
+	char * body;
 	int bodylen;
 
-	bodylen = snprintf(body, sizeof(body), resp,
+	bodylen = asprintf(&body, resp,
 		action, "urn:schemas-upnp-org:service:ConnectionManager:1",
 		action);	
 	BuildSendAndCloseSoapResp(h, body, bodylen);
@@ -431,7 +430,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	memset(&args, 0, sizeof(args));
 	strcpy(resp, resp0);
 	/* See if we need to include DLNA namespace reference */
-	if( (strlen(Filter) <= 1) || strstr(Filter, "dlna") )
+	if( Filter && ((strlen(Filter) <= 1) || strstr(Filter, "dlna")) )
 		strcat(resp, DLNA_NAMESPACE);
 	strcat(resp, "&gt;\n");
 
@@ -460,13 +459,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				ObjectId, RequestedCount, StartingIndex,
 	                        BrowseFlag, Filter, SortCriteria);
 
-	if( !Filter )
-	{
-		ClearNameValueList(&data);
-		SoapError(h, 402, "Invalid Args");
-		return;
-	}
-	if( strlen(Filter) > 1 )
+	if( Filter && (strlen(Filter) > 1) )
 		args.filter = Filter;
 
 	args.resp = resp;
@@ -566,17 +559,11 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 
 	strcpy(resp, resp0);
 	/* See if we need to include DLNA namespace reference */
-	if( (strlen(Filter) <= 1) || strstr(Filter, "dlna") )
+	if( Filter && ((strlen(Filter) <= 1) || strstr(Filter, "dlna")) )
 		strcat(resp, DLNA_NAMESPACE);
 	strcat(resp, "&gt;\n");
 
-	if( !Filter )
-	{
-		ClearNameValueList(&data);
-		SoapError(h, 402, "Invalid Args");
-		return;
-	}
-	if( strlen(Filter) > 1 )
+	if( Filter && (strlen(Filter) > 1) )
 		args.filter = Filter;
 	if( strcmp(ContainerID, "0") == 0 )
 		*ContainerID = '*';

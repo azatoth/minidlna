@@ -297,19 +297,16 @@ static void upnp_event_prepare(struct upnp_event_notify * obj)
 		xml = NULL;
 		l = 0;
 	}
-	obj->buffersize = 2048;
-	obj->buffer = malloc(obj->buffersize);
-	/*if(!obj->buffer) {
-	}*/
-	obj->tosend = snprintf(obj->buffer, obj->buffersize, notifymsg,
+	obj->tosend = asprintf(&(obj->buffer), notifymsg,
 	                       obj->path, obj->addrstr, obj->portstr, l+2,
 	                       obj->sub->uuid, obj->sub->seq,
 	                       l, xml);
+	obj->buffersize = obj->tosend;
 	if(xml) {
 		free(xml);
 		xml = NULL;
 	}
-	//DEBUG printf("Preparing buffer:\n%s\n", obj->buffer);
+	DPRINTF(E_DEBUG, L_HTTP, "Sending UPnP Event response:\n%s\n", obj->buffer);
 	obj->state = ESending;
 }
 
