@@ -269,6 +269,10 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				sprintf(last_artistAlbumAll.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistAlbumAll.objectID = (int)container;
 			}
+			else
+			{
+				last_artistAlbumAll.objectID++;
+			}
 			if( strcmp(album?album:"Unknown Album", last_artistAlbum.name) == 0 )
 			{
 				last_artistAlbum.objectID++;
@@ -309,6 +313,10 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				container = insert_container("- All Artists -", last_genre.parentID, NULL, "storageFolder", NULL, genre, NULL, NULL);
 				sprintf(last_genreArtistAll.parentID, "%s$%llX", last_genre.parentID, container>>32);
 				last_genreArtistAll.objectID = (int)container;
+			}
+			else
+			{
+				last_genreArtistAll.objectID++;
 			}
 			if( strcmp(artist?artist:"Unknown Artist", last_genreArtist.name) == 0 )
 			{
