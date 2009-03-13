@@ -14,19 +14,20 @@
 enum upnpconfigoptions {
 	UPNP_INVALID = 0,
 	UPNPEXT_IFNAME = 1,		/* ext_ifname */
-	UPNPEXT_IP,				/* ext_ip */
+	UPNPEXT_IP,			/* ext_ip */
 	UPNPLISTENING_IP,		/* listening_ip */
-	UPNPPORT,				/* "port" */
-	UPNPPRESENTATIONURL,	/* presentation_url */
-	UPNPNOTIFY_INTERVAL,	/* notify_interval */
+	UPNPPORT,			/* "port" */
+	UPNPPRESENTATIONURL,		/* presentation_url */
+	UPNPNOTIFY_INTERVAL,		/* notify_interval */
 	UPNPSYSTEM_UPTIME,		/* "system_uptime" */
-	UPNPUUID,				/* uuid */
-	UPNPSERIAL,				/* serial */
+	UPNPUUID,			/* uuid */
+	UPNPSERIAL,			/* serial */
 	UPNPMODEL_NUMBER,		/* model_number */
 	UPNPFRIENDLYNAME,		/* how the system should show up to DLNA clients */
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */
-	UPNPALBUMART_NAMES,			/* list of '/'-delimited file names to check for album art */
-	UPNPINOTIFY			/* enable inotify on the media directories */
+	UPNPALBUMART_NAMES,		/* list of '/'-delimited file names to check for album art */
+	UPNPINOTIFY,			/* enable inotify on the media directories */
+	ENABLE_TIVO			/* enable support for streaming images and music to TiVo */
 };
 
 /* readoptionsfile()

@@ -17,6 +17,7 @@
 struct Response
 {
 	char *resp;
+	int start;
 	int returned;
 	int requested;
 	int total;

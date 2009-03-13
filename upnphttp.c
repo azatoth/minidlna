@@ -34,12 +34,10 @@
 #include "upnpglobalvars.h"
 #include "utils.h"
 #include "log.h"
-#include <sqlite3.h>
+#include "sql.h"
 #include <libexif/exif-loader.h>
-#if 0 //JPEG_RESIZE
 #include <gd.h>
-#endif
-#ifdef ENABLE_TIVO
+#ifdef TIVO_SUPPORT
 #include "tivo_utils.h"
 #include "tivo_commands.h"
 #endif
@@ -480,7 +478,7 @@ static void
 ProcessHttpQuery_upnphttp(struct upnphttp * h)
 {
 	char HttpCommand[16];
-	char HttpUrl[256];
+	char HttpUrl[512];
 	char * HttpVer;
 	char * p;
 	int i;
@@ -498,7 +496,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		while(*p!='/')
 			p++;
 	}
-	for(i = 0; i<255 && *p != ' ' && *p != '\r'; i++)
+	for(i = 0; i<511 && *p != ' ' && *p != '\r'; i++)
 		HttpUrl[i] = *(p++);
 	HttpUrl[i] = '\0';
 	while(*p==' ')
@@ -507,9 +505,9 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 	for(i = 0; i<15 && *p != '\r'; i++)
 		HttpVer[i] = *(p++);
 	HttpVer[i] = '\0';
-	DPRINTF(E_INFO, L_HTTP, "HTTP REQUEST : %s %s (%s)\n",
-	       HttpCommand, HttpUrl, HttpVer);
-	DPRINTF(E_DEBUG, L_HTTP, "HTTP REQUEST:\n%.*s\n", h->req_buflen, h->req_buf);
+	/*DPRINTF(E_INFO, L_HTTP, "HTTP REQUEST : %s %s (%s)\n",
+	       HttpCommand, HttpUrl, HttpVer);*/
+	DPRINTF(E_DEBUG, L_HTTP, "HTTP REQUEST: %.*s\n", h->req_buflen, h->req_buf);
 	ParseHttpHeaders(h);
 
 	/* see if we need to wait for remaining data */
@@ -589,32 +587,33 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			SendResp_albumArt(h, HttpUrl+10);
 			CloseSocket_upnphttp(h);
 		}
-		#ifdef ENABLE_TIVO
+		#ifdef TIVO_SUPPORT
 		else if(strncmp(HttpUrl, "/TiVoConnect", 12) == 0)
 		{
-			if( *(HttpUrl+12) == '?' )
+			if( GETFLAG(TIVOMASK) )
 			{
-				ProcessTiVoCommand(h, HttpUrl+13);
-			}
-			else if( *(HttpUrl+12) == '/' )
-			{
-				printf("TiVo request: %c\n", *(HttpUrl+12));
-				Send404(h);
+				if( *(HttpUrl+12) == '?' )
+				{
+					ProcessTiVoCommand(h, HttpUrl+13);
+				}
+				else
+				{
+					printf("Invalid TiVo request! %s\n", HttpUrl+12);
+					Send404(h);
+				}
 			}
 			else
 			{
-				printf("Invalid TiVo request! %s\n", HttpUrl+12);
+				printf("TiVo request with out TiVo support enabled! %s\n", HttpUrl+12);
 				Send404(h);
 			}
 		}
 		#endif
-#if 0 //JPEG_RESIZE
 		else if(strncmp(HttpUrl, "/Resized/", 9) == 0)
 		{
 			SendResp_resizedimg(h, HttpUrl+9);
 			CloseSocket_upnphttp(h);
 		}
-#endif
 		else if(strncmp(HttpUrl, "/icons/", 7) == 0)
 		{
 			SendResp_icon(h, HttpUrl+7);
@@ -829,7 +828,7 @@ void
 SendResp_upnphttp(struct upnphttp * h)
 {
 	int n;
-	DPRINTF(E_DEBUG, L_HTTP, "HTTP RESPONSE:\n%.*s\n", h->res_buflen, h->res_buf);
+	DPRINTF(E_DEBUG, L_HTTP, "HTTP RESPONSE: %.*s\n", h->res_buflen, h->res_buf);
 	n = send(h->socket, h->res_buf, h->res_buflen, 0);
 	if(n<0)
 	{
@@ -1106,7 +1105,6 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 	sqlite3_free_table(result);
 }
 
-#if 0 //JPEG_RESIZE
 void
 SendResp_resizedimg(struct upnphttp * h, char * object)
 {
@@ -1115,13 +1113,53 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char **result;
 	char date[30];
 	time_t curtime = time(NULL);
-	int n;
 	FILE *imgfile;
-	gdImagePtr imsrc = 0, imdst = 0;
-	int dstw, dsth, srcw, srch, size;
+	int width=640, height=480, dstw, dsth, rotation, size;
 	char * data;
-
+	char *path, *file_path;
+	char *resolution, *tn;
+	char *key, *val;
+	char *saveptr, *item;
+	char *pixelshape = NULL;
+	int rows=0, ret;
+	gdImagePtr imsrc = 0, imdst = 0;
+	ExifData *ed;
+	ExifLoader *l;
 	memset(header, 0, 1500);
+
+	path = strdup(object);
+	if( strtok_r(path, "?", &saveptr) )
+	{
+		item = strtok_r(NULL, "&", &saveptr);
+		//continue;
+	}
+	while( item != NULL )
+	{
+		#ifdef TIVO_SUPPORT
+		decodeString(item, 1);
+		#endif
+		val = item;
+		key = strsep(&val, "=");
+		DPRINTF(E_DEBUG, L_GENERAL, "%s: %s\n", key, val);
+		if( strcasecmp(key, "width") == 0 )
+		{
+			width = atoi(val);
+		}
+		else if( strcasecmp(key, "height") == 0 )
+		{
+			height = atoi(val);
+		}
+		else if( strcasecmp(key, "rotation") == 0 )
+		{
+			rotation = atoi(val);
+		}
+		else if( strcasecmp(key, "pixelshape") == 0 )
+		{
+			pixelshape = val;
+		}
+		item = strtok_r(NULL, "&", &saveptr);
+	}
+	strip_ext(path);
 
 	if( h->reqflags & FLAG_XFERSTREAMING || h->reqflags & FLAG_RANGE )
 	{
@@ -1130,90 +1168,107 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		return;
 	}
 
-	sprintf(sql_buf, "SELECT d.PATH, d.WIDTH, d.HEIGHT from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where OBJECT_ID = '%s'", object);
-	sqlite3_get_table(db, sql_buf, &result, 0, 0, 0);
-	DPRINTF(E_INFO, L_HTTP, "Serving up resized image for ObjectId: %s [%s]\n", object, result[1]);
-
-	if( access(result[3], F_OK) == 0 )
+	sprintf(sql_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%s'", path);
+	ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
+	if( (ret != SQLITE_OK) || !rows || (access(result[3], F_OK) != 0) )
 	{
-		strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+		free(path);
+		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %s!\n", path);
+		return;
+	}
+	file_path = result[3];
+	resolution = result[4];
+	tn = result[5];
+	DPRINTF(E_INFO, L_HTTP, "Serving resized image for ObjectId: %s [%s]\n", path, file_path);
+	free(path);
 
-		imgfile = fopen(result[3], "r");
-		imsrc = gdImageCreateFromJpeg(imgfile);
-		imdst = gdImageCreateTrueColor(dstw, dsth);
-		srcw = atoi(result[4]);
-		srch = atoi(result[5]);
-		dstw = 640;
-		dsth = ((((640<<10)/srcw)*srch)>>10);
+	/* Resizing from a thumbnail is much faster than from a large image */
+	if( width <= 160 && height <= 120 && atoi(tn) )
+	{
+		l = exif_loader_new();
+		exif_loader_write_file(l, file_path);
+		ed = exif_loader_get_data(l);
+		exif_loader_unref(l);
 
-		if( !imsrc )
+		if( !ed || !ed->size )
+		{
+			if( ed )
+				exif_data_unref(ed);
+			Send404(h);
+			sqlite3_free_table(result);
+			return;
+		}
+		imsrc = gdImageCreateFromJpegPtr(ed->size, ed->data);
+		exif_data_unref(ed);
+	}
+	else
+	{
+		imgfile = fopen(file_path, "r");
+		if( !imgfile )
 		{
 			Send404(h);
-			goto error;
+			sqlite3_free_table(result);
+			return;
 		}
-		if( dsth > 480 )
-		{
-			dsth = 480;
-			dstw = (((480<<10)/srch) * srcw>>10);
-		}
-		gdImageCopyResized(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, srcw, srch);
-		data = (char *)gdImageJpegPtr(imdst, &size, -1);
-		sprintf(header, "%s 200 OK\r\n"
-				"Content-Type: image/jpeg\r\n"
-				"Content-Length: %d\r\n"
-				"Connection: close\r\n"
-				"Date: %s\r\n"
-				"EXT:\r\n"
-			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
-				"Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA_TN/1.0\r\n",
-				h->HttpVer, size, date);
-
-		if( h->reqflags & FLAG_XFERINTERACTIVE )
-		{
-			strcat(header, "transferMode.dlna.org: Interactive\r\n");
-		}
-		else if( h->reqflags & FLAG_XFERBACKGROUND )
-		{
-			strcat(header, "transferMode.dlna.org: Background\r\n");
-		}
-		strcat(header, "\r\n");
-
-		n = send(h->socket, header, strlen(header), 0);
-		if(n<0)
-		{
-			DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s", strerror(errno));
-		} 
-		else if(n < h->res_buflen)
-		{
-			/* TODO : handle correctly this case */
-			DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %d bytes sent (out of %d)\n",
-							n, h->res_buflen);
-		}
-
-		if( h->req_command == EHead )
-		{
-			goto error;
-		}
-
-		n = send(h->socket, data, size, 0);
-		if(n<0)
-		{
-			DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s", strerror(errno));
-		} 
-		else if(n < h->res_buflen)
-		{
-			/* TODO : handle correctly this case */
-			DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %d bytes sent (out of %d)\n",
-							n, h->res_buflen);
-		}
-		gdFree(data);  
+		imsrc = gdImageCreateFromJpeg(imgfile);
+		fclose(imgfile);
 	}
-	error:
+	if( !imsrc )
+	{
+		Send404(h);
+		sqlite3_free_table(result);
+		return;
+	}
+	/* Figure out the best destination resolution we can use */
+	dstw = width;
+	dsth = ((((width<<10)/imsrc->sx)*imsrc->sy)>>10);
+	if( dsth > height )
+	{
+		dsth = height;
+		dstw = (((height<<10)/imsrc->sy) * imsrc->sx>>10);
+	}
+	imdst = gdImageCreateTrueColor(dstw, dsth);
+	#if 0 // Use box filter resizer
+	#ifdef __sparc__
+	gdImageCopyResized(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	#else
+	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	#endif
+	#endif
+	boxfilter_resize(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	data = (char *)gdImageJpegPtr(imdst, &size, 99);
+	DPRINTF(E_INFO, L_HTTP, "size: %d\n", size);
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+	snprintf(header, sizeof(header)-50, "%s 200 OK\r\n"
+	                                    "Content-Type: image/jpeg\r\n"
+	                                    "Content-Length: %d\r\n"
+	                                    "Connection: close\r\n"
+	                                    "Date: %s\r\n"
+	                                    "EXT:\r\n"
+	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
+	                                    "Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA_TN/1.0\r\n",
+	                                    h->HttpVer, size, date);
+
+	if( h->reqflags & FLAG_XFERINTERACTIVE )
+	{
+		strcat(header, "transferMode.dlna.org: Interactive\r\n");
+	}
+	else if( h->reqflags & FLAG_XFERBACKGROUND )
+	{
+		strcat(header, "transferMode.dlna.org: Background\r\n");
+	}
+	strcat(header, "\r\n");
+
+	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
+	{
+		send_data(h, data, size);
+	}
+	gdFree(data);  
 	gdImageDestroy(imsrc);  
 	gdImageDestroy(imdst);  
+	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
 	sqlite3_free_table(result);
 }
-#endif
 
 void
 SendResp_dlnafile(struct upnphttp * h, char * object)

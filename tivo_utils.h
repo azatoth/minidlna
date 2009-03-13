@@ -1,5 +1,5 @@
 #include "config.h"
-#ifdef ENABLE_TIVO
+#ifdef TIVO_SUPPORT
 char *
-decodeString(const char * string);
+decodeString(const char * string, int inplace);
 #endif

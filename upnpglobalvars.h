@@ -59,6 +59,7 @@ extern struct runtime_vars_s runtime_vars;
 extern int runtime_flags;
 #define INOTIFYMASK		0x0001
 #define SYSUPTIMEMASK		0x0002
+#define TIVOMASK		0x0004
 
 #define SETFLAG(mask)	runtime_flags |= mask
 #define GETFLAG(mask)	runtime_flags & mask

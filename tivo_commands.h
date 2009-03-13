@@ -1,5 +1,5 @@
 #include "config.h"
-#ifdef ENABLE_TIVO
+#ifdef TIVO_SUPPORT
 void
 ProcessTiVoCommand(struct upnphttp * h, const char * orig_path);
 #endif

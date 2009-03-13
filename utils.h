@@ -9,6 +9,7 @@
  * */
 #ifndef __UTILS_H__
 #define __UTILS_H__
+#include <gd.h>
 
 int
 ends_with(const char * haystack, const char * needle);
@@ -25,4 +26,9 @@ strip_ext(char * name);
 int
 make_dir(char * path, mode_t mode);
 
+/* A GD resize function with a good balance of quality and speed */
+void
+boxfilter_resize(gdImagePtr dst, gdImagePtr src,
+                 int dstX, int dstY, int srcX, int srcY,
+                 int dstW, int dstH, int srcW, int srcH);
 #endif

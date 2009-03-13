@@ -27,7 +27,7 @@
  * See the file "COPYING" for more details.
  */
 #include "config.h"
-#ifdef ENABLE_TIVO
+#ifdef TIVO_SUPPORT
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -284,4 +284,4 @@ rcvBeaconMessage(char * beacon)
 		return 1;
 	return 0;
 }
-#endif // ENABLE_TIVO
+#endif // TIVO_SUPPORT

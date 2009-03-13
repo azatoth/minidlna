@@ -46,7 +46,7 @@
 #include "inotify.h"
 #include "commonrdr.h"
 #include "log.h"
-#ifdef ENABLE_TIVO
+#ifdef TIVO_SUPPORT
 #include "tivo_beacon.h"
 #endif
 
@@ -386,6 +386,10 @@ init(int argc, char * * argv)
 				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
 					CLEARFLAG(INOTIFYMASK);
 				break;
+			case ENABLE_TIVO:
+				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
+					SETFLAG(TIVOMASK);
+				break;
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",
 				        optionsfile);
@@ -589,6 +593,9 @@ main(int argc, char * * argv)
 	struct timeval timeout, timeofday, lasttimeofday = {0, 0}, lastupdatetime = {0, 0};
 	int max_fd = -1;
 	int last_changecnt = 0;
+	unsigned short int loop_cnt = 0;
+	int sbeacon;
+	struct sockaddr_in tivo_bcast;
 	char * sql;
 	pthread_t thread[2];
 
@@ -662,19 +669,21 @@ main(int argc, char * * argv)
 	                "messages. EXITING\n");
 	}
 
-	#ifdef ENABLE_TIVO
-	/* open socket for sending Tivo notifications */
-	unsigned short int loop_cnt = 0;
-	int sbeacon = OpenAndConfTivoBeaconSocket();
-	struct sockaddr_in bcast;
-	if(sbeacon < 0)
+	#ifdef TIVO_SUPPORT
+	if( GETFLAG(TIVOMASK) )
 	{
-		DPRINTF(E_FATAL, L_GENERAL, "Failed to open sockets for sending Tivo beacon notify "
-	                "messages. EXITING\n");
+		DPRINTF(E_WARN, L_GENERAL, "TiVo support is enabled.\n");
+		/* open socket for sending Tivo notifications */
+		sbeacon = OpenAndConfTivoBeaconSocket();
+		if(sbeacon < 0)
+		{
+			DPRINTF(E_FATAL, L_GENERAL, "Failed to open sockets for sending Tivo beacon notify "
+		                "messages. EXITING\n");
+		}
+		tivo_bcast.sin_family = AF_INET;
+		tivo_bcast.sin_addr.s_addr = htonl(getBcastAddress());
+		tivo_bcast.sin_port = htons( 2190 );
 	}
-	bcast.sin_family = AF_INET;
-	bcast.sin_addr.s_addr = htonl(getBcastAddress());
-	bcast.sin_port = htons( 2190 );
 	#endif
 
 	SendSSDPGoodbye(snotify, n_lan_addr);
@@ -727,20 +736,23 @@ main(int argc, char * * argv)
 					last_changecnt = sqlite3_total_changes(db);
 					upnp_event_var_change_notify(EContentDirectory);
 				}
-				#ifdef ENABLE_TIVO
-				if( loop_cnt < 10 )
+				#ifdef TIVO_SUPPORT
+				if( GETFLAG(TIVOMASK) )
 				{
-   					sendBeaconMessage(sbeacon, &bcast, sizeof(struct sockaddr_in), 1);
-					loop_cnt++;
-				}
-				else
-				{
-   					if( loop_cnt == 30 )
+					if( loop_cnt < 10 )
 					{
-						sendBeaconMessage(sbeacon, &bcast, sizeof(struct sockaddr_in), 1);
-						loop_cnt = 10;
+   						sendBeaconMessage(sbeacon, &tivo_bcast, sizeof(struct sockaddr_in), 1);
+						loop_cnt++;
 					}
-					loop_cnt++;
+					else
+					{
+   						if( loop_cnt == 30 )
+						{
+							sendBeaconMessage(sbeacon, &tivo_bcast, sizeof(struct sockaddr_in), 1);
+							loop_cnt = 10;
+						}
+						loop_cnt++;
+					}
 				}
 				#endif
 				memcpy(&lastupdatetime, &timeofday, sizeof(struct timeval));

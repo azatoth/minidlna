@@ -408,14 +408,15 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
 	static const char resp2[] = "</u:BrowseResponse>";
 
-	char *resp = calloc(1, 1048576);
+	char *resp = malloc(1048576);
 	char str_buf[4096];
 	char *zErrMsg = 0;
 	char *sql;
 	int ret;
 	struct Response args;
-
 	struct NameValueParserData data;
+	*resp = '\0';
+
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
 	int RequestedCount = atoi( GetValueFromNameValueList(&data, "RequestedCount") );
 	int StartingIndex = atoi( GetValueFromNameValueList(&data, "StartingIndex") );
@@ -510,12 +511,13 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	static const char resp1[] = "&lt;/DIDL-Lite&gt;</Result>";
 	static const char resp2[] = "</u:SearchResponse>";
 
-	char *resp = calloc(1, 1048576);
+	char *resp = malloc(1048576);
 	char *zErrMsg = 0;
 	char *sql;
 	char str_buf[4096];
 	int ret;
 	struct Response args;
+	*resp = '\0';
 
 	struct NameValueParserData data;
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);

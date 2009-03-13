@@ -33,7 +33,8 @@ static const struct {
 	{ UPNPFRIENDLYNAME, "friendly_name"},
 	{ UPNPMEDIADIR, "media_dir"},
 	{ UPNPALBUMART_NAMES, "album_art_names"},
-	{ UPNPINOTIFY, "inotify" }
+	{ UPNPINOTIFY, "inotify" },
+	{ ENABLE_TIVO, "enable_tivo" }
 };
 
 int
