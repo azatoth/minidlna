@@ -70,20 +70,17 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	int is_audio = 0;
 	int ret;
 
-	//passed_args->total++;
-	//if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
-	//	return 0;
+	passed_args->total++;
+	if( passed_args->start >= passed_args->total )
+		return 0;
+	if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
+		return 0;
 
+printf("%s [%d]\n", title, passed_args->total);
 	if( strncmp(class, "item", 4) == 0 )
 	{
 		if( strcmp(mime, "audio/mpeg") == 0 )
 		{
-			if( passed_args->start > passed_args->total )
-				return 0;
-			passed_args->total++;
-			if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
-				return 0;
-			passed_args->returned++;
 			sprintf(str_buf, "<Item><Details>"
 			                 "<ContentType>audio/*</ContentType>"
 			                 "<SourceFormat>audio/mpeg</SourceFormat>"
@@ -99,12 +96,6 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		}
 		else if( strcmp(mime, "image/jpeg") == 0 )
 		{
-			if( passed_args->start > passed_args->total )
-				return 0;
-			passed_args->total++;
-			if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
-				return 0;
-			passed_args->returned++;
 			sprintf(str_buf, "<Item><Details>"
 			                 "<ContentType>image/*</ContentType>"
 			                 "<SourceFormat>image/jpeg</SourceFormat>"
@@ -165,12 +156,6 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	}
 	else if( strncmp(class, "container", 9) == 0 )
 	{
-		if( passed_args->start > passed_args->total )
-			return 0;
-		passed_args->total++;
-		if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
-			return 0;
-		passed_args->returned++;
 		/* Determine the number of children */
 		sprintf(str_buf, "SELECT count(ID) from OBJECTS where PARENT_ID = '%s';", id);
 		ret = sql_get_table(db, str_buf, &result, NULL, NULL);
@@ -189,6 +174,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	}
 	strcat(passed_args->resp, str_buf);
 	strcat(passed_args->resp, "</Item>");
+	passed_args->returned++;
 
 	return 0;
 }
@@ -202,13 +188,12 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	char *zErrMsg = NULL;
 	char **result;
 	char *title;
-	char what[10];
+	char what[10], order[5];
 	struct Response args;
 	int i, ret;
 	*items = '\0';
 	memset(&args, 0, sizeof(args));
 
-	args.total = itemStart;
 	args.resp = items;
 	args.requested = itemCount;
 
@@ -249,10 +234,17 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		{
 			strcpy(what, "DETAIL_ID");
 		}
-		sql = sqlite3_mprintf("SELECT %s from OBJECTS where PARENT_ID = '%s'"
-		                      " order by CLASS, NAME %s", what, objectID, itemCount<0?"DESC":"ASC");
 		if( itemCount < 0 )
+			strcpy(order, "DESC");
+		else
+			strcpy(order, "ASC");
+		sql = sqlite3_mprintf("SELECT %s from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+		                      " where PARENT_ID = '%s' and (MIME = 'image/jpeg' or MIME = 'audio/mpeg' or CLASS glob 'container*')"
+		                      " order by CLASS %s, NAME %s, DETAIL_ID %s", what, objectID, order, order, order);
+		if( itemCount < 0 )
+		{
 			args.requested *= -1;
+		}
 		DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
 		if( (sql_get_table(db, sql, &result, &ret, NULL) == SQLITE_OK) && ret )
 		{
@@ -273,7 +265,8 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	}
 	args.start = itemStart+anchorOffset;
 	sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-			      " where PARENT_ID = '%s' order by CLASS, NAME", objectID);
+		              " where PARENT_ID = '%s' and (MIME = 'image/jpeg' or MIME = 'audio/mpeg' or CLASS glob 'container*')"
+			      " order by CLASS, NAME, DETAIL_ID", objectID);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	sqlite3_free(sql);
 	if( ret != SQLITE_OK )
@@ -295,8 +288,8 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                 "%s" /* the actual items xml */
 	                 "</TiVoContainer>",
 	                (objectID[0]=='1' ? "music":"photos"),
-	                args.total+itemStart+anchorOffset,
-	                title, itemStart+anchorOffset,
+	                args.total,
+	                title, args.start,
 	                args.returned, items);
 	free(title);
 	free(items);
