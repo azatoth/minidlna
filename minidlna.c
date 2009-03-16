@@ -48,6 +48,7 @@
 #include "log.h"
 #ifdef TIVO_SUPPORT
 #include "tivo_beacon.h"
+#include "tivo_utils.h"
 #endif
 
 /* MAX_LAN_ADDR : maximum number of interfaces
@@ -673,6 +674,11 @@ main(int argc, char * * argv)
 	if( GETFLAG(TIVOMASK) )
 	{
 		DPRINTF(E_WARN, L_GENERAL, "TiVo support is enabled.\n");
+		/* Add TiVo-specific randomize function to sqlite */
+		if( sqlite3_create_function(db, "tivorandom", 1, SQLITE_UTF8, NULL, &TiVoRandomSeedFunc, NULL, NULL) != SQLITE_OK )
+		{
+			DPRINTF(E_ERROR, L_TIVO, "ERROR: Failed to add sqlite randomize function for TiVo!\n");
+		}
 		/* open socket for sending Tivo notifications */
 		sbeacon = OpenAndConfTivoBeaconSocket();
 		if(sbeacon < 0)

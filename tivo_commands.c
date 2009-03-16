@@ -76,7 +76,6 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
 		return 0;
 
-printf("%s [%d]\n", title, passed_args->total);
 	if( strncmp(class, "item", 4) == 0 )
 	{
 		if( strcmp(mime, "audio/mpeg") == 0 )
@@ -180,18 +179,23 @@ printf("%s [%d]\n", title, passed_args->total);
 }
 
 void
-SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int itemCount, char * anchorItem, int anchorOffset)
+SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int itemCount, char * anchorItem,
+              int anchorOffset, int recurse, char * sortOrder, char * filter, unsigned long int randomSeed)
 {
 	char * resp = malloc(1048576);
 	char * items = malloc(1048576);
-	char *sql;
+	char *sql, *item, *saveptr;
 	char *zErrMsg = NULL;
 	char **result;
 	char *title;
-	char what[10], order[5];
+	char what[10], order[64], order2[64], myfilter[128];
+	char *which;
 	struct Response args;
 	int i, ret;
 	*items = '\0';
+	order[0] = '\0';
+	order2[0] = '\0';
+	myfilter[0] = '\0';
 	memset(&args, 0, sizeof(args));
 
 	args.resp = items;
@@ -223,6 +227,137 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		sqlite3_free_table(result);
 	}
 
+	if( recurse )
+		asprintf(&which, "OBJECT_ID glob '%s$*'", objectID);
+	else
+		asprintf(&which, "PARENT_ID = '%s'", objectID);
+
+	if( sortOrder )
+	{
+		if( strcasestr(sortOrder, "Random") )
+		{
+			sprintf(order, "tivorandom(%lu)", randomSeed);
+			if( itemCount < 0 )
+				sprintf(order2, "tivorandom(%lu) DESC", randomSeed);
+			else
+				sprintf(order2, "tivorandom(%lu)", randomSeed);
+		}
+		else
+		{
+			item = strtok_r(sortOrder, ",", &saveptr);
+			for( i=0; item != NULL; i++ )
+			{
+				int reverse=0;
+				if( *item == '!' )
+				{
+					reverse = 1;
+					item++;
+				}
+				if( strcasecmp(item, "Type") == 0 )
+				{
+					strcat(order, "CLASS");
+					strcat(order2, "CLASS");
+				}
+				else if( strcasecmp(item, "Title") == 0 )
+				{
+					strcat(order, "TITLE");
+					strcat(order2, "TITLE");
+				}
+				else if( strcasecmp(item, "CreationDate") == 0 ||
+				         strcasecmp(item, "CaptureDate") == 0 )
+				{
+					strcat(order, "DATE");
+					strcat(order2, "DATE");
+				}
+				else
+				{
+					DPRINTF(E_INFO, L_TIVO, "Unhandled SortOrder [%s]\n", item);
+					goto unhandled_order;
+				}
+
+				if( reverse )
+				{
+					strcat(order, " DESC");
+					if( itemCount >= 0 )
+					{
+						strcat(order2, " DESC");
+					}
+					else
+					{
+						strcat(order2, " ASC");
+					}
+				}
+				else
+				{
+					strcat(order, " ASC");
+					if( itemCount >= 0 )
+					{
+						strcat(order2, " ASC");
+					}
+					else
+					{
+						strcat(order2, " DESC");
+					}
+				}
+				strcat(order, ", ");
+				strcat(order2, ", ");
+				unhandled_order:
+				item = strtok_r(NULL, ",", &saveptr);
+			}
+			strcat(order, "DETAIL_ID ASC");
+			if( itemCount >= 0 )
+			{
+				strcat(order2, "DETAIL_ID ASC");
+			}
+			else
+			{
+				strcat(order2, "DETAIL_ID DESC");
+			}
+		}
+	}
+	else
+	{
+		sprintf(order, "CLASS, NAME, DETAIL_ID");
+		if( itemCount < 0 )
+			sprintf(order2, "CLASS DESC, NAME DESC, DETAIL_ID DESC");
+		else
+			sprintf(order2, "CLASS, NAME, DETAIL_ID");
+	}
+
+	if( filter )
+	{
+		item = strtok_r(filter, ",", &saveptr);
+		for( i=0; item != NULL; i++ )
+		{
+			if( i )
+			{
+				strcat(myfilter, " or ");
+			}
+			if( strcasecmp(item, "x-container/folder") == 0 )
+			{
+				strcat(myfilter, "CLASS glob 'container*'");
+			}
+			else if( strncasecmp(item, "image", 5) == 0 )
+			{
+				strcat(myfilter, "MIME = 'image/jpeg'");
+			}
+			else if( strncasecmp(item, "audio", 5) == 0 )
+			{
+				strcat(myfilter, "MIME = 'audio/mpeg'");
+			}
+			else
+			{
+				DPRINTF(E_INFO, L_TIVO, "Unhandled Filter [%s]\n", item);
+				strcat(myfilter, "0 = 1");
+			}
+			item = strtok_r(NULL, ",", &saveptr);
+		}
+	}
+	else
+	{
+		strcpy(myfilter, "MIME = 'image/jpeg' or MIME = 'audio/mpeg' or CLASS glob 'container*'");
+	}
+
 	if( anchorItem )
 	{
 		if( strstr(anchorItem, "QueryContainer") )
@@ -234,13 +369,10 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		{
 			strcpy(what, "DETAIL_ID");
 		}
-		if( itemCount < 0 )
-			strcpy(order, "DESC");
-		else
-			strcpy(order, "ASC");
+		sqlite3Prng.isInit = 0;
 		sql = sqlite3_mprintf("SELECT %s from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
-		                      " where PARENT_ID = '%s' and (MIME = 'image/jpeg' or MIME = 'audio/mpeg' or CLASS glob 'container*')"
-		                      " order by CLASS %s, NAME %s, DETAIL_ID %s", what, objectID, order, order, order);
+		                      " where %s and (%s)"
+		                      " order by %s", what, which, myfilter, order2);
 		if( itemCount < 0 )
 		{
 			args.requested *= -1;
@@ -264,9 +396,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		sqlite3_free(sql);
 	}
 	args.start = itemStart+anchorOffset;
+	sqlite3Prng.isInit = 0;
 	sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-		              " where PARENT_ID = '%s' and (MIME = 'image/jpeg' or MIME = 'audio/mpeg' or CLASS glob 'container*')"
-			      " order by CLASS, NAME, DETAIL_ID", objectID);
+		              " where %s and (%s)"
+			      " order by %s", which, myfilter, order);
+	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	sqlite3_free(sql);
 	if( ret != SQLITE_OK )
@@ -291,8 +425,9 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                args.total,
 	                title, args.start,
 	                args.returned, items);
-	free(title);
 	free(items);
+	free(title);
+	free(which);
 	BuildResp_upnphttp(h, resp, strlen(resp));
 	free(resp);
 	SendResp_upnphttp(h);
@@ -305,7 +440,9 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 	char *key, *val;
 	char *saveptr, *item;
 	char *command = NULL, *container = NULL, *anchorItem = NULL;
-	int itemStart=0, itemCount=-100, anchorOffset=0;
+	char *sortOrder = NULL, *filter = NULL;
+	int itemStart=0, itemCount=-100, anchorOffset=0, recurse=0;
+	unsigned long int randomSeed=0;
 
 	path = strdup(orig_path);
 	DPRINTF(E_DEBUG, L_GENERAL, "Processing TiVo command %s\n", path);
@@ -347,6 +484,26 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 		{
 			anchorOffset = atoi(val);
 		}
+		else if( strcasecmp(key, "Recurse") == 0 )
+		{
+			recurse = strcasecmp("yes", val) == 0 ? 1 : 0;
+		}
+		else if( strcasecmp(key, "SortOrder") == 0 )
+		{
+			sortOrder = val;
+		}
+		else if( strcasecmp(key, "Filter") == 0 )
+		{
+			filter = val;
+		}
+		else if( strcasecmp(key, "RandomSeed") == 0 )
+		{
+			randomSeed = strtoul(val, NULL, 10);
+		}
+		else if( strcasecmp(key, "Format") == 0 )
+		{
+			// Only send XML
+		}
 		else
 		{
 			DPRINTF(E_DEBUG, L_GENERAL, "Unhandled parameter [%s]\n", key);
@@ -366,55 +523,10 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 		}
 		else
 		{
-			SendContainer(h, container, itemStart, itemCount, anchorItem, anchorOffset);
+			SendContainer(h, container, itemStart, itemCount, anchorItem, anchorOffset, recurse, sortOrder, filter, randomSeed);
 		}
 	}
 	free(path);
-	CloseSocket_upnphttp(h);
-}
-
-void
-ProcessTiVoRequest(struct upnphttp * h, const char * orig_path)
-{
-	char *path;
-	char *key, *val;
-	char *saveptr, *item;
-	char *command = NULL, *container = NULL;
-	int itemStart=0, itemCount=0;
-
-	path = decodeString(orig_path, 0);
-	DPRINTF(E_DEBUG, L_GENERAL, "Processing TiVo request %s\n", path);
-
-	item = strtok_r( path, "&", &saveptr );
-	while( item != NULL )
-	{
-		if( strlen( item ) == 0 )
-		{
-			item = strtok_r( NULL, "&", &saveptr );
-			continue;
-		}
-		val = item;
-		key = strsep(&val, "=");
-		DPRINTF(E_DEBUG, L_GENERAL, "%s: %s\n", key, val);
-		if( strcasecmp(key, "width") == 0 )
-		{
-			command = val;
-		}
-		else if( strcasecmp(key, "height") == 0 )
-		{
-			container = val;
-		}
-		else if( strcasecmp(key, "rotation") == 0 )
-		{
-			itemStart = atoi(val);
-		}
-		else if( strcasecmp(key, "pixelshape") == 0 )
-		{
-			itemCount = atoi(val);
-		}
-		item = strtok_r( NULL, "&", &saveptr );
-	}
-
 	CloseSocket_upnphttp(h);
 }
 #endif // TIVO_SUPPORT

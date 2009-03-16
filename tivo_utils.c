@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <linux/types.h> // Defines __u32
+#include <sqlite3.h>
+#include "tivo_utils.h"
 
 /* This function based on byRequest */
 char *
@@ -61,5 +64,59 @@ decodeString(char * string, int inplace)
 		ns[strindex] = '\0'; /* terminate it */
 		return ns;
 	}
+}
+
+/* These next functions implement a repeatable random function with a user-provided seed */
+static int
+seedRandomByte(__u32 seed) {
+  unsigned char t;
+  if( !sqlite3Prng.isInit )
+  {
+    int i;
+    char k[256];
+    sqlite3Prng.j = 0;
+    sqlite3Prng.i = 0;
+    memset(&k, 0, 256);
+    memcpy(&k, &seed, 4);
+    for(i=0; i<256; i++){
+      sqlite3Prng.s[i] = i;
+    }
+    for(i=0; i<256; i++){
+      sqlite3Prng.j += sqlite3Prng.s[i] + k[i];
+      t = sqlite3Prng.s[sqlite3Prng.j];
+      sqlite3Prng.s[sqlite3Prng.j] = sqlite3Prng.s[i];
+      sqlite3Prng.s[i] = t;
+    }
+    sqlite3Prng.isInit = 1;
+  }
+  /* Generate and return single random byte */
+  sqlite3Prng.i++;
+  t = sqlite3Prng.s[sqlite3Prng.i];
+  sqlite3Prng.j += t;
+  sqlite3Prng.s[sqlite3Prng.i] = sqlite3Prng.s[sqlite3Prng.j];
+  sqlite3Prng.s[sqlite3Prng.j] = t;
+  t += sqlite3Prng.s[sqlite3Prng.i];
+
+  return sqlite3Prng.s[t];
+}
+
+void
+seedRandomness(int N, void *pBuf, __u32 seed){
+  unsigned char *zBuf = pBuf;
+
+  while( N-- ){
+    *(zBuf++) = seedRandomByte(seed);
+  }
+}
+
+void
+TiVoRandomSeedFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
+{
+  sqlite_int64 r, seed;
+  if( argc != 1 || sqlite3_value_type(argv[0]) != SQLITE_INTEGER )
+	return;
+  seed = sqlite3_value_int64(argv[0]);
+  seedRandomness(sizeof(r), &r, seed);
+  sqlite3_result_int64(context, r);
 }
 #endif
