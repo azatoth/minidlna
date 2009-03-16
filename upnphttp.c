@@ -1119,19 +1119,24 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char *path, *file_path;
 	char *resolution, *tn;
 	char *key, *val;
-	char *saveptr, *item;
+	char *saveptr, *item = NULL;
 	char *pixelshape = NULL;
 	int rows=0, ret;
 	gdImagePtr imsrc = 0, imdst = 0;
 	ExifData *ed;
 	ExifLoader *l;
+#if USE_FORK
+	pid_t newpid = 0;
+	newpid = fork();
+	if( newpid )
+		return;
+#endif
 	memset(header, 0, 1500);
 
 	path = strdup(object);
 	if( strtok_r(path, "?", &saveptr) )
 	{
 		item = strtok_r(NULL, "&", &saveptr);
-		//continue;
 	}
 	while( item != NULL )
 	{
@@ -1234,8 +1239,9 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	#else
 	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
 	#endif
-	#endif
+	#else
 	boxfilter_resize(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
+	#endif
 	data = (char *)gdImageJpegPtr(imdst, &size, 99);
 	DPRINTF(E_INFO, L_HTTP, "size: %d\n", size);
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
@@ -1268,6 +1274,9 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	gdImageDestroy(imdst);  
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
 	sqlite3_free_table(result);
+#if USE_FORK
+	_exit(0);
+#endif
 }
 
 void
