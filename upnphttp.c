@@ -869,15 +869,16 @@ void
 send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 {
 	off_t send_size;
+	off_t ret;
 
 	while( offset < end_offset )
 	{
 		send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
-		off_t ret = sendfile(h->socket, sendfd, &offset, send_size);
+		ret = sendfile(h->socket, sendfd, &offset, send_size);
 		if( ret == -1 )
 		{
 			DPRINTF(E_WARN, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
-			if( errno == 32 || errno == 9 || errno == 54 || errno == 104 )
+			if( errno != EAGAIN )
 				break;
 		}
 		/*else
@@ -1170,7 +1171,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	{
 		DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Streaming with a resized image!\n");
 		Send406(h);
-		return;
+		goto resized_error;
 	}
 
 	sprintf(sql_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%s'", path);
@@ -1179,7 +1180,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	{
 		free(path);
 		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %s!\n", path);
-		return;
+		goto resized_error;
 	}
 	file_path = result[3];
 	resolution = result[4];
@@ -1201,7 +1202,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 				exif_data_unref(ed);
 			Send404(h);
 			sqlite3_free_table(result);
-			return;
+			goto resized_error;
 		}
 		imsrc = gdImageCreateFromJpegPtr(ed->size, ed->data);
 		exif_data_unref(ed);
@@ -1213,7 +1214,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		{
 			Send404(h);
 			sqlite3_free_table(result);
-			return;
+			goto resized_error;
 		}
 		imsrc = gdImageCreateFromJpeg(imgfile);
 		fclose(imgfile);
@@ -1222,7 +1223,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	{
 		Send404(h);
 		sqlite3_free_table(result);
-		return;
+		goto resized_error;
 	}
 	/* Figure out the best destination resolution we can use */
 	dstw = width;
@@ -1274,6 +1275,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	gdImageDestroy(imdst);  
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
 	sqlite3_free_table(result);
+	resized_error:
 #if USE_FORK
 	_exit(0);
 #endif
@@ -1309,7 +1311,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 		Send404(h);
 		sqlite3_free_table(result);
-		return;
+		goto done_dlna;
 	}
 	path = result[3];
 	mime = result[4];
@@ -1436,6 +1438,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 
 	error:
 	sqlite3_free_table(result);
+	done_dlna:
 #if USE_FORK
 	_exit(0);
 #endif
