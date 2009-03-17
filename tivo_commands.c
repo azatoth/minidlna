@@ -117,7 +117,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		{
 			return 0;
 		}
-		sprintf(str_buf, "<Title>%s</Title>", title);
+		sprintf(str_buf, "<Title>%s</Title>", modifyString(title, "&amp;amp;", "&amp;", 0));
 		strcat(passed_args->resp, str_buf);
 		if( artist ) {
 			sprintf(str_buf, "<ArtistName>%s</ArtistName>", artist);
@@ -163,7 +163,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		                          "<SourceFormat>x-container/folder</SourceFormat>");
 		sprintf(str_buf, "<Title>%s</Title>"
 		                 "<TotalItems>%s</TotalItems>"
-		                 "</Details>", title, result[1]);
+		                 "</Details>", modifyString(title, "&amp;amp;", "&amp;", 0), result[1]);
 		strcat(passed_args->resp, str_buf);
 
 		sprintf(str_buf, "<Links><Content>"
