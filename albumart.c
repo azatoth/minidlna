@@ -187,7 +187,7 @@ jpeg_memory_src(j_decompress_ptr cinfo, unsigned char const *buffer, size_t bufs
 }
 
 /* Simple, efficient hash function from Daniel J. Bernstein */
-unsigned int DJBHash(const char* str, int len)
+unsigned int DJBHash(const char * str, int len)
 {
 	unsigned int hash = 5381;
 	unsigned int i = 0;
@@ -215,8 +215,12 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	static unsigned int last_hash = 0;
 	unsigned int hash;
 
+	if( !image_data || !image_size || !path )
+	{
+		return NULL;
+	}
 	/* If the embedded image matches the embedded image from the last file we
-	 * checked, just make a hard link.  No use in storing it on the disk twice. */
+	 * checked, just make a hard link.  Better than storing it on the disk twice. */
 	hash = DJBHash(image_data, image_size);
 	if( hash == last_hash )
 	{
