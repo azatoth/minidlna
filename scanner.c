@@ -23,6 +23,8 @@
 #include <locale.h>
 #include <libgen.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <sqlite3.h>
 
@@ -781,6 +783,9 @@ void *
 start_scanner()
 {
 	struct media_dir_s * media_path = media_dirs;
+
+	if (setpriority(PRIO_PROCESS, 0, 15) == -1)
+		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce scanner thread priority\n");
 
 	scanning = 1;
 	freopen("/dev/null", "a", stderr);
