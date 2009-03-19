@@ -385,7 +385,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 {
 	char * sql;
 	int ret, rows, found = 0;
-	sqlite_int64 detailID;
+	sqlite_int64 detailID = 0;
 	char * refID = NULL;
 	char class[] = "container.storageFolder";
 	char * id_buf = NULL;
@@ -696,7 +696,7 @@ void
 ScanDirectory(const char * dir, const char * parent, enum media_types type)
 {
 	struct dirent **namelist;
-	int n, i, startID = 0;
+	int i, n, startID=0;
 	char parent_id[PATH_MAX];
 	char full_path[PATH_MAX];
 	char * name = NULL;
@@ -722,6 +722,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 			n = scandir(".", &namelist, filter_images, alphasort);
 			break;
 		default:
+			n = -1;
 			break;
 	}
 	if (n < 0) {

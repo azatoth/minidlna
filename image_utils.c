@@ -235,7 +235,7 @@ image *
 image_new_from_jpeg(const char * path, int is_file, const char * buf, int size)
 {
 	image *vimage;
-	FILE  *file;
+	FILE  *file = NULL;
 	struct jpeg_decompress_struct cinfo;
 	unsigned char *line[16], *ptr;
 	int x, y, i, w, h, ofs;

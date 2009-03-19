@@ -31,7 +31,7 @@ decodeString(char * string, int inplace)
 	if( !string )
 		return NULL;
 	int alloc = (int)strlen(string)+1;
-	char *ns;
+	char * ns = NULL;
 	unsigned char in;
 	int strindex=0;
 	long hex;

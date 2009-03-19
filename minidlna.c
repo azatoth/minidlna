@@ -596,7 +596,7 @@ main(int argc, char * * argv)
 	int last_changecnt = 0;
 	#ifdef TIVO_SUPPORT
 	unsigned short int loop_cnt = 0;
-	int sbeacon;
+	int sbeacon = -1;
 	struct sockaddr_in tivo_bcast;
 	#endif
 	char * sql;

@@ -262,7 +262,7 @@ inotify_insert_file(char * name, const char * path)
 	char * base_name = malloc(strlen(path));
 	char * base_copy = base_name;
 	char * parent_buf = NULL;
-	char * id;
+	char * id = NULL;
 	int depth = 1;
 
 	/* If it's already in the database, just skip it for now.
@@ -345,7 +345,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	struct dirent * e;
 	char * sql;
 	char **result;
-	char *id, *path_buf, *parent_buf, *esc_name;
+	char *id=NULL, *path_buf, *parent_buf, *esc_name;
 	int wd;
 	int rows, i = 0;
 
@@ -537,7 +537,7 @@ start_inotify()
 	char * esc_name = NULL;
 	char * path_buf = NULL;
         
-	if (setpriority(PRIO_PROCESS, 0, 15) == -1)
+	if (setpriority(PRIO_PROCESS, 0, 19) == -1)
 		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce inotify thread priority\n");
         
 	fd = inotify_init();
