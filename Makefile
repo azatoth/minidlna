@@ -28,20 +28,20 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            upnpreplyparse.o minixml.o \
            getifaddr.o daemonize.o upnpglobalvars.o \
            options.o minissdp.o upnpevents.o \
-           sql.o utils.o metadata.o albumart.o scanner.o inotify.o \
+           sql.o utils.o metadata.o scanner.o inotify.o \
            tivo_utils.o tivo_beacon.o tivo_commands.o \
            tagutils/textutils.o tagutils/misc.o tagutils/tagutils.o \
-           log.o
+           image_utils.o albumart.o log.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
-LIBS = -lexif -ljpeg -lsqlite3 -lavformat -lid3tag -lFLAC -lvorbis -luuid -lgd
+LIBS = -lexif -ljpeg -lsqlite3 -lavformat -lid3tag -lFLAC -lvorbis -luuid
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 
 EXECUTABLES = minidlna testupnpdescgen
 
-.PHONY:	all clean install depend genuuid
+.PHONY:	all clean install depend
 
 all:	$(EXECUTABLES)
 
@@ -50,7 +50,7 @@ clean:
 	$(RM) $(EXECUTABLES)
 	$(RM) testupnpdescgen.o
 
-install:	minidlna genuuid
+install:	minidlna
 	$(INSTALL) -d $(SBININSTALLDIR)
 	$(INSTALL) minidlna $(SBININSTALLDIR)
 	$(INSTALL) -d $(ETCINSTALLDIR)
@@ -59,11 +59,6 @@ install:	minidlna genuuid
 	$(INSTALL) --mode=0644 minidlna.conf $(ETCINSTALLDIR)
 	$(INSTALL) -d $(PREFIX)/etc/init.d
 	$(INSTALL) linux/miniupnpd.init.d.script $(PREFIX)/etc/init.d/miniupnpd
-
-# genuuid is using the uuidgen CLI tool which is part of libuuid
-# from the e2fsprogs
-genuuid:
-	sed -i -e "s/^uuid=[-0-9a-f]*/uuid=`(genuuid||uuidgen) 2>/dev/null`/" minidlna.conf
 
 minidlna:	$(BASEOBJS) $(LNXOBJS) $(LIBS)
 
@@ -83,7 +78,7 @@ minidlna.o: upnphttp.h upnpdescgen.h minidlnapath.h getifaddr.h upnpsoap.h
 minidlna.o: options.h minissdp.h daemonize.h upnpevents.h
 minidlna.o: commonrdr.h log.h
 upnphttp.o: config.h upnphttp.h upnpdescgen.h minidlnapath.h upnpsoap.h
-upnphttp.o: upnpevents.h log.h
+upnphttp.o: upnpevents.h image_utils.h sql.h log.h
 upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
 upnpdescgen.o: minidlnatypes.h upnpdescstrings.h log.h
 upnpsoap.o: config.h upnpglobalvars.h minidlnatypes.h log.h utils.h sql.h
@@ -105,8 +100,13 @@ upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
 upnpdescgen.o: minidlnatypes.h upnpdescstrings.h
 scanner.o: upnpglobalvars.h metadata.h utils.h sql.h scanner.h log.h
 metadata.o: upnpglobalvars.h metadata.h albumart.h utils.h sql.h log.h
+albumart.o: upnpglobalvars.h albumart.h utils.h image_utils.h sql.h log.h
 tagutils/misc.o: tagutils/misc.h
 tagutils/textutils.o: tagutils/misc.h tagutils/textutils.h log.h
-tagutils/tagutils.o: tagutils/tagutils-asf.c tagutils/tagutils-flc.c tagutils/tagutils-plist.c tagutils/tagutils-aac.c tagutils/tagutils-asf.h tagutils/tagutils-flc.h tagutils/tagutils-mp3.c tagutils/tagutils-ogg.c tagutils/tagutils-aac.h tagutils/tagutils.h tagutils/tagutils-mp3.h tagutils/tagutils-ogg.h log.h
+tagutils/tagutils.o: tagutils/tagutils-asf.c tagutils/tagutils-flc.c tagutils/tagutils-plist.c
+tagutils/tagutils.o: tagutils/tagutils-aac.c tagutils/tagutils-asf.h tagutils/tagutils-flc.h tagutils/tagutils-mp3.c
+tagutils/tagutils.o: tagutils/tagutils-ogg.c tagutils/tagutils-aac.h tagutils/tagutils.h tagutils/tagutils-mp3.h tagutils/tagutils-ogg.h log.h
+image_utils.o: image_utils.h
+utils.o: utils.h
 sql.o: sql.h
 log.o: log.h

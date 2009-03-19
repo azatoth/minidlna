@@ -1,7 +1,7 @@
 /* MiniDLNA project
  *
  * http://sourceforge.net/projects/minidlna/
- * (c) 2008 Justin Maggard
+ * (c) 2008-2009 Justin Maggard
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution
  *
@@ -594,9 +594,11 @@ main(int argc, char * * argv)
 	struct timeval timeout, timeofday, lasttimeofday = {0, 0}, lastupdatetime = {0, 0};
 	int max_fd = -1;
 	int last_changecnt = 0;
+	#ifdef TIVO_SUPPORT
 	unsigned short int loop_cnt = 0;
 	int sbeacon;
 	struct sockaddr_in tivo_bcast;
+	#endif
 	char * sql;
 	pthread_t thread[2];
 

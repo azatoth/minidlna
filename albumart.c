@@ -25,50 +25,23 @@
 #include <setjmp.h>
 
 #include <jpeglib.h>
-#include <gd.h>
 
 #include "upnpglobalvars.h"
 #include "sql.h"
 #include "utils.h"
+#include "image_utils.h"
 #include "log.h"
 
-/* For libjpeg error handling */
-jmp_buf setjmp_buffer;
-static void libjpeg_error_handler(j_common_ptr cinfo)
-{
-	cinfo->err->output_message (cinfo);
-	longjmp(setjmp_buffer, 1);
-	return;
-}
-
-#if 0 // Not needed currently
-int
-check_res(int width, int height, char * dlna_pn)
-{
-	if( (width <= 0) || (height <= 0) )
-		return 0;
-	if( width <= 160 && height <= 160 )
-		strcpy(dlna_pn, "JPEG_TN");
-	else if( width <= 640 && height <= 480 )
-		strcpy(dlna_pn, "JPEG_SM");
-	else if( width <= 1024 && height <= 768 )
-		strcpy(dlna_pn, "JPEG_MED");
-	else if( width <= 4096 && height <= 4096 )
-		strcpy(dlna_pn, "JPEG_LRG");
-	else
-		return 0;
-	return 1;
-}
-#endif
-
 char *
-save_resized_album_art(void * ptr, const char * path, int srcw, int srch, int file, int size)
+save_resized_album_art(image * imsrc, const char * path)
 {
-	FILE *dstfile;
-	gdImagePtr imsrc = 0, imdst = 0;
 	int dstw, dsth;
+	image * imdst;
 	char * cache_file;
 	char * cache_dir;
+
+	if( !imsrc )
+		return NULL;
 
 	asprintf(&cache_file, DB_PATH "/art_cache%s", path);
 	if( access(cache_file, F_OK) == 0 )
@@ -78,112 +51,28 @@ save_resized_album_art(void * ptr, const char * path, int srcw, int srch, int fi
 	make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
 	free(cache_dir);
 
-	if( file )
-		imsrc = gdImageCreateFromJpeg((FILE *)ptr);
-	else
-		imsrc = gdImageCreateFromJpegPtr(size, ptr);
-	if( !imsrc )
-		goto error;
-
-	dstfile = fopen(cache_file, "w");
-	if( !dstfile )
-		goto error;
-
-	if( srcw > srch )
+	if( imsrc->width > imsrc->height )
 	{
 		dstw = 160;
-		dsth = (srch<<8) / ((srcw<<8)/160);
+		dsth = (imsrc->height<<8) / ((imsrc->width<<8)/160);
 	}
 	else
 	{
-		dstw = (srcw<<8) / ((srch<<8)/160);
+		dstw = (imsrc->width<<8) / ((imsrc->height<<8)/160);
 		dsth = 160;
 	}
-	imdst = gdImageCreateTrueColor(dstw, dsth);
+        imdst = image_resize(imsrc, dstw, dsth);
 	if( !imdst )
-	{
-		gdImageDestroy(imsrc);  
-		fclose(dstfile);
 		goto error;
-	}
-	#if 0 // Try our box filter resizer instead
-	#ifdef __sparc__
-	gdImageCopyResized(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
-	#else
-	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
-	#endif
-	#else
-	boxfilter_resize(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
-	#endif
-	gdImageJpeg(imdst, dstfile, 96);
-	fclose(dstfile);
-	gdImageDestroy(imsrc);  
-	gdImageDestroy(imdst);  
 
-	return cache_file;
+	if( image_save_to_jpeg_file(imdst, cache_file) == 0 )
+	{
+		image_free(imdst);
+		return cache_file;
+	}
 error:
 	free(cache_file);
 	return NULL;
-}
-
-/* These next few functions are to allow loading JPEG data directly from memory for libjpeg.
- * The standard functions only allow you to read from a file.
- * This code comes from the JpgAlleg library, at http://wiki.allegro.cc/index.php?title=Libjpeg */
-struct
-my_src_mgr
-{
-	struct jpeg_source_mgr pub;
-	JOCTET eoi_buffer[2];
-};
-
-static void
-init_source(j_decompress_ptr cinfo)
-{
-}
-
-static int
-fill_input_buffer(j_decompress_ptr cinfo)
-{
-	return 1;
-}
-
-static void
-skip_input_data(j_decompress_ptr cinfo, long num_bytes)
-{
-	struct my_src_mgr *src = (void *)cinfo->src;
-	if (num_bytes > 0)
-	{
-		while (num_bytes > (long)src->pub.bytes_in_buffer)
-		{
-			num_bytes -= (long)src->pub.bytes_in_buffer;
-			fill_input_buffer(cinfo);
-		}
-	}
-	src->pub.next_input_byte += num_bytes;
-	src->pub.bytes_in_buffer -= num_bytes;
-}
-
-static void
-term_source(j_decompress_ptr cinfo)
-{
-}
-
-void
-jpeg_memory_src(j_decompress_ptr cinfo, unsigned char const *buffer, size_t bufsize)
-{
-        struct my_src_mgr *src;
-        if (! cinfo->src)
-        {
-                cinfo->src = (*cinfo->mem->alloc_small)((void *)cinfo, JPOOL_PERMANENT, sizeof(struct my_src_mgr));;
-        }
-        src = (void *)cinfo->src;
-        src->pub.init_source = init_source;
-        src->pub.fill_input_buffer = fill_input_buffer;
-        src->pub.skip_input_data = skip_input_data;
-        src->pub.resync_to_restart = jpeg_resync_to_restart;
-        src->pub.term_source = term_source;
-        src->pub.next_input_byte = buffer;
-        src->pub.bytes_in_buffer = bufsize;
 }
 
 /* Simple, efficient hash function from Daniel J. Bernstein */
@@ -204,12 +93,11 @@ unsigned int DJBHash(const char * str, int len)
 char *
 check_embedded_art(const char * path, const char * image_data, int image_size)
 {
-	struct jpeg_decompress_struct cinfo;
-	struct jpeg_error_mgr jerr;
 	int width = 0, height = 0;
 	char * art_path = NULL;
 	char * cache_dir;
 	FILE * dstfile;
+	image * imsrc;
 	size_t nwritten;
 	static char last_path[PATH_MAX];
 	static unsigned int last_hash = 0;
@@ -237,22 +125,13 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 		}
 	}
 
-	cinfo.err = jpeg_std_error(&jerr);
-	jerr.error_exit = libjpeg_error_handler;
-	jpeg_create_decompress(&cinfo);
-	if( setjmp(setjmp_buffer) )
-		goto error;
-	jpeg_memory_src(&cinfo, (unsigned char *)image_data, image_size);
-	jpeg_read_header(&cinfo, TRUE);
-	jpeg_start_decompress(&cinfo);
-	width = cinfo.output_width;
-	height = cinfo.output_height;
-	error:
-	jpeg_destroy_decompress(&cinfo);
+	imsrc = image_new_from_jpeg(NULL, 0, image_data, image_size);
+	width = imsrc->width;
+	height = imsrc->height;
 
 	if( width > 160 || height > 160 )
 	{
-		art_path = save_resized_album_art((void *)image_data, path, width, height, 0, image_size);
+		art_path = save_resized_album_art(imsrc, path);
 	}
 	else if( width > 0 && height > 0 )
 	{
@@ -274,6 +153,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 			return NULL;
 		}
 	}
+	image_free(imsrc);
 	if( !art_path )
 	{
 		DPRINTF(E_WARN, L_METADATA, "Invalid embedded album art in %s\n", basename((char *)path));
@@ -291,9 +171,7 @@ check_for_album_file(char * dir)
 {
 	char * file = malloc(PATH_MAX);
 	struct album_art_name_s * album_art_name;
-	struct jpeg_decompress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	static FILE * infile;
+	image * imsrc;
 	int width=0, height=0;
 	char * art_file;
 
@@ -302,28 +180,16 @@ check_for_album_file(char * dir)
 		sprintf(file, "%s/%s", dir, album_art_name->name);
 		if( access(file, R_OK) == 0 )
 		{
-			infile = fopen(file, "r");
-			cinfo.err = jpeg_std_error(&jerr);
-			jerr.error_exit = libjpeg_error_handler;
-			jpeg_create_decompress(&cinfo);
-			if( setjmp(setjmp_buffer) )
-				goto error;
-			jpeg_stdio_src(&cinfo, infile);
-			jpeg_read_header(&cinfo, TRUE);
-			jpeg_start_decompress(&cinfo);
-			width = cinfo.output_width;
-			height = cinfo.output_height;
+			imsrc = image_new_from_jpeg(file, 1, NULL, 0);
+			width = imsrc->width;
+			height = imsrc->height;
 			if( width > 160 || height > 160 )
 			{
 				art_file = file;
-				rewind(infile);
-				file = save_resized_album_art((void *)infile, art_file, width, height, 1, 0);
+				file = save_resized_album_art(imsrc, art_file);
 				free(art_file);
 			}
-			error:
-			jpeg_destroy_decompress(&cinfo);
-			fclose(infile);
-
+			image_free(imsrc);
 			return(file);
 		}
 	}

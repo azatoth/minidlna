@@ -1,6 +1,6 @@
 /* MiniDLNA project
  * http://minidlna.sourceforge.net/
- * (c) 2008 Justin Maggard
+ * (c) 2008-2009 Justin Maggard
  *
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution 

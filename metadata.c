@@ -1,5 +1,5 @@
 /*  MiniDLNA media server
- *  Copyright (C) 2008  Justin Maggard
+ *  Copyright (C) 2008-2009  Justin Maggard
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

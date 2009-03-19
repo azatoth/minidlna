@@ -1,4 +1,4 @@
-/* Utility functions
+/* Album art extraction, caching, and scaling
  *
  * Project : minidlna
  * Website : http://sourceforge.net/projects/minidlna/

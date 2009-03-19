@@ -1,6 +1,6 @@
 /* MiniDLNA project
  * http://minidlna.sourceforge.net/
- * (c) 2008 Justin Maggard
+ * (c) 2008-2009 Justin Maggard
  *
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution 
@@ -33,10 +33,10 @@
 
 #include "upnpglobalvars.h"
 #include "utils.h"
+#include "image_utils.h"
 #include "log.h"
 #include "sql.h"
 #include <libexif/exif-loader.h>
-#include <gd.h>
 #ifdef TIVO_SUPPORT
 #include "tivo_utils.h"
 #include "tivo_commands.h"
@@ -723,7 +723,6 @@ static const char httpresphead[] =
 	"Content-Length: %d\r\n"
 	/*"Server: miniupnpd/1.0 UPnP/1.0\r\n"*/
 //	"Accept-Ranges: bytes\r\n"
-//	"DATE: Wed, 24 Sep 2008 05:57:19 GMT\r\n"
 	//"Server: " MINIUPNPD_SERVER_STRING "\r\n"
 	;	/*"\r\n";*/
 /*
@@ -1114,18 +1113,18 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char **result;
 	char date[30];
 	time_t curtime = time(NULL);
-	FILE *imgfile;
 	int width=640, height=480, dstw, dsth, rotation, size;
-	char * data;
+	unsigned char * data;
 	char *path, *file_path;
 	char *resolution, *tn;
 	char *key, *val;
 	char *saveptr, *item = NULL;
 	char *pixelshape = NULL;
 	int rows=0, ret;
-	gdImagePtr imsrc = 0, imdst = 0;
 	ExifData *ed;
 	ExifLoader *l;
+	image * imsrc;
+	image * imdst;
 #if USE_FORK
 	pid_t newpid = 0;
 	newpid = fork();
@@ -1178,8 +1177,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
 	if( (ret != SQLITE_OK) || !rows || (access(result[3], F_OK) != 0) )
 	{
-		free(path);
 		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %s!\n", path);
+		free(path);
 		goto resized_error;
 	}
 	file_path = result[3];
@@ -1204,20 +1203,12 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 			sqlite3_free_table(result);
 			goto resized_error;
 		}
-		imsrc = gdImageCreateFromJpegPtr(ed->size, ed->data);
+		imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size);
 		exif_data_unref(ed);
 	}
 	else
 	{
-		imgfile = fopen(file_path, "r");
-		if( !imgfile )
-		{
-			Send404(h);
-			sqlite3_free_table(result);
-			goto resized_error;
-		}
-		imsrc = gdImageCreateFromJpeg(imgfile);
-		fclose(imgfile);
+		imsrc = image_new_from_jpeg(file_path, 1, NULL, 0);
 	}
 	if( !imsrc )
 	{
@@ -1227,23 +1218,15 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	}
 	/* Figure out the best destination resolution we can use */
 	dstw = width;
-	dsth = ((((width<<10)/imsrc->sx)*imsrc->sy)>>10);
+	dsth = ((((width<<10)/imsrc->width)*imsrc->height)>>10);
 	if( dsth > height )
 	{
 		dsth = height;
-		dstw = (((height<<10)/imsrc->sy) * imsrc->sx>>10);
+		dstw = (((height<<10)/imsrc->height) * imsrc->width>>10);
 	}
-	imdst = gdImageCreateTrueColor(dstw, dsth);
-	#if 0 // Use box filter resizer
-	#ifdef __sparc__
-	gdImageCopyResized(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
-	#else
-	gdImageCopyResampled(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
-	#endif
-	#else
-	boxfilter_resize(imdst, imsrc, 0, 0, 0, 0, dstw, dsth, imsrc->sx, imsrc->sy);
-	#endif
-	data = (char *)gdImageJpegPtr(imdst, &size, 99);
+	imdst = image_resize(imsrc, dstw, dsth);
+	data = image_save_to_jpeg_buf(imdst, &size);
+
 	DPRINTF(E_INFO, L_HTTP, "size: %d\n", size);
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	snprintf(header, sizeof(header)-50, "%s 200 OK\r\n"
@@ -1268,12 +1251,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 
 	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
 	{
-		send_data(h, data, size);
+		send_data(h, (char *)data, size);
 	}
-	gdFree(data);  
-	gdImageDestroy(imsrc);  
-	gdImageDestroy(imdst);  
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
+	image_free(imsrc);
+	image_free(imdst);
 	sqlite3_free_table(result);
 	resized_error:
 #if USE_FORK
