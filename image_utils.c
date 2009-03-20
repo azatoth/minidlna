@@ -351,9 +351,11 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size)
 }
 
 void
-image_resize_nearest(image * pdest, image * psrc, int32_t width, int32_t height)
+image_upsize(image * pdest, image * psrc, int32_t width, int32_t height)
 {
-	int32_t vx, vy, rx, ry;
+	int32_t vx, vy;
+#ifdef __sparc__
+	int32_t rx, ry;
 	pix vcol;
 
 	if((pdest == NULL) || (psrc == NULL))
@@ -366,17 +368,58 @@ image_resize_nearest(image * pdest, image * psrc, int32_t width, int32_t height)
 			rx = ((vx * psrc->width) / width);
 			ry = ((vy * psrc->height) / height);
 			vcol = get_pix(psrc, rx, ry);
+#else
+	pix   vcol,vcol1,vcol2,vcol3,vcol4;
+	float rx,ry;
+	float width_scale, height_scale;
+	float x_dist, y_dist;
+
+	width_scale  = (float)psrc->width  / (float)width;
+	height_scale = (float)psrc->height / (float)height;
+
+	for(vy = 0;vy < height; vy++)
+	{
+		for(vx = 0;vx < width; vx++)
+		{
+			rx = vx * width_scale;
+			ry = vy * height_scale;
+			vcol1 = get_pix(psrc, (int32_t)rx, (int32_t)ry);
+			vcol2 = get_pix(psrc, ((int32_t)rx)+1, (int32_t)ry);
+			vcol3 = get_pix(psrc, (int32_t)rx, ((int32_t)ry)+1);
+			vcol4 = get_pix(psrc, ((int32_t)rx)+1, ((int32_t)ry)+1);
+
+			x_dist = rx - ((float)((int32_t)rx));
+			y_dist = ry - ((float)((int32_t)ry));
+			vcol = COL_FULL( (u_int8_t)((COL_RED(vcol1)*(1.0-x_dist)
+			                  + COL_RED(vcol2)*(x_dist))*(1.0-y_dist)
+			                  + (COL_RED(vcol3)*(1.0-x_dist)
+			                  + COL_RED(vcol4)*(x_dist))*(y_dist)),
+			                 (u_int8_t)((COL_GREEN(vcol1)*(1.0-x_dist)
+			                  + COL_GREEN(vcol2)*(x_dist))*(1.0-y_dist)
+			                  + (COL_GREEN(vcol3)*(1.0-x_dist)
+			                  + COL_GREEN(vcol4)*(x_dist))*(y_dist)),
+			                 (u_int8_t)((COL_BLUE(vcol1)*(1.0-x_dist)
+			                  + COL_BLUE(vcol2)*(x_dist))*(1.0-y_dist)
+			                  + (COL_BLUE(vcol3)*(1.0-x_dist)
+			                  + COL_BLUE(vcol4)*(x_dist))*(y_dist)),
+			                 (u_int8_t)((COL_ALPHA(vcol1)*(1.0-x_dist)
+			                  + COL_ALPHA(vcol2)*(x_dist))*(1.0-y_dist)
+			                  + (COL_ALPHA(vcol3)*(1.0-x_dist)
+			                  + COL_ALPHA(vcol4)*(x_dist))*(y_dist))
+			               );
+#endif
 			put_pix_alpha_replace(pdest, vx, vy, vcol);
 		}
 	}
 }
 
 void
-image_downsize_rought(image * pdest, image * psrc, int32_t width, int32_t height)
+image_downsize(image * pdest, image * psrc, int32_t width, int32_t height)
 {
 	int32_t vx, vy;
 	pix vcol;
 	int32_t i, j;
+#ifdef __sparc__
 	int32_t rx, ry, rx_next, ry_next;
 	int red, green, blue, alpha;
 	int factor;
@@ -422,7 +465,92 @@ image_downsize_rought(image * pdest, image * psrc, int32_t width, int32_t height
 			green = (green > 255) ? 255 : ((green < 0) ? 0 : green);
 			blue  = (blue  > 255) ? 255 : ((blue  < 0) ? 0 : blue );
 			alpha = (alpha > 255) ? 255 : ((alpha < 0) ? 0 : alpha);
+#else
+	float rx,ry;
+	float width_scale, height_scale;
+	float red, green, blue, alpha;
+	int32_t half_square_width, half_square_height;
+	float round_width, round_height;
 
+	if( (pdest == NULL) || (psrc == NULL) )
+		return;
+
+	width_scale  = (float)psrc->width  / (float)width;
+	height_scale = (float)psrc->height / (float)height;
+
+	half_square_width  = (int32_t)(width_scale  / 2.0);
+	half_square_height = (int32_t)(height_scale / 2.0);
+	round_width  = (width_scale  / 2.0) - (float)half_square_width;
+	round_height = (height_scale / 2.0) - (float)half_square_height;
+	if(round_width  > 0.0)
+		half_square_width++;
+	else
+		round_width = 1.0;
+	if(round_height > 0.0)
+		half_square_height++;
+	else
+		round_height = 1.0;
+
+	for(vy = 0;vy < height; vy++)  
+	{
+		for(vx = 0;vx < width; vx++)
+		{
+			rx = vx * width_scale;
+			ry = vy * height_scale;
+			vcol = get_pix(psrc, (int32_t)rx, (int32_t)ry);
+
+			red = green = blue = alpha = 0.0;
+
+			for(j=0;j<half_square_height<<1;j++)
+			{
+				for(i=0;i<half_square_width<<1;i++)
+				{
+					vcol = get_pix(psrc, ((int32_t)rx)-half_square_width+i,
+					                     ((int32_t)ry)-half_square_height+j);
+          
+					if(((j == 0) || (j == (half_square_height<<1)-1)) && 
+					   ((i == 0) || (i == (half_square_width<<1)-1)))
+					{
+						red   += round_width*round_height*(float)COL_RED  (vcol);
+						green += round_width*round_height*(float)COL_GREEN(vcol);
+						blue  += round_width*round_height*(float)COL_BLUE (vcol);
+						alpha += round_width*round_height*(float)COL_ALPHA(vcol);
+					}
+					else if((j == 0) || (j == (half_square_height<<1)-1))
+					{
+						red   += round_height*(float)COL_RED  (vcol);
+						green += round_height*(float)COL_GREEN(vcol);
+						blue  += round_height*(float)COL_BLUE (vcol);
+						alpha += round_height*(float)COL_ALPHA(vcol);
+					}
+					else if((i == 0) || (i == (half_square_width<<1)-1))
+					{
+						red   += round_width*(float)COL_RED  (vcol);
+						green += round_width*(float)COL_GREEN(vcol);
+						blue  += round_width*(float)COL_BLUE (vcol);
+						alpha += round_width*(float)COL_ALPHA(vcol);
+					}
+					else
+					{
+						red   += (float)COL_RED  (vcol);
+						green += (float)COL_GREEN(vcol);
+						blue  += (float)COL_BLUE (vcol);
+						alpha += (float)COL_ALPHA(vcol);
+					}
+				}
+			}
+      
+			red   /= width_scale*height_scale;
+			green /= width_scale*height_scale;
+			blue  /= width_scale*height_scale;
+			alpha /= width_scale*height_scale;
+      
+			/* on sature les valeurs */
+			red   = (red   > 255.0)? 255.0 : ((red   < 0.0)? 0.0:red  );
+			green = (green > 255.0)? 255.0 : ((green < 0.0)? 0.0:green);
+			blue  = (blue  > 255.0)? 255.0 : ((blue  < 0.0)? 0.0:blue );
+			alpha = (alpha > 255.0)? 255.0 : ((alpha < 0.0)? 0.0:alpha);
+#endif
 			put_pix_alpha_replace(pdest, vx, vy,
 					      COL_FULL((u_int8_t)red, (u_int8_t)green, (u_int8_t)blue, (u_int8_t)alpha));
 		}
@@ -438,9 +566,9 @@ image_resize(image * src_image, int32_t width, int32_t height)
 	if( !dst_image )
 		return NULL;
 	if( (src_image->width < width) || (src_image->height < height) )
-		image_resize_nearest(dst_image, src_image, width, height);
+		image_upsize(dst_image, src_image, width, height);
 	else
-		image_downsize_rought(dst_image, src_image, width, height);
+		image_downsize(dst_image, src_image, width, height);
 
 	return dst_image;
 }

@@ -537,9 +537,6 @@ start_inotify()
 	char * esc_name = NULL;
 	char * path_buf = NULL;
         
-	if (setpriority(PRIO_PROCESS, 0, 19) == -1)
-		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce inotify thread priority\n");
-        
 	fd = inotify_init();
 
 	if ( fd < 0 ) {
@@ -551,6 +548,9 @@ start_inotify()
 		sleep(1);
 	}
 	inotify_create_watches(fd);
+	if (setpriority(PRIO_PROCESS, 0, 19) == -1)
+		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce inotify thread priority\n");
+        
 	while( 1 )
 	{
 		length = read(fd, buffer, BUF_LEN);  

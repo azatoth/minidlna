@@ -456,7 +456,7 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 {
 	char *path;
 	char *key, *val;
-	char *saveptr, *item;
+	char *saveptr = NULL, *item;
 	char *command = NULL, *container = NULL, *anchorItem = NULL;
 	char *sortOrder = NULL, *filter = NULL;
 	int itemStart=0, itemCount=-100, anchorOffset=0, recurse=0;

@@ -31,7 +31,7 @@ NameValueParserGetData(void * d, const char * datas, int l)
     if(l>511)
         l = 511;
     strncpy(nv->name, data->curelt, 512);
-	nv->name[511] = '\0';
+    nv->name[63] = '\0';
     memcpy(nv->value, datas, l);
     nv->value[l] = '\0';
     LIST_INSERT_HEAD( &(data->head), nv, entries);

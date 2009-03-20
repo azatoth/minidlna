@@ -876,7 +876,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 		ret = sendfile(h->socket, sendfd, &offset, send_size);
 		if( ret == -1 )
 		{
-			DPRINTF(E_WARN, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+			DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
 			if( errno != EAGAIN )
 				break;
 		}
@@ -1118,8 +1118,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char *path, *file_path;
 	char *resolution, *tn;
 	char *key, *val;
-	char *saveptr, *item = NULL;
-	char *pixelshape = NULL;
+	char *saveptr=NULL, *item=NULL;
+	char *pixelshape=NULL;
 	int rows=0, ret;
 	ExifData *ed;
 	ExifLoader *l;
@@ -1188,7 +1188,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	free(path);
 
 	/* Resizing from a thumbnail is much faster than from a large image */
+	#ifdef __sparc__
+	if( width <= 200 && height <= 150 && atoi(tn) )
+	#else
 	if( width <= 160 && height <= 120 && atoi(tn) )
+	#endif
 	{
 		l = exif_loader_new();
 		exif_loader_write_file(l, file_path);
