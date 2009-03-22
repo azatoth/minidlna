@@ -616,14 +616,13 @@ main(int argc, char * * argv)
 	}
 	if( sqlite3_open(DB_PATH "/files.db", &db) != SQLITE_OK )
 	{
-		fprintf(stderr, "ERROR: Failed to open sqlite database!  Exiting...\n");
-		exit(-1);
+		DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to open sqlite database!  Exiting...\n");
 	}
 	else
 	{
 		char **result;
 		int rows;
-		sqlite3_busy_timeout(db, 2500);
+		sqlite3_busy_timeout(db, 5000);
 		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
@@ -632,23 +631,21 @@ main(int argc, char * * argv)
 				unlink(DB_PATH "/files.db");
 				system("rm -rf " DB_PATH "/art_cache");
 				sqlite3_open(DB_PATH "/files.db", &db);
+				sqlite3_busy_timeout(db, 5000);
 				if( CreateDatabase() != 0 )
 				{
-					fprintf(stderr, "Error creating database!\n");
-					return -1;
+					DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
 				}
 				if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
 				{
-					printf("ERROR: pthread_create() failed\n");
-					exit(-1);
+					DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_scanner.\n");
 				}
 			}
 			sqlite3_free_table(result);
 		}
 		if( GETFLAG(INOTIFYMASK) && pthread_create(&thread[1], NULL, start_inotify, NULL) )
 		{
-			printf("ERROR: pthread_create() failed\n");
-			exit(-1);
+			DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 		}
 	}
 

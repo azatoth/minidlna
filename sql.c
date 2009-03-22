@@ -17,18 +17,19 @@
  */
 #include <stdio.h>
 #include "sql.h"
+#include "log.h"
 
 int
 sql_exec(sqlite3 * db, const char * sql)
 {
 	int ret;
 	char *errMsg = NULL;
-	//DEBUG printf("SQL: %s\n", sql);
+	//DPRINTF(E_DEBUG, L_DB_SQL, "SQL: %s\n", sql);
 
 	ret = sqlite3_exec(db, sql, 0, 0, &errMsg);
 	if( ret != SQLITE_OK )
 	{
-		fprintf(stderr, "SQL ERROR %d [%s]\n%s\n", ret, errMsg, sql);
+		DPRINTF(E_ERROR, L_DB_SQL, "SQL ERROR %d [%s]\n%s\n", ret, errMsg, sql);
 		if (errMsg)
 			sqlite3_free(errMsg);
 	}
@@ -40,12 +41,12 @@ sql_get_table(sqlite3 *db, const char *sql, char ***pazResult, int *pnRow, int *
 {
 	int ret;
 	char *errMsg = NULL;
-	//DEBUG printf("SQL: %s\n", sql);
+	//DPRINTF(E_DEBUG, L_DB_SQL, "SQL: %s\n", sql);
 	
 	ret = sqlite3_get_table(db, sql, pazResult, pnRow, pnColumn, &errMsg);
 	if( ret != SQLITE_OK )
 	{
-		fprintf(stderr, "SQL ERROR %d [%s]\n%s\n", ret, errMsg, sql);
+		DPRINTF(E_ERROR, L_DB_SQL, "SQL ERROR %d [%s]\n%s\n", ret, errMsg, sql);
 		if (errMsg)
 			sqlite3_free(errMsg);
 	}

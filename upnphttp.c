@@ -320,6 +320,21 @@ Send416(struct upnphttp * h)
 	CloseSocket_upnphttp(h);
 }
 
+/* very minimalistic 500 error message */
+static void
+Send500(struct upnphttp * h)
+{
+	static const char body500[] = 
+		"<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD>"
+		"<BODY><H1>Internal Server Error</H1>Server encountered "
+		"and Internal Error.</BODY></HTML>\r\n";
+	h->respflags = FLAG_HTML;
+	BuildResp2_upnphttp(h, 500, "Internal Server Errror",
+	                    body500, sizeof(body500) - 1);
+	SendResp_upnphttp(h);
+	CloseSocket_upnphttp(h);
+}
+
 /* very minimalistic 501 error message */
 static void
 Send501(struct upnphttp * h)
@@ -356,12 +371,10 @@ sendXMLdesc(struct upnphttp * h, char * (f)(int *))
 	desc = f(&len);
 	if(!desc)
 	{
-		static const char error500[] = "<HTML><HEAD><TITLE>Error 500</TITLE>"
-		   "</HEAD><BODY>Internal Server Error</BODY></HTML>\r\n";
 		DPRINTF(E_ERROR, L_HTTP, "Failed to generate XML description\n");
-		h->respflags = FLAG_HTML;
-		BuildResp2_upnphttp(h, 500, "Internal Server Error",
-		                    error500, sizeof(error500)-1);
+		Send500(h);
+		free(desc);
+		return;
 	}
 	else
 	{
@@ -956,7 +969,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 	char header[1500];
 	char sql_buf[256];
 	char **result;
-	int rows;
+	int rows = 0;
 	char *path;
 	char date[30];
 	time_t curtime = time(NULL);
@@ -974,7 +987,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 
 	strip_ext(object);
 	sprintf(sql_buf, "SELECT PATH from ALBUM_ART where ID = %s", object);
-	sqlite3_get_table(db, sql_buf, &result, &rows, 0, 0);
+	sql_get_table(db, sql_buf, &result, &rows, NULL);
 	if( !rows )
 	{
 		DPRINTF(E_WARN, L_HTTP, "ALBUM_ART ID %s not found, responding ERROR 404\n", object);
@@ -1032,7 +1045,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 	char header[1500];
 	char sql_buf[256];
 	char **result;
-	int rows;
+	int rows = 0;
 	char *path;
 	char date[30];
 	time_t curtime = time(NULL);
@@ -1050,7 +1063,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 
 	strip_ext(object);
 	sprintf(sql_buf, "SELECT PATH from DETAILS where ID = '%s'", object);
-	sqlite3_get_table(db, sql_buf, &result, &rows, 0, 0);
+	sql_get_table(db, sql_buf, &result, &rows, NULL);
 	if( !rows )
 	{
 		DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
@@ -1120,18 +1133,38 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char *key, *val;
 	char *saveptr=NULL, *item=NULL;
 	char *pixelshape=NULL;
+	sqlite_int64 id;
 	int rows=0, ret;
 	ExifData *ed;
 	ExifLoader *l;
 	image * imsrc;
 	image * imdst;
+
+	id = strtoll(object, NULL, 10);
+	sprintf(sql_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%lld'", id);
+	ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
+	if( (ret != SQLITE_OK) )
+	{
+		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %lld!\n", id);
+		Send500(h);
+		return;
+	}
+	if( !rows || (access(result[3], F_OK) != 0) )
+	{
+		DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
+		sqlite3_free_table(result);
+		Send404(h);
+		return;
+	}
 #if USE_FORK
 	pid_t newpid = 0;
 	newpid = fork();
 	if( newpid )
-		return;
+		goto resized_error;
 #endif
-	memset(header, 0, 1500);
+	file_path = result[3];
+	resolution = result[4];
+	tn = result[5];
 
 	path = strdup(object);
 	if( strtok_r(path, "?", &saveptr) )
@@ -1164,7 +1197,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		}
 		item = strtok_r(NULL, "&", &saveptr);
 	}
-	strip_ext(path);
+	free(path);
 
 	if( h->reqflags & FLAG_XFERSTREAMING || h->reqflags & FLAG_RANGE )
 	{
@@ -1173,19 +1206,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		goto resized_error;
 	}
 
-	sprintf(sql_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%s'", path);
-	ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
-	if( (ret != SQLITE_OK) || !rows || (access(result[3], F_OK) != 0) )
-	{
-		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %s!\n", path);
-		free(path);
-		goto resized_error;
-	}
-	file_path = result[3];
-	resolution = result[4];
-	tn = result[5];
-	DPRINTF(E_INFO, L_HTTP, "Serving resized image for ObjectId: %s [%s]\n", path, file_path);
-	free(path);
+	DPRINTF(E_INFO, L_HTTP, "Serving resized image for ObjectId: %lld [%s]\n", id, file_path);
 
 	/* Resizing from a thumbnail is much faster than from a large image */
 	#ifdef __sparc__
@@ -1204,7 +1225,6 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 			if( ed )
 				exif_data_unref(ed);
 			Send404(h);
-			sqlite3_free_table(result);
 			goto resized_error;
 		}
 		imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size);
@@ -1217,7 +1237,6 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	if( !imsrc )
 	{
 		Send404(h);
-		sqlite3_free_table(result);
 		goto resized_error;
 	}
 	/* Figure out the best destination resolution we can use */
@@ -1260,10 +1279,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
 	image_free(imsrc);
 	image_free(imdst);
-	sqlite3_free_table(result);
 	resized_error:
+	sqlite3_free_table(result);
 #if USE_FORK
-	_exit(0);
+	if( !newpid )
+		_exit(0);
 #endif
 }
 
@@ -1274,40 +1294,57 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	char hdr_buf[512];
 	char sql_buf[256];
 	char **result;
-	int rows;
+	int rows, ret;
 	char date[30];
 	time_t curtime = time(NULL);
 	off_t total, offset, size;
-	char *path, *mime, *dlna;
+	sqlite_int64 id;
 	int sendfh;
+	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[64]; } last_file = { 0 };
+
+	id = strtoll(object, NULL, 10);
+	if( id != last_file.id )
+	{
+		sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%lld'", id);
+		ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
+		if( (ret != SQLITE_OK) )
+		{
+			DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %lld!\n", id);
+			Send500(h);
+			return;
+		}
+		if( !rows )
+		{
+			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
+			Send404(h);
+			goto error;
+		}
+		/* Cache the result */
+		last_file.id = id;
+		strncpy(last_file.path, result[3], sizeof(last_file.path)-1);
+		if( result[4] )
+			strncpy(last_file.mime, result[4], sizeof(last_file.mime)-1);
+		else
+			last_file.mime[0] = '\0';
+		if( result[5] )
+			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s", result[5]);
+		else
+			last_file.dlna[0] = '\0';
+		sqlite3_free_table(result);
+	}
 #if USE_FORK
 	pid_t newpid = 0;
 	newpid = fork();
 	if( newpid )
 		return;
+		//goto error;
 #endif
 
-	memset(header, 0, 1500);
-
-	strip_ext(object);
-	sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%s'", object);
-	sqlite3_get_table(db, sql_buf, &result, &rows, 0, 0);
-	if( !rows )
-	{
-		DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
-		Send404(h);
-		sqlite3_free_table(result);
-		goto done_dlna;
-	}
-	path = result[3];
-	mime = result[4];
-	dlna = result[5];
-
-	DPRINTF(E_INFO, L_HTTP, "Serving DetailID: %s [%s]\n", object, path);
+	DPRINTF(E_INFO, L_HTTP, "Serving DetailID: %lld [%s]\n", id, last_file.path);
 
 	if( h->reqflags & FLAG_XFERSTREAMING )
 	{
-		if( strncmp(mime, "image", 5) == 0 )
+		if( strncmp(last_file.mime, "image", 5) == 0 )
 		{
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Streaming with an image!\n");
 			Send406(h);
@@ -1322,7 +1359,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			Send400(h);
 			goto error;
 		}
-		if( strncmp(mime, "image", 5) != 0 )
+		if( strncmp(last_file.mime, "image", 5) != 0 )
 		{
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Interactive without an image!\n");
 			Send406(h);
@@ -1332,16 +1369,16 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	offset = h->req_RangeStart;
-	sendfh = open(path, O_RDONLY);
+	sendfh = open(last_file.path, O_RDONLY);
 	if( sendfh < 0 ) {
-		DPRINTF(E_ERROR, L_HTTP, "Error opening %s\n", path);
+		DPRINTF(E_ERROR, L_HTTP, "Error opening %s\n", last_file.path);
 		goto error;
 	}
 	size = lseek(sendfh, 0, SEEK_END);
 	lseek(sendfh, 0, SEEK_SET);
 
 	sprintf(header, "HTTP/1.1 20%c OK\r\n"
-			"Content-Type: %s\r\n", (h->reqflags & FLAG_RANGE ? '6' : '0'), mime);
+			"Content-Type: %s\r\n", (h->reqflags & FLAG_RANGE ? '6' : '0'), last_file.mime);
 	if( h->reqflags & FLAG_RANGE )
 	{
 		if( !h->req_RangeEnd )
@@ -1391,13 +1428,13 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	}
 	else if( h->reqflags & FLAG_XFERBACKGROUND )
 	{
-		if( strncmp(mime, "image", 5) == 0 )
+		if( strncmp(last_file.mime, "image", 5) == 0 )
 			strcat(header, "transferMode.dlna.org: Background\r\n");
 	}
 	else //if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
-		if( (strncmp(mime, "video", 5) == 0) ||
-		    (strncmp(mime, "audio", 5) == 0) )
+		if( (strncmp(last_file.mime, "video", 5) == 0) ||
+		    (strncmp(last_file.mime, "audio", 5) == 0) )
 		{
 			strcat(header, "transferMode.dlna.org: Streaming\r\n");
 		}
@@ -1413,7 +1450,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			 "EXT:\r\n"
 			 "contentFeatures.dlna.org: DLNA.ORG_PN=%s\r\n"
 			 "Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n\r\n",
-			 date, dlna);
+			 date, last_file.dlna);
 	strcat(header, hdr_buf);
 
 	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
@@ -1423,9 +1460,8 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	close(sendfh);
 
 	error:
-	sqlite3_free_table(result);
-	done_dlna:
 #if USE_FORK
-	_exit(0);
+	if( !newpid )
+		_exit(0);
 #endif
 }
