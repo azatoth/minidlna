@@ -1301,6 +1301,9 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	sqlite_int64 id;
 	int sendfh;
 	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[64]; } last_file = { 0 };
+#if USE_FORK
+	pid_t newpid = 0;
+#endif
 
 	id = strtoll(object, NULL, 10);
 	if( id != last_file.id )
@@ -1316,6 +1319,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		if( !rows )
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
+			sqlite3_free_table(result);
 			Send404(h);
 			goto error;
 		}
@@ -1333,11 +1337,9 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		sqlite3_free_table(result);
 	}
 #if USE_FORK
-	pid_t newpid = 0;
 	newpid = fork();
 	if( newpid )
 		return;
-		//goto error;
 #endif
 
 	DPRINTF(E_INFO, L_HTTP, "Serving DetailID: %lld [%s]\n", id, last_file.path);
