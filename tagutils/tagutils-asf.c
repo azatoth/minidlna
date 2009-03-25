@@ -293,7 +293,7 @@ _asf_load_string(FILE *fp, int type, int size, char *buf, int len)
 	return i;
 }
 
-static void
+static void *
 _asf_load_picture(FILE *fp, int size, void *bm, int *bm_size)
 {
 	int i;
@@ -309,10 +309,21 @@ _asf_load_picture(FILE *fp, int size, void *bm, int *bm_size)
 	// Picture data       <binary data>
 
 	pic_type = fget_byte(fp); size -= 1;
-	pic_size = fget_le32(fp); size -= 2;
+	pic_size = fget_le32(fp); size -= 4;
 
-	i = 0;
-	buf[i] = 0;
+	for(i = 0; i < sizeof(buf) - 1; i++)
+	{
+		buf[i] = fget_le16(fp); size -= 2;
+		if(!buf[i])
+			break;
+	}
+	buf[i] = '\0';
+	if(i == sizeof(buf) - 1)
+	{
+		while(fget_le16(fp))
+			size -= 2;
+	}
+
 	if(!strcasecmp(buf, "image/jpeg") ||
 	   !strcasecmp(buf, "image/jpg") ||
 	   !strcasecmp(buf, "image/peg"))
@@ -355,6 +366,7 @@ _asf_load_picture(FILE *fp, int size, void *bm, int *bm_size)
 	}
 
 	*bm_size = size;
+	return bm;
 }
 
 static int
@@ -470,7 +482,7 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 					if(_asf_load_string(fp, ValueType, ValueLength, buf, sizeof(buf)))
 					{
 						if(buf[0])
-							psong->contributor[ROLE_ALBUMARTIST] = strdup(buf);
+							psong->contributor[ROLE_ARTIST] = strdup(buf);
 					}
 				}
 				else if(!strcasecmp(buf, "Description") || !strcasecmp(buf, "WM/Track"))
@@ -499,7 +511,7 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 				}
 				else if(!strcasecmp(buf, "WM/Picture") && (ValueType == ASF_VT_BYTEARRAY))
 				{
-					_asf_load_picture(fp, ValueLength, psong->image, &psong->image_size);
+					psong->image = _asf_load_picture(fp, ValueLength, psong->image, &psong->image_size);
 				}
 				else if(!strcasecmp(buf, "TrackNumber") || !strcasecmp(buf, "WM/TrackNumber"))
 				{
