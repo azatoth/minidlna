@@ -49,6 +49,7 @@ is_video(const char * file)
 		ends_with(file, ".asf") || ends_with(file, ".wmv")   ||
 		ends_with(file, ".mp4") || ends_with(file, ".m4v")   ||
 		ends_with(file, ".mts") || ends_with(file, ".m2ts")  ||
+		ends_with(file, ".m2t") ||
 		ends_with(file, ".vob") || ends_with(file, ".ts")    ||
 		ends_with(file, ".avi") || ends_with(file, ".xvid"));
 }
