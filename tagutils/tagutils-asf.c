@@ -482,7 +482,7 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 					if(_asf_load_string(fp, ValueType, ValueLength, buf, sizeof(buf)))
 					{
 						if(buf[0])
-							psong->contributor[ROLE_ARTIST] = strdup(buf);
+							psong->contributor[ROLE_ALBUMARTIST] = strdup(buf);
 					}
 				}
 				else if(!strcasecmp(buf, "Description") || !strcasecmp(buf, "WM/Track"))

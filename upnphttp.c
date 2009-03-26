@@ -1321,7 +1321,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 			sqlite3_free_table(result);
 			Send404(h);
-			goto error;
+			return;
 		}
 		/* Cache the result */
 		last_file.id = id;

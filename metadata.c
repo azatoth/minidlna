@@ -130,7 +130,7 @@ GetAudioMetadata(const char * path, char * name)
 	sqlite_int64 ret;
 	char *sql;
 	char *title, *artist = NULL, *album = NULL, *genre = NULL, *comment = NULL, *date = NULL;
-	int free_flags = 0;
+	int i, free_flags = 0;
 	sqlite_int64 album_art = 0;
 	char art_dlna_pn[9];
 	struct song_metadata song;
@@ -197,14 +197,18 @@ GetAudioMetadata(const char * path, char * name)
 	{
 		title = name;
 	}
-	if( song.contributor[ROLE_ARTIST] )
+	for( i=ROLE_START; i<N_ROLE; i++ )
 	{
-		artist = song.contributor[ROLE_ARTIST];
-		artist = trim(artist);
-		if( index(artist, '&') )
+		if( song.contributor[i] )
 		{
-			free_flags |= FLAG_ARTIST;
-			artist = modifyString(strdup(artist), "&", "&amp;amp;", 0);
+			artist = song.contributor[i];
+			artist = trim(artist);
+			if( index(artist, '&') )
+			{
+				free_flags |= FLAG_ARTIST;
+				artist = modifyString(strdup(artist), "&", "&amp;amp;", 0);
+			}
+			break;
 		}
 	}
 	if( song.album )
