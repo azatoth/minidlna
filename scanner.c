@@ -95,10 +95,11 @@ insert_container(const char * item, const char * rootParent, const char * refID,
                  const char *artist, const char *genre, const char *album_art, const char *art_dlna_pn)
 {
 	char **result;
+	char **result2;
 	char *sql;
 	int cols, rows, ret;
 	int parentID = 0, objectID = 0;
-	sqlite_int64 detailID;
+	sqlite_int64 detailID = 0;
 
 	sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS where OBJECT_ID glob '%s$*' and NAME = '%q'", rootParent, item);
 	ret = sql_get_table(db, sql, &result, &rows, &cols);
@@ -111,7 +112,24 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 	else
 	{
 		parentID = get_next_available_id("OBJECTS", rootParent);
-		detailID = GetFolderMetadata(item, NULL, artist, genre, album_art, art_dlna_pn);
+		if( refID )
+		{
+			sql = sqlite3_mprintf("SELECT DETAIL_ID from OBJECTS where OBJECT_ID = %Q", refID);
+			ret = sql_get_table(db, sql, &result2, &rows, NULL);
+			if( ret == SQLITE_OK )
+			{
+				if( rows )
+				{
+					detailID = strtoll(result2[1], NULL, 10);
+				}
+				sqlite3_free_table(result2);
+			}
+			sqlite3_free(sql);
+		}
+		if( !detailID )
+		{
+			detailID = GetFolderMetadata(item, NULL, artist, genre, album_art, art_dlna_pn);
+		}
 		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 					" (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
 					"VALUES"

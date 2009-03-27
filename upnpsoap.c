@@ -298,7 +298,10 @@ static int callback(void *args, int argc, char **argv, char **azColName)
 				strcat(passed_args->resp, str_buf);
 			}
 			if( bitrate && (!passed_args->filter || strstr(passed_args->filter, "res@bitrate")) ) {
-				sprintf(str_buf, "bitrate=\"%s\" ", bitrate);
+				if( passed_args->client == EXbox )
+					sprintf(str_buf, "bitrate=\"%d\" ", atoi(bitrate)/1024);
+				else
+					sprintf(str_buf, "bitrate=\"%s\" ", bitrate);
 				strcat(passed_args->resp, str_buf);
 			}
 			if( sampleFrequency && (!passed_args->filter || strstr(passed_args->filter, "res@sampleFrequency")) ) {
@@ -536,6 +539,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	args.requested = RequestedCount;
 	args.resp = NULL;
 	args.filter = NULL;
+	args.client = h->req_client;
 	if( h->req_client == EXbox )
 	{
 		if( strcmp(ContainerID, "4") == 0 )
@@ -600,15 +604,15 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	DPRINTF(E_DEBUG, L_HTTP, "Translated SearchCriteria: %s\n", SearchCriteria);
 
 	args.resp = resp;
-	sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-	                      " where OBJECT_ID glob '%s$*' and (%s) "
+	sql = sqlite3_mprintf("SELECT distinct * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+	                      " where OBJECT_ID glob '%s$*' and (%s) group by DETAIL_ID "
 			      "%z"
 	                      " order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
-	                      ContainerID, SearchCriteria, 
-			      (*ContainerID == '*') ? NULL :
-	                      sqlite3_mprintf("UNION ALL SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-	    		                      " where OBJECT_ID = '%s' and (%s) ", ContainerID, SearchCriteria),
-		       	      StartingIndex);
+	                      ContainerID, SearchCriteria,
+	                      (*ContainerID == '*') ? NULL :
+                              sqlite3_mprintf("UNION ALL SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+	                                      " where OBJECT_ID = '%s' and (%s) ", ContainerID, SearchCriteria),
+	                      StartingIndex);
 	DPRINTF(E_DEBUG, L_HTTP, "Search SQL: %s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	if( ret != SQLITE_OK )
