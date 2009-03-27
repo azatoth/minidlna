@@ -414,6 +414,12 @@ GetImageMetadata(const char * path, char * name)
 		fclose(infile);
 	}
 
+	if( !width || !height )
+	{
+		if( m.mime )
+			free(m.mime);
+		return 0;
+	}
 	if( width <= 640 && height <= 480 )
 		asprintf(&m.dlna_pn, "JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	else if( width <= 1024 && height <= 768 )

@@ -31,6 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <setjmp.h>
 #include <jpeglib.h>
 
 #include "image_utils.h"
@@ -175,11 +176,13 @@ jpeg_memory_src(j_decompress_ptr cinfo, const unsigned char * buffer, size_t buf
 	src->pub.bytes_in_buffer = bufsize;
 }
 
+jmp_buf setjmp_buffer;
 /* Don't exit on error like libjpeg likes to do */
 static void
 libjpeg_error_handler(j_common_ptr cinfo)
 {
 	cinfo->err->output_message(cinfo);
+	longjmp(setjmp_buffer, 1);
 	return;
 }
 
@@ -257,6 +260,13 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size)
 	else
 	{
 		jpeg_memory_src(&cinfo, (const unsigned char *)buf, size);
+	}
+	if( setjmp(setjmp_buffer) )
+	{
+		jpeg_destroy_decompress(&cinfo);
+		if( is_file && file )
+			fclose(file);
+		return NULL;
 	}
 	jpeg_read_header(&cinfo, TRUE);
 	cinfo.do_fancy_upsampling = FALSE;

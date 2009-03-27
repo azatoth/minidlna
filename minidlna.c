@@ -883,6 +883,7 @@ shutdown:
 
 	if (sudp >= 0) close(sudp);
 	if (shttpl >= 0) close(shttpl);
+	if (sbeacon >= 0) close(sbeacon);
 	
 	if(SendSSDPGoodbye(snotify, n_lan_addr) < 0)
 	{
