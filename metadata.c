@@ -842,6 +842,10 @@ GetVideoMetadata(const char * path, char * name)
 			asprintf(&m.mime, "video/x-ms-wmv");
 		else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
 			asprintf(&m.mime, "video/mp4");
+		else if( strcmp(ctx->iformat->name, "matroska") == 0 )
+			asprintf(&m.mime, "video/x-matroska");
+		else
+			DPRINTF(E_WARN, L_METADATA, "Unhandled format: %s\n", ctx->iformat->name);
 	}
 	av_close_input_file(ctx);
 
