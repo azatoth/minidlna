@@ -80,9 +80,9 @@ SendRootContainer(struct upnphttp * h)
 int callback(void *args, int argc, char **argv, char **azColName)
 {
 	struct Response *passed_args = (struct Response *)args;
-	char *id = argv[1], *class = argv[4], *detailID = argv[5], *size = argv[9], *title = argv[10], *duration = argv[11],
-             *bitrate = argv[12], *sampleFrequency = argv[13], *artist = argv[14], *album = argv[15], *genre = argv[16],
-             *comment = argv[17], *date = argv[20], *resolution = argv[21], *mime = argv[25];
+	char *id = argv[0], *class = argv[1], *detailID = argv[2], *size = argv[3], *title = argv[4], *duration = argv[5],
+             *bitrate = argv[6], *sampleFrequency = argv[7], *artist = argv[8], *album = argv[9], *genre = argv[10],
+             *comment = argv[11], *date = argv[12], *resolution = argv[13], *mime = argv[14];
 	char str_buf[4096];
 	char **result;
 	int is_audio = 0;
@@ -96,13 +96,13 @@ int callback(void *args, int argc, char **argv, char **azColName)
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
-		if( strcmp(mime, "audio/mpeg") == 0 )
+		if( strncmp(mime, "audio", 5) == 0 )
 		{
 			sprintf(str_buf, "<Item><Details>"
 			                 "<ContentType>audio/*</ContentType>"
-			                 "<SourceFormat>audio/mpeg</SourceFormat>"
+			                 "<SourceFormat>%s</SourceFormat>"
 			                 "<SourceSize>%s</SourceSize>"
-			                 "<SongTitle>%s</SongTitle>", size, title);
+			                 "<SongTitle>%s</SongTitle>", mime, size, title);
 			strcat(passed_args->resp, str_buf);
 			if( date )
 			{
@@ -138,15 +138,15 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		sprintf(str_buf, "<Title>%s</Title>", modifyString(title, "&amp;amp;", "&amp;", 0));
 		strcat(passed_args->resp, str_buf);
 		if( artist ) {
-			sprintf(str_buf, "<ArtistName>%s</ArtistName>", artist);
+			sprintf(str_buf, "<ArtistName>%s</ArtistName>", modifyString(artist, "&amp;amp;", "&amp;", 0));
 			strcat(passed_args->resp, str_buf);
 		}
 		if( album ) {
-			sprintf(str_buf, "<AlbumTitle>%s</AlbumTitle>", album);
+			sprintf(str_buf, "<AlbumTitle>%s</AlbumTitle>", modifyString(album, "&amp;amp;", "&amp;", 0));
 			strcat(passed_args->resp, str_buf);
 		}
 		if( genre ) {
-			sprintf(str_buf, "<MusicGenre>%s</MusicGenre>", genre);
+			sprintf(str_buf, "<MusicGenre>%s</MusicGenre>", modifyString(genre, "&amp;amp;", "&amp;", 0));
 			strcat(passed_args->resp, str_buf);
 		}
 		if( resolution ) {
@@ -197,6 +197,39 @@ int callback(void *args, int argc, char **argv, char **azColName)
 }
 
 void
+SendItemDetails(struct upnphttp * h, sqlite_int64 item)
+{
+	char * resp = malloc(32768);
+	char *sql;
+	char *zErrMsg = NULL;
+	struct Response args;
+	int ret;
+	memset(&args, 0, sizeof(args));
+
+	sprintf(resp, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
+	args.resp = resp;
+	args.requested = 1;
+	asprintf(&sql, "SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
+	               " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
+	               " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME "
+	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+		       " where o.DETAIL_ID = %lld", item);
+	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
+	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
+	free(sql);
+	if( ret != SQLITE_OK )
+	{
+		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
+		sqlite3_free(zErrMsg);
+	}
+	strcat(resp, "</TiVoItem>");
+
+	BuildResp_upnphttp(h, resp, strlen(resp));
+	free(resp);
+	SendResp_upnphttp(h);
+}
+
+void
 SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int itemCount, char * anchorItem,
               int anchorOffset, int recurse, char * sortOrder, char * filter, unsigned long int randomSeed)
 {
@@ -206,14 +239,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	char *zErrMsg = NULL;
 	char **result;
 	char *title;
-	char what[10], order[64], order2[64], myfilter[128];
+	char what[10], order[64]={0}, order2[64]={0}, myfilter[128]={0};
 	char *which;
 	struct Response args;
 	int i, ret;
 	*items = '\0';
-	order[0] = '\0';
-	order2[0] = '\0';
-	myfilter[0] = '\0';
 	memset(&args, 0, sizeof(args));
 
 	args.resp = items;
@@ -222,25 +252,19 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	if( strlen(objectID) == 1 )
 	{
 		if( *objectID == '1' )
-		{
 			asprintf(&title, "Music on %s", friendly_name);
-		}
 		else if( *objectID == '3' )
-		{
 			asprintf(&title, "Pictures on %s", friendly_name);
-		}
+		else
+			asprintf(&title, "Unknown on %s", friendly_name);
 	}
 	else
 	{
 		sql = sqlite3_mprintf("SELECT NAME from OBJECTS where OBJECT_ID = '%s'", objectID);
 		if( (sql_get_table(db, sql, &result, &ret, NULL) == SQLITE_OK) && ret )
-		{
 			title = strdup(result[1]);
-		}
 		else
-		{
 			title = strdup("UNKNOWN");
-		}
 		sqlite3_free(sql);
 		sqlite3_free_table(result);
 	}
@@ -297,25 +321,17 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 				{
 					strcat(order, " DESC");
 					if( itemCount >= 0 )
-					{
 						strcat(order2, " DESC");
-					}
 					else
-					{
 						strcat(order2, " ASC");
-					}
 				}
 				else
 				{
 					strcat(order, " ASC");
 					if( itemCount >= 0 )
-					{
 						strcat(order2, " ASC");
-					}
 					else
-					{
 						strcat(order2, " DESC");
-					}
 				}
 				strcat(order, ", ");
 				strcat(order2, ", ");
@@ -324,13 +340,9 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 			}
 			strcat(order, "DETAIL_ID ASC");
 			if( itemCount >= 0 )
-			{
 				strcat(order2, "DETAIL_ID ASC");
-			}
 			else
-			{
 				strcat(order2, "DETAIL_ID DESC");
-			}
 		}
 	}
 	else
@@ -390,6 +402,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		sqlite3Prng.isInit = 0;
 		sql = sqlite3_mprintf("SELECT %s from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
 		                      " where %s and (%s)"
+	                              " group by DETAIL_ID"
 		                      " order by %s", what, which, myfilter, order2);
 		if( itemCount < 0 )
 		{
@@ -415,8 +428,12 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	}
 	args.start = itemStart+anchorOffset;
 	sqlite3Prng.isInit = 0;
-	sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+	sql = sqlite3_mprintf("SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
+	                      " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
+	                      " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME "
+	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		              " where %s and (%s)"
+	                      " group by DETAIL_ID"
 			      " order by %s", which, myfilter, order);
 	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
@@ -459,6 +476,7 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 	char *saveptr = NULL, *item;
 	char *command = NULL, *container = NULL, *anchorItem = NULL;
 	char *sortOrder = NULL, *filter = NULL;
+	sqlite_int64 detailItem=0;
 	int itemStart=0, itemCount=-100, anchorOffset=0, recurse=0;
 	unsigned long int randomSeed=0;
 
@@ -518,6 +536,10 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 		{
 			randomSeed = strtoul(val, NULL, 10);
 		}
+		else if( strcasecmp(key, "Url") == 0 )
+		{
+			detailItem = strtoll(basename(val), NULL, 10);
+		}
 		else if( strcasecmp(key, "Format") == 0 )
 		{
 			// Only send XML
@@ -533,15 +555,27 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 		strip_ext(anchorItem);
 	}
 
-	if( command && strcmp(command, "QueryContainer") == 0 )
+	if( command )
 	{
-		if( !container || (strcmp(container, "/") == 0) )
+		if( strcmp(command, "QueryContainer") == 0 )
 		{
-			SendRootContainer(h);
+			if( !container || (strcmp(container, "/") == 0) )
+			{
+				SendRootContainer(h);
+			}
+			else
+			{
+				SendContainer(h, container, itemStart, itemCount, anchorItem, anchorOffset, recurse, sortOrder, filter, randomSeed);
+			}
+		}
+		else if( strcmp(command, "QueryItem") == 0 )
+		{
+			SendItemDetails(h, detailItem);
 		}
 		else
 		{
-			SendContainer(h, container, itemStart, itemCount, anchorItem, anchorOffset, recurse, sortOrder, filter, randomSeed);
+			DPRINTF(E_DEBUG, L_GENERAL, "Unhandled command [%s]\n", command);
+			Send501(h);
 		}
 	}
 	free(path);

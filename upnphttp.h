@@ -120,6 +120,10 @@ BuildResp2_upnphttp(struct upnphttp * h, int respcode,
                     const char * respmsg,
                     const char * body, int bodylen);
 
+/* Error messages */
+void
+Send501(struct upnphttp *);
+
 /* SendResp_upnphttp() */
 void
 SendResp_upnphttp(struct upnphttp *);

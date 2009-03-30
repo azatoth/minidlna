@@ -336,7 +336,7 @@ Send500(struct upnphttp * h)
 }
 
 /* very minimalistic 501 error message */
-static void
+void
 Send501(struct upnphttp * h)
 {
 	static const char body501[] = 
