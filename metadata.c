@@ -351,7 +351,7 @@ GetImageMetadata(const char * path, char * name)
 
 	tag = EXIF_TAG_DATE_TIME_ORIGINAL;
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
-	if( e ) {
+	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_DATE_TIME)) ) {
 		strncpy(date, exif_entry_get_value(e, b, sizeof(b)), sizeof(date));
 		if( strlen(date) > 10 )
 		{
