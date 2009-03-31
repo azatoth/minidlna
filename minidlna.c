@@ -623,6 +623,14 @@ main(int argc, char * * argv)
 		char **result;
 		int rows;
 		sqlite3_busy_timeout(db, 5000);
+		if( sql_get_table(db, "SELECT UPDATE_ID from SETTINGS", &result, &rows, 0) == SQLITE_OK )
+		{
+			if( rows )
+			{
+				updateID = atoi(result[1]);
+			}
+			sqlite3_free_table(result);
+		}
 		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
@@ -883,7 +891,9 @@ shutdown:
 
 	if (sudp >= 0) close(sudp);
 	if (shttpl >= 0) close(shttpl);
+	#ifdef TIVO_SUPPORT
 	if (sbeacon >= 0) close(sbeacon);
+	#endif
 	
 	if(SendSSDPGoodbye(snotify, n_lan_addr) < 0)
 	{
