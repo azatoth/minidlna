@@ -400,7 +400,7 @@ static const struct stateVar ContentDirectoryVars[] =
 	//JM{"A_ARG_TYPE_URI", 5, 0}, /* 15 */
 	{"SearchCapabilities", 0, 0},
 	{"SortCapabilities", 0, 0},
-	{"SystemUpdateID", 3|0x80, 0, 46, 46},
+	{"SystemUpdateID", 3|0x80, 0, 46, 255},
 	//{"ContainerUpdateIDs", 0, 0},
 	{0, 0}
 };
@@ -792,33 +792,36 @@ genEventVars(int * len, const struct serviceDesc * s, const char * servns)
 	const struct stateVar * v;
 	char * str;
 	int tmplen;
+	char buf[512];
 	tmplen = 512;
 	str = (char *)malloc(tmplen);
 	if(str == NULL)
 		return NULL;
 	*len = 0;
 	v = s->serviceStateTable;
-	str = strcat_str(str, len, &tmplen, "<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\" xmlns:s=\"");
-	str = strcat_str(str, len, &tmplen, servns);
-	str = strcat_str(str, len, &tmplen, "\">");
+	snprintf(buf, sizeof(buf), "<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\" xmlns:s=\"%s\">", servns);
+	str = strcat_str(str, len, &tmplen, buf);
 	while(v->name) {
 		if(v->itype & 0x80) {
-			str = strcat_str(str, len, &tmplen, "<e:property><");
-			str = strcat_str(str, len, &tmplen, v->name);
-			str = strcat_str(str, len, &tmplen, ">");
+			snprintf(buf, sizeof(buf), "<e:property><%s>", v->name);
+			str = strcat_str(str, len, &tmplen, buf);
 			//printf("<e:property><s:%s>", v->name);
 			switch(v->ieventvalue) {
 			case 0:
 				break;
 			case 255:	/* Magical values should go around here */
+				if( strcmp(v->name, "SystemUpdateID") == 0 )
+				{
+					snprintf(buf, sizeof(buf), "%d", updateID);
+					str = strcat_str(str, len, &tmplen, buf);
+				}
 				break;
 			default:
 				str = strcat_str(str, len, &tmplen, upnpallowedvalues[v->ieventvalue]);
 				//printf("%s", upnpallowedvalues[v->ieventvalue]);
 			}
-			str = strcat_str(str, len, &tmplen, "</");
-			str = strcat_str(str, len, &tmplen, v->name);
-			str = strcat_str(str, len, &tmplen, "></e:property>");
+			snprintf(buf, sizeof(buf), "</%s></e:property>", v->name);
+			str = strcat_str(str, len, &tmplen, buf);
 			//printf("</s:%s></e:property>\n", v->name);
 		}
 		v++;

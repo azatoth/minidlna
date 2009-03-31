@@ -17,6 +17,7 @@ char friendly_name[] = "localhost: system_type";
 char serialnumber[] = "12345678";
 char modelnumber[] = "1";
 char presentationurl[] = "http://192.168.0.1:8080/";
+unsigned int updateID = 0;
 
 int getifaddr(const char * ifname, char * buf, int len)
 {
