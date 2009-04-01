@@ -182,7 +182,7 @@ check_for_album_file(char * dir)
 		{
 			imsrc = image_new_from_jpeg(file, 1, NULL, 0);
 			if( !imsrc )
-				return NULL;
+				continue;
 			width = imsrc->width;
 			height = imsrc->height;
 			if( width > 160 || height > 160 )

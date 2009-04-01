@@ -99,24 +99,44 @@ get_fourcc(const char *s)
 	return (s[0]) + (s[1]<<8) + (s[2]<<16) + (s[3]<<24);
 }
 
+char *
+escape_tag(const char *tag)
+{
+	char *esc_tag = NULL;
+
+	if( index(tag, '&') || index(tag, '<') || index(tag, '>') )
+	{
+		esc_tag = strdup(tag);
+		esc_tag = modifyString(esc_tag, "&", "&amp;amp;", 0);
+		esc_tag = modifyString(esc_tag, "<", "&amp;lt;", 0);
+		esc_tag = modifyString(esc_tag, ">", "&amp;gt;", 0);
+	}
+
+	return esc_tag;
+}
+
 sqlite_int64
 GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn)
 {
 	char * sql;
+	char * esc_name = NULL;
 	int ret;
 
-	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
-				"VALUES"
-				" ('%q', %Q, %Q, %Q, %Q, %lld, %Q);",
-				name, path, artist, artist, genre,
-				album_art ? strtoll(album_art, NULL, 10) : 0,
-				art_dlna_pn);
-
+	esc_name = escape_tag(name);
+	sql = sqlite3_mprintf( "INSERT into DETAILS"
+                               " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
+                               "VALUES"
+                               " ('%q', %Q, %Q, %Q, %Q, %lld, %Q);",
+                               esc_name ? esc_name : name,
+                               path, artist, artist, genre,
+                               album_art ? strtoll(album_art, NULL, 10) : 0,
+                               art_dlna_pn);
 	if( sql_exec(db, sql) != SQLITE_OK )
 		ret = 0;
 	else
 		ret = sqlite3_last_insert_rowid(db);
+	if( esc_name )
+		free(esc_name);
 	sqlite3_free(sql);
 
 	return ret;
@@ -130,6 +150,7 @@ GetAudioMetadata(const char * path, char * name)
 	sqlite_int64 ret;
 	char *sql;
 	char *title, *artist = NULL, *album = NULL, *genre = NULL, *comment = NULL, *date = NULL;
+	char *esc_tag;
 	int i, free_flags = 0;
 	sqlite_int64 album_art = 0;
 	char art_dlna_pn[9];
@@ -187,10 +208,10 @@ GetAudioMetadata(const char * path, char * name)
 	if( title )
 	{
 		title = trim(title);
-		if( index(title, '&') )
+		if( (esc_tag = escape_tag(title)) )
 		{
 			free_flags |= FLAG_TITLE;
-			title = modifyString(strdup(title), "&", "&amp;amp;", 0);
+			title = esc_tag;
 		}
 	}
 	else
@@ -201,44 +222,40 @@ GetAudioMetadata(const char * path, char * name)
 	{
 		if( song.contributor[i] )
 		{
-			artist = song.contributor[i];
-			artist = trim(artist);
-			if( index(artist, '&') )
+			artist = trim(song.contributor[i]);
+			if( (esc_tag = escape_tag(artist)) )
 			{
 				free_flags |= FLAG_ARTIST;
-				artist = modifyString(strdup(artist), "&", "&amp;amp;", 0);
+				artist = esc_tag;
 			}
 			break;
 		}
 	}
 	if( song.album )
 	{
-		album = song.album;
-		album = trim(album);
-		if( index(album, '&') )
+		album = trim(song.album);
+		if( (esc_tag = escape_tag(album)) )
 		{
 			free_flags |= FLAG_ALBUM;
-			album = modifyString(strdup(album), "&", "&amp;amp;", 0);
+			album = esc_tag;
 		}
 	}
 	if( song.genre )
 	{
-		genre = song.genre;
-		genre = trim(genre);
-		if( index(genre, '&') )
+		genre = trim(song.genre);
+		if( (esc_tag = escape_tag(genre)) )
 		{
 			free_flags |= FLAG_GENRE;
-			genre = modifyString(strdup(genre), "&", "&amp;amp;", 0);
+			genre = esc_tag;
 		}
 	}
 	if( song.comment )
 	{
-		comment = song.comment;
-		comment = trim(comment);
-		if( index(comment, '&') )
+		comment = trim(song.comment);
+		if( (esc_tag = escape_tag(comment)) )
 		{
 			free_flags |= FLAG_COMMENT;
-			comment = modifyString(strdup(comment), "&", "&amp;amp;", 0);
+			comment = esc_tag;
 		}
 	}
 
@@ -313,6 +330,7 @@ GetImageMetadata(const char * path, char * name)
 	off_t size;
 	char date[64], make[32], model[64];
 	char b[1024];
+	char *esc_name = NULL;
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
@@ -328,6 +346,7 @@ GetImageMetadata(const char * path, char * name)
 	else
 		return 0;
 	strip_ext(name);
+	esc_name = escape_tag(name);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
@@ -434,7 +453,7 @@ GetImageMetadata(const char * path, char * name)
 				" (PATH, TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
 				" (%Q, '%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
-				path, name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
+				path, esc_name?esc_name:name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -452,6 +471,8 @@ GetImageMetadata(const char * path, char * name)
 		free(m.dlna_pn);
 	if( m.mime )
 		free(m.mime);
+	if( esc_name )
+		free(esc_name);
 	return ret;
 }
 
@@ -463,6 +484,7 @@ GetVideoMetadata(const char * path, char * name)
 	char *sql;
 	int ret, i;
 	struct tm *modtime;
+	char *esc_name = NULL;
 	char date[20];
 	AVFormatContext *ctx;
 	int audio_stream = -1, video_stream = -1;
@@ -482,6 +504,7 @@ GetVideoMetadata(const char * path, char * name)
 		size = file.st_size;
 	}
 	strip_ext(name);
+	esc_name = escape_tag(name);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	av_register_all();
@@ -859,18 +882,16 @@ GetVideoMetadata(const char * path, char * name)
 	}
 	av_close_input_file(ctx);
 
-	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
-				"  TITLE, DLNA_PN, MIME) "
-				"VALUES"
-				" (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
-				path, size, m.duration,
-				strlen(date) ? date : NULL,
-				m.channels,
-				m.bitrate,
-				m.frequency,
-				m.resolution,
-				name, m.dlna_pn, m.mime);
+	sql = sqlite3_mprintf( "INSERT into DETAILS"
+	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
+	                       "  TITLE, DLNA_PN, MIME) "
+	                       "VALUES"
+	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
+	                       path, size, m.duration,
+	                       strlen(date) ? date : NULL,
+	                       m.channels, m.bitrate, m.frequency, m.resolution,
+	                       esc_name?esc_name:name,
+	                       m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -898,6 +919,8 @@ GetVideoMetadata(const char * path, char * name)
 		free(m.bps);
 	if( m.channels )
 		free(m.channels);
+	if( esc_name )
+		free(esc_name);
 
 	return ret;
 }
