@@ -618,7 +618,11 @@ GetVideoMetadata(const char * path, char * name)
 			case CODEC_ID_MPEG1VIDEO:
 				if( strcmp(ctx->iformat->name, "mpeg") == 0 )
 				{
-					asprintf(&m.dlna_pn, "MPEG1;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+					if( (ctx->streams[video_stream]->codec->width  == 352) &&
+					    (ctx->streams[video_stream]->codec->height <= 288) )
+					{
+						asprintf(&m.dlna_pn, "MPEG1;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+					}
 					asprintf(&m.mime, "video/mpeg");
 				}
 				break;
