@@ -600,6 +600,7 @@ main(int argc, char * * argv)
 	struct sockaddr_in tivo_bcast;
 	#endif
 	char * sql;
+	short int new_db = 0;
 	pthread_t thread[2];
 
 	if(init(argc, argv) != 0)
@@ -613,6 +614,7 @@ main(int argc, char * * argv)
 		char *db_path = strdup(DB_PATH);
 		make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
 		free(db_path);
+		new_db = 1;
 	}
 	if( sqlite3_open(DB_PATH "/files.db", &db) != SQLITE_OK )
 	{
@@ -623,7 +625,7 @@ main(int argc, char * * argv)
 		char **result;
 		int rows;
 		sqlite3_busy_timeout(db, 5000);
-		if( sql_get_table(db, "SELECT UPDATE_ID from SETTINGS", &result, &rows, 0) == SQLITE_OK )
+		if( !new_db && (sql_get_table(db, "SELECT UPDATE_ID from SETTINGS", &result, &rows, 0) == SQLITE_OK) )
 		{
 			if( rows )
 			{
@@ -634,7 +636,14 @@ main(int argc, char * * argv)
 		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
 			if( atoi(result[1]) != DB_VERSION ) {
-				DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
+				if( new_db )
+				{
+					DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
+				}
+				else
+				{
+					DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
+				}
 				sqlite3_close(db);
 				unlink(DB_PATH "/files.db");
 				system("rm -rf " DB_PATH "/art_cache");
