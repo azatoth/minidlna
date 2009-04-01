@@ -21,7 +21,8 @@ struct Response
 	int returned;
 	int requested;
 	int total;
-	char *filter;
+	int size;
+	u_int32_t filter;
 	enum clientType client;
 };
 
