@@ -598,7 +598,7 @@ GetVideoMetadata(const char * path, char * name)
 				else if ( ctx->streams[audio_stream]->codec->bit_rate <= 385000 )
 					audio_profile = WMA_FULL;
 				break;
-			#ifdef CODEC_ID_WMAPRO
+			#if LIBAVCODEC_VERSION_INT > ((51<<16)+(50<<8)+1)
 			case CODEC_ID_WMAPRO:
 				audio_profile = WMA_PRO;
 				break;
@@ -615,10 +615,10 @@ GetVideoMetadata(const char * path, char * name)
 				break;
 		}
 		asprintf(&m.frequency, "%u", ctx->streams[audio_stream]->codec->sample_rate);
-		#if LIBAVCODEC_VERSION_MAJOR >= 52
-		asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_coded_sample);
-		#else
+		#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
 		asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_sample);
+		#else
+		asprintf(&m.bps, "%u", ctx->streams[audio_stream]->codec->bits_per_coded_sample);
 		#endif
 		asprintf(&m.channels, "%u", ctx->streams[audio_stream]->codec->channels);
 	}
@@ -843,23 +843,10 @@ GetVideoMetadata(const char * path, char * name)
 					}
 				}
 				break;
-			case CODEC_ID_XVID:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s UNKNOWN XVID\n", video_stream, path, m.resolution);
-				break;
-			case CODEC_ID_MSMPEG4V1:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v1\n", video_stream, path, m.resolution);
 			case CODEC_ID_MSMPEG4V3:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MS MPEG4 v3\n", video_stream, path, m.resolution);
 				asprintf(&m.mime, "video/avi");
-				break;
-			case CODEC_ID_H263I:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.263i\n", video_stream, path);
-				break;
-			case CODEC_ID_MJPEG:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MJPEG\n", video_stream, path);
-				break;
 			default:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %d\n", video_stream, path, ctx->streams[video_stream]->codec->codec_id);
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s [type %d]\n", video_stream, path, m.resolution, ctx->streams[video_stream]->codec->codec_id);
 				break;
 		}
 	}
@@ -877,6 +864,8 @@ GetVideoMetadata(const char * path, char * name)
 			asprintf(&m.mime, "video/mp4");
 		else if( strcmp(ctx->iformat->name, "matroska") == 0 )
 			asprintf(&m.mime, "video/x-matroska");
+		else if( strcmp(ctx->iformat->name, "flv") == 0 )
+			asprintf(&m.mime, "video/x-flv");
 		else
 			DPRINTF(E_WARN, L_METADATA, "Unhandled format: %s\n", ctx->iformat->name);
 	}
