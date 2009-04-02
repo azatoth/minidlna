@@ -15,6 +15,15 @@
 #define VIDEO_DIR_ID	"2$15"
 #define IMAGE_DIR_ID	"3$16"
 
+int
+is_video(const char * file);
+
+int
+is_audio(const char * file);
+
+int
+is_image(const char * file);
+
 sqlite_int64
 get_next_available_id(const char * table, const char * parentID);
 

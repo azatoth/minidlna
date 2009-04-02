@@ -264,7 +264,44 @@ inotify_insert_file(char * name, const char * path)
 	char * parent_buf = NULL;
 	char * id = NULL;
 	int depth = 1;
+	enum media_types type = ALL_MEDIA;
+	struct media_dir_s * media_path = media_dirs;
 
+	/* Check if we're supposed to be scanning for this file type in this directory */
+	while( media_path )
+	{
+		if( strncmp(path, media_path->path, strlen(media_path->path)) == 0 )
+		{
+			type = media_path->type;
+			break;
+		}
+		media_path = media_path->next;
+	}
+	switch( type )
+	{
+		case ALL_MEDIA:
+			if( !is_image(path) &&
+			    !is_audio(path) &&
+			    !is_video(path) )
+				return -1;
+			break;
+		case AUDIO_ONLY:
+			if( !is_audio(path) )
+				return -1;
+			break;
+		case VIDEO_ONLY:
+			if( !is_video(path) )
+				return -1;
+			break;
+		case IMAGES_ONLY:
+			if( !is_image(path) )
+				return -1;
+			break;
+                default:
+			return -1;
+			break;
+	}
+	
 	/* If it's already in the database, just skip it for now.
 	 * TODO: compare modify timestamps */
 	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH = '%q'", path);
@@ -562,9 +599,14 @@ start_inotify()
 		i = 0;
 		while( i < length )
 		{
-			struct inotify_event * event = ( struct inotify_event * ) &buffer[ i ];
-			if ( event->len )
+			struct inotify_event * event = (struct inotify_event *) &buffer[i];
+			if( event->len )
 			{
+				if( *(event->name) == '.' )
+				{
+					i += EVENT_SIZE + event->len;
+					continue;
+				}
 				esc_name = modifyString(strdup(event->name), "&", "&amp;amp;", 0);
 				asprintf(&path_buf, "%s/%s", get_path_from_wd(event->wd), event->name);
 				if ( (event->mask & IN_CREATE && event->mask & IN_ISDIR) ||
@@ -600,5 +642,5 @@ start_inotify()
 	inotify_remove_watches(fd);
 	close(fd);
 
-	exit( 0 );
+	return NULL;
 }
