@@ -585,10 +585,10 @@ CreateDatabase(void)
 					  "64", "0", "Browse Folders",
 					0 };
 
-	sql_exec(db, "pragma temp_store = MEMORY");
+	sql_exec(db, "pragma page_size = 4096");
 	sql_exec(db, "pragma journal_mode = OFF");
 	sql_exec(db, "pragma synchronous = OFF;");
-	sql_exec(db, "pragma cache_size = 8192;");
+	sql_exec(db, "pragma default_cache_size = 8192;");
 
 	//JM: Set up a db version number, so we know if we need to rebuild due to a new structure.
 	sprintf(sql_buf, "pragma user_version = %d;", DB_VERSION);
@@ -613,16 +613,16 @@ CreateDatabase(void)
 					"DURATION TEXT, "
 					"BITRATE INTEGER, "
 					"SAMPLERATE INTEGER, "
-					"ARTIST TEXT, "
-					"ALBUM TEXT, "
-					"GENRE TEXT, "
+					"ARTIST TEXT COLLATE NOCASE, "
+					"ALBUM TEXT COLLATE NOCASE, "
+					"GENRE TEXT COLLATE NOCASE, "
 					"COMMENT TEXT, "
 					"CHANNELS INTEGER, "
 					"TRACK INTEGER, "
 					"DATE DATE, "
 					"RESOLUTION TEXT, "
 					"THUMBNAIL BOOL DEFAULT 0, "
-					"CREATOR TEXT, "
+					"CREATOR TEXT COLLATE NOCASE, "
 					"DLNA_PN TEXT, "
 					"MIME TEXT, "
 					"ALBUM_ART INTEGER DEFAULT 0, "

@@ -275,14 +275,19 @@ set_filter_flags(char * filter)
 	return flags;
 }
 
+#define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.PARENT_ID, o.REF_ID, o.DETAIL_ID, o.CLASS," \
+                       " d.SIZE, d.TITLE, d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST," \
+                       " d.ALBUM, d.GENRE, d.COMMENT, d.CHANNELS, d.TRACK, d.DATE, d.RESOLUTION," \
+                       " d.THUMBNAIL, d.CREATOR, d.DLNA_PN, d.MIME, d.ALBUM_ART "
+
 static int
 callback(void *args, int argc, char **argv, char **azColName)
 {
 	struct Response *passed_args = (struct Response *)args;
-	char *id = argv[1], *parent = argv[2], *refID = argv[3], *class = argv[4], *detailID = argv[5], *size = argv[9], *title = argv[10],
-	     *duration = argv[11], *bitrate = argv[12], *sampleFrequency = argv[13], *artist = argv[14], *album = argv[15],
-	     *genre = argv[16], *comment = argv[17], *nrAudioChannels = argv[18], *track = argv[19], *date = argv[20], *resolution = argv[21],
-	     *tn = argv[22], *creator = argv[23], *dlna_pn = argv[24], *mime = argv[25], *album_art = argv[26], *art_dlna_pn = argv[27];
+	char *id = argv[0], *parent = argv[1], *refID = argv[2], *detailID = argv[3], *class = argv[4], *size = argv[5], *title = argv[6],
+	     *duration = argv[7], *bitrate = argv[8], *sampleFrequency = argv[9], *artist = argv[10], *album = argv[11],
+	     *genre = argv[12], *comment = argv[13], *nrAudioChannels = argv[14], *track = argv[15], *date = argv[16], *resolution = argv[17],
+	     *tn = argv[18], *creator = argv[19], *dlna_pn = argv[20], *mime = argv[21], *album_art = argv[22];
 	char dlna_buf[64];
 	char str_buf[512];
 	char **result;
@@ -373,7 +378,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 			if( passed_args->filter & FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID ) {
-				ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", art_dlna_pn);
+				ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", "JPEG_TN");
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
@@ -506,7 +511,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 			if( passed_args->filter & FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID ) {
-				ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", art_dlna_pn);
+				ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", "JPEG_TN");
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
@@ -593,13 +598,17 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	if( strcmp(BrowseFlag, "BrowseMetadata") == 0 )
 	{
 		args.requested = 1;
-		sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where OBJECT_ID = '%s';", ObjectId);
+		sql = sqlite3_mprintf( SELECT_COLUMNS
+		                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+		                      " where OBJECT_ID = '%s';"
+		                      , ObjectId);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
 	else
 	{
-		sql = sqlite3_mprintf("SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-				      " where PARENT_ID = '%s' order by d.TRACK, d.ARTIST, d.TITLE, o.NAME limit %d, -1;",
+		sql = sqlite3_mprintf( SELECT_COLUMNS
+		                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+				      " where PARENT_ID = '%s' order by d.TRACK, d.ARTIST, d.TITLE limit %d, -1;",
 				      ObjectId, StartingIndex);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
@@ -729,13 +738,15 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Translated SearchCriteria: %s\n", SearchCriteria);
 
-	sql = sqlite3_mprintf("SELECT distinct * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+	sql = sqlite3_mprintf( SELECT_COLUMNS
+	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 	                      " where OBJECT_ID glob '%s$*' and (%s) group by DETAIL_ID "
-			      "%z"
-	                      " order by d.TRACK, d.TITLE, o.NAME limit %d, -1;",
+	                      "%z"
+	                      " order by d.TRACK, d.TITLE limit %d, -1;",
 	                      ContainerID, SearchCriteria,
 	                      (*ContainerID == '*') ? NULL :
-                              sqlite3_mprintf("UNION ALL SELECT * from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
+                              sqlite3_mprintf("UNION ALL " SELECT_COLUMNS
+	                                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 	                                      " where OBJECT_ID = '%s' and (%s) ", ContainerID, SearchCriteria),
 	                      StartingIndex);
 	DPRINTF(E_DEBUG, L_HTTP, "Search SQL: %s\n", sql);
