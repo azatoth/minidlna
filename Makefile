@@ -54,15 +54,16 @@ install:	minidlna
 	$(INSTALL) -d $(SBININSTALLDIR)
 	$(INSTALL) minidlna $(SBININSTALLDIR)
 	$(INSTALL) -d $(ETCINSTALLDIR)
-	$(INSTALL) netfilter/iptables_init.sh $(ETCINSTALLDIR)
-	$(INSTALL) netfilter/iptables_removeall.sh $(ETCINSTALLDIR)
 	$(INSTALL) --mode=0644 minidlna.conf $(ETCINSTALLDIR)
-	$(INSTALL) -d $(PREFIX)/etc/init.d
-	$(INSTALL) linux/miniupnpd.init.d.script $(PREFIX)/etc/init.d/miniupnpd
 
 minidlna:	$(BASEOBJS) $(LNXOBJS) $(LIBS)
+	@echo Linking $@
+	@$(CC) $(CFLAGS) -o $@ $(BASEOBJS) $(LNXOBJS) $(LIBS)
+
 
 testupnpdescgen:	$(TESTUPNPDESCGENOBJS)
+	@echo Linking $@
+	@$(CC) $(CFLAGS) -o $@ $(BASEOBJS) $(LNXOBJS) $(LIBS)
 
 config.h:	genconfig.sh
 	./genconfig.sh
@@ -103,10 +104,22 @@ metadata.o: upnpglobalvars.h metadata.h albumart.h utils.h sql.h log.h
 albumart.o: upnpglobalvars.h albumart.h utils.h image_utils.h sql.h log.h
 tagutils/misc.o: tagutils/misc.h
 tagutils/textutils.o: tagutils/misc.h tagutils/textutils.h log.h
-tagutils/tagutils.o: tagutils/tagutils-asf.c tagutils/tagutils-flc.c tagutils/tagutils-plist.c
+tagutils/tagutils.o: tagutils/tagutils-asf.c tagutils/tagutils-flc.c tagutils/tagutils-plist.c tagutils/tagutils-misc.c
 tagutils/tagutils.o: tagutils/tagutils-aac.c tagutils/tagutils-asf.h tagutils/tagutils-flc.h tagutils/tagutils-mp3.c
 tagutils/tagutils.o: tagutils/tagutils-ogg.c tagutils/tagutils-aac.h tagutils/tagutils.h tagutils/tagutils-mp3.h tagutils/tagutils-ogg.h log.h
 image_utils.o: image_utils.h
+tivo_utils.o: config.h tivo_utils.h
+tivo_beacon.o: config.h tivo_beacon.h tivo_utils.h
+tivo_commands.o: config.h tivo_commands.h tivo_utils.h
 utils.o: utils.h
 sql.o: sql.h
 log.o: log.h
+
+.SUFFIXES: .c .o
+
+.c.o:
+	@echo Compiling $*.c
+	@$(CC) $(CFLAGS) -o $@ -c $< && exit 0;\
+		echo "The following command failed:" 1>&2;\
+		echo "$(CC) $(CFLAGS) -o $@ -c $<";\
+		$(CC) $(CFLAGS) -o $@ -c $< &>/dev/null
