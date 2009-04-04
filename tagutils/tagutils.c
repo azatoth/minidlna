@@ -263,15 +263,15 @@ readtags(char *path, struct song_metadata *psong, struct stat *stat, char *lang,
 	fname = strrchr(psong->path, '/');
 	psong->basename = fname ? fname + 1 : psong->path;
 
-	// get tag
-	found |= _get_tags(path, psong);
-
 	if(stat)
 	{
 		if(!psong->time_modified)
 			psong->time_modified = stat->st_mtime;
 		psong->file_size = stat->st_size;
 	}
+
+	// get tag
+	found |= _get_tags(path, psong);
 
 	// get fileinfo
 	found |= _get_fileinfo(path, psong);

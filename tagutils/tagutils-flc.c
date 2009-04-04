@@ -27,6 +27,7 @@ _get_flctags(char *filename, struct song_metadata *psong)
 	FLAC__Metadata_SimpleIterator *iterator = 0;
 	FLAC__StreamMetadata *block;
 	int block_number;
+	unsigned int sec, ms;
 	int i;
 	int err = 0;
 
@@ -54,6 +55,15 @@ _get_flctags(char *filename, struct song_metadata *psong)
 		switch(block->type)
 		{
 		case FLAC__METADATA_TYPE_STREAMINFO:
+			sec = (unsigned int)(block->data.stream_info.total_samples /
+			                     block->data.stream_info.sample_rate);
+			ms = (unsigned int)(((block->data.stream_info.total_samples %
+			                      block->data.stream_info.sample_rate) * 1000) /
+			                      block->data.stream_info.sample_rate);
+			if ((sec == 0) && (ms == 0))
+				break; /* Info is crap, escape div-by-zero. */
+			psong->song_length = (sec * 1000) + ms;
+			psong->bitrate = (((uint64_t)(psong->file_size) * 1000) / (psong->song_length / 8));
 			psong->samplerate = block->data.stream_info.sample_rate;
 			psong->channels = block->data.stream_info.channels;
 			break;

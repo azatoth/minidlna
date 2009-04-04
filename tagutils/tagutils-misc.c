@@ -174,11 +174,11 @@ _get_utf8_text(const id3_ucs4_t* native_text)
 static void
 vc_scan(struct song_metadata *psong, const char *comment, const size_t length)
 {
-	char strbuf[1024];
+	char strbuf[2048];
 
 	if(length > (sizeof(strbuf) - 1))
 	{
-		DPRINTF(E_ERROR, L_SCANNER, "Vorbis Comment too long\n");
+		DPRINTF(E_WARN, L_SCANNER, "Vorbis Comment too long [%s]\n", psong->path);
 		return;
 	}
 	strncpy(strbuf, comment, length);

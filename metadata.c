@@ -611,7 +611,7 @@ GetVideoMetadata(const char * path, char * name)
 				    (ctx->streams[audio_stream]->codec->codec_id < CODEC_ID_ADPCM_IMA_QT) )
 					audio_profile = PCM;
 				else
-					DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [%X]\n", ctx->streams[audio_stream]->codec->codec_id);
+					DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [0x%X]\n", ctx->streams[audio_stream]->codec->codec_id);
 				break;
 		}
 		asprintf(&m.frequency, "%u", ctx->streams[audio_stream]->codec->sample_rate);
