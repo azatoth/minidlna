@@ -174,11 +174,18 @@ _get_utf8_text(const id3_ucs4_t* native_text)
 static void
 vc_scan(struct song_metadata *psong, const char *comment, const size_t length)
 {
-	char strbuf[2048];
+	char strbuf[1024];
 
 	if(length > (sizeof(strbuf) - 1))
 	{
-		DPRINTF(E_WARN, L_SCANNER, "Vorbis Comment too long [%s]\n", psong->path);
+		if(!strncasecmp(strbuf, "LYRICS=", 7))
+		{
+			DPRINTF(E_DEBUG, L_SCANNER, "Ignoring embedded Vorbis lyrics [%s]\n", psong->path);
+		}
+		else
+		{
+			DPRINTF(E_WARN, L_SCANNER, "Vorbis %.*s too long [%s]\n", (index(comment, '=')-comment), comment, psong->path);
+		}
 		return;
 	}
 	strncpy(strbuf, comment, length);
