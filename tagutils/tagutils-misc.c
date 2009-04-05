@@ -178,11 +178,7 @@ vc_scan(struct song_metadata *psong, const char *comment, const size_t length)
 
 	if(length > (sizeof(strbuf) - 1))
 	{
-		if(!strncasecmp(strbuf, "LYRICS=", 7))
-		{
-			DPRINTF(E_DEBUG, L_SCANNER, "Ignoring embedded Vorbis lyrics [%s]\n", psong->path);
-		}
-		else
+		if( strncasecmp(comment, "LYRICS=", 7) != 0 )
 		{
 			DPRINTF(E_WARN, L_SCANNER, "Vorbis %.*s too long [%s]\n", (index(comment, '=')-comment), comment, psong->path);
 		}
