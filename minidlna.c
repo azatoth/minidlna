@@ -653,10 +653,14 @@ main(int argc, char * * argv)
 				{
 					DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
 				}
+				#if USE_FORK
 				if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
 				{
 					DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_scanner.\n");
 				}
+				#else
+				start_scanner();
+				#endif
 			}
 			sqlite3_free_table(result);
 		}

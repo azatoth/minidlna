@@ -126,6 +126,8 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	}
 
 	imsrc = image_new_from_jpeg(NULL, 0, image_data, image_size);
+	if( !imsrc )
+		return NULL;
 	width = imsrc->width;
 	height = imsrc->height;
 
