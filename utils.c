@@ -94,12 +94,28 @@ modifyString(char * string, const char * before, const char * after, short like)
 	return string;
 }
 
+char *
+escape_tag(const char *tag)
+{
+	char *esc_tag = NULL;
+
+	if( strchr(tag, '&') || strchr(tag, '<') || strchr(tag, '>') )
+	{
+		esc_tag = strdup(tag);
+		esc_tag = modifyString(esc_tag, "&", "&amp;amp;", 0);
+		esc_tag = modifyString(esc_tag, "<", "&amp;lt;", 0);
+		esc_tag = modifyString(esc_tag, ">", "&amp;gt;", 0);
+	}
+
+	return esc_tag;
+}
+
 void
 strip_ext(char * name)
 {
 	char * period;
 
-	period = rindex(name, '.');
+	period = strrchr(name, '.');
 	if( period )
 		*period = '\0';
 }

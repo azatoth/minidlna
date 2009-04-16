@@ -92,6 +92,23 @@ dlna_timestamp_is_present(const char * filename)
 	return 0;
 }
 
+#ifdef TIVO_SUPPORT
+int
+is_tivo_file(const char * path)
+{
+	unsigned char buf[5];
+	unsigned char hdr[5] = { 'T','i','V','o','\0' };
+	int fd;
+
+	/* read file header */
+	fd = open(path, O_RDONLY);
+	read(fd, buf, 5);
+	close(fd);
+
+	return( !memcmp(buf, hdr, 5) );
+}
+#endif
+
 /* This function taken from libavutil (ffmpeg), because it's not included with all versions of libavutil. */
 int
 get_fourcc(const char *s)
@@ -99,44 +116,23 @@ get_fourcc(const char *s)
 	return (s[0]) + (s[1]<<8) + (s[2]<<16) + (s[3]<<24);
 }
 
-char *
-escape_tag(const char *tag)
-{
-	char *esc_tag = NULL;
-
-	if( index(tag, '&') || index(tag, '<') || index(tag, '>') )
-	{
-		esc_tag = strdup(tag);
-		esc_tag = modifyString(esc_tag, "&", "&amp;amp;", 0);
-		esc_tag = modifyString(esc_tag, "<", "&amp;lt;", 0);
-		esc_tag = modifyString(esc_tag, ">", "&amp;gt;", 0);
-	}
-
-	return esc_tag;
-}
-
 sqlite_int64
 GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn)
 {
 	char * sql;
-	char * esc_name = NULL;
 	int ret;
 
-	esc_name = escape_tag(name);
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
                                " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
                                "VALUES"
                                " ('%q', %Q, %Q, %Q, %Q, %lld, %Q);",
-                               esc_name ? esc_name : name,
-                               path, artist, artist, genre,
+                               name, path, artist, artist, genre,
                                album_art ? strtoll(album_art, NULL, 10) : 0,
                                art_dlna_pn);
 	if( sql_exec(db, sql) != SQLITE_OK )
 		ret = 0;
 	else
 		ret = sqlite3_last_insert_rowid(db);
-	if( esc_name )
-		free(esc_name);
 	sqlite3_free(sql);
 
 	return ret;
@@ -328,7 +324,8 @@ GetImageMetadata(const char * path, char * name)
 	FILE *infile;
 	int width=0, height=0, thumb=0;
 	off_t size;
-	char date[64], make[32], model[64];
+	char *date = NULL, *cam = NULL;
+	char make[32], model[64] = {'\0'};
 	char b[1024];
 	char *esc_name = NULL;
 	struct stat file;
@@ -336,9 +333,6 @@ GetImageMetadata(const char * path, char * name)
 	char *sql;
 	metadata_t m;
 	memset(&m, '\0', sizeof(metadata_t));
-
-	date[0] = '\0';
-	model[0] = '\0';
 
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
 	if ( stat(path, &file) == 0 )
@@ -371,7 +365,7 @@ GetImageMetadata(const char * path, char * name)
 	tag = EXIF_TAG_DATE_TIME_ORIGINAL;
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
 	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_DATE_TIME)) ) {
-		strncpy(date, exif_entry_get_value(e, b, sizeof(b)), sizeof(date));
+		date = strdup(exif_entry_get_value(e, b, sizeof(b)));
 		if( strlen(date) > 10 )
 		{
 			date[4] = '-';
@@ -379,15 +373,12 @@ GetImageMetadata(const char * path, char * name)
 			date[10] = 'T';
 		}
 		else {
-			strcpy(date, "0000-00-00");
+			free(date);
+			date = NULL;
 		}
-	}
-	else {
-		strcpy(date, "0000-00-00");
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * date: %s\n", date);
 
-	model[0] = '\0';
 	tag = EXIF_TAG_MAKE;
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], tag);
 	if( e )
@@ -400,10 +391,9 @@ GetImageMetadata(const char * path, char * name)
 			strncpy(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
 			if( !strcasestr(model, make) )
 				snprintf(model, sizeof(model), "%s %s", make, exif_entry_get_value(e, b, sizeof(b)));
+			cam = strdup(model);
 		}
 	}
-	if( !strlen(model) )
-		strcpy(model, "Unknown");
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * model: %s\n", model);
 
 	if( ed->size )
@@ -452,8 +442,8 @@ GetImageMetadata(const char * path, char * name)
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
-				" (%Q, '%q', %llu, '%s', %Q, %d, '%q', %Q, %Q);",
-				path, esc_name?esc_name:name, size, date, m.resolution, thumb, model, m.dlna_pn, m.mime);
+				" (%Q, '%q', %llu, %Q, %Q, %d, %Q, %Q, %Q);",
+				path, esc_name?esc_name:name, size, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -473,6 +463,10 @@ GetImageMetadata(const char * path, char * name)
 		free(m.mime);
 	if( esc_name )
 		free(esc_name);
+	if( date )
+		free(date);
+	if( cam )
+		free(cam);
 	return ret;
 }
 
@@ -870,7 +864,13 @@ GetVideoMetadata(const char * path, char * name)
 			DPRINTF(E_WARN, L_METADATA, "Unhandled format: %s\n", ctx->iformat->name);
 	}
 	av_close_input_file(ctx);
-
+#ifdef TIVO_SUPPORT
+	if( ends_with(path, ".TiVo") && is_tivo_file(path) )
+	{
+		free(m.mime);
+		asprintf(&m.mime, "video/x-tivo-mpeg");
+	}
+#endif
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
 	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 	                       "  TITLE, DLNA_PN, MIME) "

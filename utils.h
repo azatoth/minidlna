@@ -19,6 +19,9 @@ trim(char *str);
 char *
 modifyString(char * string, const char * before, const char * after, short like);
 
+char *
+escape_tag(const char *tag);
+
 void
 strip_ext(char * name);
 

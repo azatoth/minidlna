@@ -52,6 +52,9 @@ is_video(const char * file)
 		ends_with(file, ".mts") || ends_with(file, ".m2ts")  ||
 		ends_with(file, ".m2t") || ends_with(file, ".mkv")   ||
 		ends_with(file, ".vob") || ends_with(file, ".ts")    ||
+		#ifdef TIVO_SUPPORT
+		ends_with(file, ".TiVo") ||
+		#endif
 		ends_with(file, ".flv") || ends_with(file, ".xvid"));
 }
 
@@ -147,88 +150,96 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 void
 insert_containers(const char * name, const char *path, const char * refID, const char * class, long unsigned int detailID)
 {
-	char sql_buf[128];
 	char *sql;
 	char **result;
 	int ret;
 	int cols, row;
-	long long int container;
-
-	sprintf(sql_buf, "SELECT * from DETAILS where ID = %lu", detailID);
-	ret = sql_get_table(db, sql_buf, &result, &row, &cols);
+	sqlite_int64 container;
 
 	if( strstr(class, "imageItem") )
 	{
-		char *date = result[13+cols], *cam = result[16+cols];
-		char date_taken[11];
+		char *date = NULL, *cam = NULL;
+		char date_taken[13], camera[64];
 		static struct virtual_item last_date;
 		static struct virtual_item last_cam;
 		static struct virtual_item last_camdate;
 		static sqlite_int64 last_all_objectID = 0;
 
+		asprintf(&sql, "SELECT DATE, CREATOR from DETAILS where ID = %lu", detailID);
+		ret = sql_get_table(db, sql, &result, &row, &cols);
+		free(sql);
+		if( ret == SQLITE_OK )
+		{
+			date = result[2];
+			cam = result[3];
+		}
+
 		if( date )
 		{
-			if( *date == '0' )
-			{
-				strcpy(date_taken, "Unknown");
-			}
-			else
-			{
-				strncpy(date_taken, date, 10);
-				date_taken[10] = '\0';
-			}
-			if( strcmp(last_date.name, date_taken) == 0 )
-			{
-				last_date.objectID++;
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
-			}
-			else
-			{
-				container = insert_container(date_taken, "3$12", NULL, "album.photoAlbum", NULL, NULL, NULL, NULL);
-				sprintf(last_date.parentID, "3$12$%llX", container>>32);
-				last_date.objectID = (int)container;
-				strcpy(last_date.name, date_taken);
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
-			}
-			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
-						"VALUES"
-						" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
-						last_date.parentID, last_date.objectID, last_date.parentID, refID, class, detailID, name);
-			sql_exec(db, sql);
-			sqlite3_free(sql);
-
-			if( cam )
-			{
-				if( strcmp(cam, last_cam.name) != 0 )
-				{
-					container = insert_container(cam, "3$13", NULL, "storageFolder", NULL, NULL, NULL, NULL);
-					sprintf(last_cam.parentID, "3$13$%llX", container>>32);
-					strncpy(last_cam.name, cam, 255);
-					last_camdate.name[0] = '\0';
-				}
-				if( strcmp(last_camdate.name, date_taken) == 0 )
-				{
-					last_camdate.objectID++;
-					//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
-				}
-				else
-				{
-					container = insert_container(date_taken, last_cam.parentID, NULL, "album.photoAlbum", NULL, NULL, NULL, NULL);
-					sprintf(last_camdate.parentID, "%s$%llX", last_cam.parentID, container>>32);
-					last_camdate.objectID = (int)container;
-					strcpy(last_camdate.name, date_taken);
-					//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached camdate item: %s/%s/%s/%X\n", cam, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
-				}
-				sql = sqlite3_mprintf(	"INSERT into OBJECTS"
-							" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
-							"VALUES"
-							" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
-							last_camdate.parentID, last_camdate.objectID, last_camdate.parentID, refID, class, detailID, name);
-				sql_exec(db, sql);
-				sqlite3_free(sql);
-			}
+			strncpy(date_taken, date, 10);
+			date_taken[10] = '\0';
 		}
+		else
+		{
+			strcpy(date_taken, "Unknown Date");
+		}
+		if( strcmp(last_date.name, date_taken) == 0 )
+		{
+			last_date.objectID++;
+			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
+		}
+		else
+		{
+			container = insert_container(date_taken, "3$12", NULL, "album.photoAlbum", NULL, NULL, NULL, NULL);
+			sprintf(last_date.parentID, "3$12$%llX", container>>32);
+			last_date.objectID = (int)container;
+			strcpy(last_date.name, date_taken);
+			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
+		}
+		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+					"VALUES"
+					" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
+					last_date.parentID, last_date.objectID, last_date.parentID, refID, class, detailID, name);
+		sql_exec(db, sql);
+		sqlite3_free(sql);
+
+		if( cam )
+		{
+			strncpy(camera, cam, 63);
+			camera[63] = '\0';
+		}
+		else
+		{
+			strcpy(camera, "Unknown Camera");
+		}
+		if( strcmp(camera, last_cam.name) != 0 )
+		{
+			container = insert_container(camera, "3$13", NULL, "storageFolder", NULL, NULL, NULL, NULL);
+			sprintf(last_cam.parentID, "3$13$%llX", container>>32);
+			strncpy(last_cam.name, camera, 255);
+			last_camdate.name[0] = '\0';
+		}
+		if( strcmp(last_camdate.name, date_taken) == 0 )
+		{
+			last_camdate.objectID++;
+			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last camdate item: %s/%s/%s/%X\n", camera, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
+		}
+		else
+		{
+			container = insert_container(date_taken, last_cam.parentID, NULL, "album.photoAlbum", NULL, NULL, NULL, NULL);
+			sprintf(last_camdate.parentID, "%s$%llX", last_cam.parentID, container>>32);
+			last_camdate.objectID = (int)container;
+			strcpy(last_camdate.name, date_taken);
+			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached camdate item: %s/%s/%s/%X\n", camera, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
+		}
+		sql = sqlite3_mprintf(	"INSERT into OBJECTS"
+					" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+					"VALUES"
+					" ('%s$%X', '%s', '%s', '%s', %lu, %Q)",
+					last_camdate.parentID, last_camdate.objectID, last_camdate.parentID, refID, class, detailID, name);
+		sql_exec(db, sql);
+		sqlite3_free(sql);
 		/* All Images */
 		if( !last_all_objectID )
 		{
@@ -244,8 +255,18 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		char *artist = cols ? result[7+cols]:NULL, *album = cols ? result[8+cols]:NULL, *genre = cols ? result[9+cols]:NULL;
-		char *album_art = cols ? result[19+cols]:NULL, *art_dlna_pn = cols ? result[20+cols]:NULL;
+		asprintf(&sql, "SELECT ARTIST, ALBUM, GENRE, ALBUM_ART, ART_DLNA_PN from DETAILS where ID = %lu", detailID);
+		ret = sql_get_table(db, sql, &result, &row, &cols);
+		free(sql);
+		if( ret != SQLITE_OK )
+			return;
+		if( !row )
+		{
+			sqlite3_free_table(result);
+			return;
+		}
+		char *artist = result[5], *album = result[6], *genre = result[7];
+		char *album_art = result[8], *art_dlna_pn = result[9];
 		static struct virtual_item last_album;
 		static struct virtual_item last_artist;
 		static struct virtual_item last_artistAlbum;
@@ -287,7 +308,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				strcpy(last_artist.name, artist);
 				last_artistAlbum.name[0] = '\0';
 				/* Add this file to the "- All Albums -" container as well */
-				container = insert_container("- All Albums -", last_artist.parentID, NULL, "storageFolder", NULL, genre, NULL, NULL);
+				container = insert_container("- All Albums -", last_artist.parentID, NULL, "storageFolder", artist, genre, NULL, NULL);
 				sprintf(last_artistAlbumAll.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistAlbumAll.objectID = (int)container;
 			}
@@ -396,6 +417,11 @@ insert_containers(const char * name, const char *path, const char * refID, const
 					last_all_objectID++, refID, class, detailID, name);
 		sql_exec(db, sql);
 		sqlite3_free(sql);
+		return;
+	}
+	else
+	{
+		return;
 	}
 	sqlite3_free_table(result);
 }
@@ -637,7 +663,7 @@ CreateDatabase(void)
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE SETTINGS ("
-					"UPDATE_ID INTEGER PRIMARY KEY"
+					"UPDATE_ID INTEGER PRIMARY KEY DEFAULT 0"
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
@@ -762,10 +788,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 
 	for (i=0; i < n; i++) {
 		sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
-		if( index(namelist[i]->d_name, '&') )
-		{
-			name = modifyString(strdup(namelist[i]->d_name), "&", "&amp;amp;", 0);
-		}
+		name = escape_tag(namelist[i]->d_name);
 		if( namelist[i]->d_type == DT_DIR )
 		{
 			insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i+startID);
@@ -778,10 +801,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 				fileno++;
 		}
 		if( name )
-		{
 			free(name);
-			name = NULL;
-		}
 		free(namelist[i]);
 	}
 	free(namelist);

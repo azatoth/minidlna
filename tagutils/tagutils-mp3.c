@@ -696,7 +696,7 @@ _get_mp3fileinfo(char *file, struct song_metadata *psong)
 				index++;
 				if(first_check)
 				{
-					DPRINTF(E_WARN, L_SCANNER, "Bad header... dropping back for full frame search\n");
+					DPRINTF(E_INFO, L_SCANNER, "Bad header... dropping back for full frame search [%s]\n", psong->path);
 					first_check = 0;
 					fp_size = 0;
 					break;

@@ -425,7 +425,9 @@ inotify_insert_directory(int fd, char *name, const char * path)
 			if( strcmp(e->d_name, ".") == 0 ||
 			    strcmp(e->d_name, "..") == 0 )
 				continue;
-			esc_name = modifyString(strdup(e->d_name), "&", "&amp;amp;", 0);
+			esc_name = escape_tag(e->d_name);
+			if( !esc_name )
+				esc_name = strdup(e->d_name);
 			asprintf(&path_buf, "%s/%s", path, e->d_name);
 			if( e->d_type == DT_DIR )
 			{
