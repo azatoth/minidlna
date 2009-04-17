@@ -82,11 +82,12 @@ get_next_available_id(const char * table, const char * parentID)
 		int ret, rows;
 		sqlite_int64 objectID = 0;
 
-		asprintf(&sql, "SELECT OBJECT_ID, max(ID) from %s where PARENT_ID = '%s'", table, parentID);
+		asprintf(&sql, "SELECT OBJECT_ID from %s where ID = "
+		               "(SELECT max(ID) from %s where PARENT_ID = '%s')", table, table, parentID);
 		ret = sql_get_table(db, sql, &result, &rows, NULL);
-		if( result[2] )
+		if( rows )
 		{
-			objectID = strtoll(rindex(result[2], '$')+1, NULL, 16) + 1;
+			objectID = strtoll(strrchr(result[1], '$')+1, NULL, 16) + 1;
 		}
 		sqlite3_free_table(result);
 		free(sql);
@@ -105,7 +106,11 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 	int parentID = 0, objectID = 0;
 	sqlite_int64 detailID = 0;
 
-	sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS where OBJECT_ID glob '%s$*' and NAME = '%q'", rootParent, item);
+	sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS"
+	                      " where PARENT_ID = '%s'"
+			      " and NAME = '%q'"
+	                      " and CLASS = 'container.%s' limit 1",
+	                      rootParent, item, class);
 	ret = sql_get_table(db, sql, &result, &rows, &cols);
 	sqlite3_free(sql);
 	if( cols )
@@ -622,7 +627,7 @@ CreateDatabase(void)
 
 	ret = sql_exec(db, "CREATE TABLE OBJECTS ( "
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
-					"OBJECT_ID TEXT NOT NULL, "
+					"OBJECT_ID TEXT UNIQUE NOT NULL, "
 					"PARENT_ID TEXT NOT NULL, "
 					"REF_ID TEXT DEFAULT NULL, "
 					"CLASS TEXT NOT NULL, "
@@ -687,7 +692,7 @@ CreateDatabase(void)
 	sql_exec(db, "create INDEX IDX_DETAILS_PATH ON DETAILS(PATH);");
 	sql_exec(db, "create INDEX IDX_DETAILS_ID ON DETAILS(ID);");
 	sql_exec(db, "create INDEX IDX_ALBUM_ART ON ALBUM_ART(ID);");
-
+	sql_exec(db, "create INDEX IDX_SCANNER_OPT ON OBJECTS(PARENT_ID, NAME, OBJECT_ID);");
 
 sql_failed:
 	if( ret != SQLITE_OK )
@@ -811,11 +816,6 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	}
 	else
 	{
-		#ifdef READYNAS
-		if( access("/ramfs/.rescan_done", F_OK) == 0 )
-			system("/bin/sh /ramfs/.rescan_done");
-		unlink("/ramfs/.upnp-av_scan");
-		#endif
 		DPRINTF(E_WARN, L_SCANNER, "Scanning %s finished (%llu files)!\n", dir, fileno);
 	}
 }
@@ -837,6 +837,11 @@ start_scanner()
 	}
 	freopen("/proc/self/fd/2", "a", stderr);
 	scanning = 0;
+#ifdef READYNAS
+	if( access("/ramfs/.rescan_done", F_OK) == 0 )
+		system("/bin/sh /ramfs/.rescan_done");
+	unlink("/ramfs/.upnp-av_scan");
+#endif
 
 	return 0;
 }
