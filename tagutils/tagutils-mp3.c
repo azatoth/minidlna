@@ -75,7 +75,7 @@ _get_mp3tags(char *file, struct song_metadata *psong)
 		if(!strcmp(pid3frame->id, "YTCP"))   /* for id3v2.2 */
 		{
 			psong->compilation = 1;
-			DPRINTF(E_DEBUG, L_SCANNER, "Compilation: %d\n", psong->compilation);
+			DPRINTF(E_DEBUG, L_SCANNER, "Compilation: %d [%s]\n", psong->compilation, basename(file));
 		}
 		else if(!strcmp(pid3frame->id, "APIC") && !image_size)
 		{
@@ -580,11 +580,11 @@ _get_mp3fileinfo(char *file, struct song_metadata *psong)
 	{
 		if(ferror(infile))
 		{
-			DPRINTF(E_ERROR, L_SCANNER, "Error reading: %s\n", strerror(errno));
+			DPRINTF(E_ERROR, L_SCANNER, "Error reading: %s [%s]\n", strerror(errno), file);
 		}
 		else
 		{
-			DPRINTF(E_ERROR, L_SCANNER, "File too small. Probably corrupted.\n");
+			DPRINTF(E_WARN, L_SCANNER, "File too small. Probably corrupted. [%s]\n", file);
 		}
 		fclose(infile);
 		return -1;

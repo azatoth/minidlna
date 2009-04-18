@@ -594,19 +594,23 @@ main(int argc, char * * argv)
 	struct timeval timeout, timeofday, lasttimeofday = {0, 0}, lastupdatetime = {0, 0};
 	int max_fd = -1;
 	int last_changecnt = 0;
-	#ifdef TIVO_SUPPORT
-	unsigned short int loop_cnt = 0;
-	int sbeacon = -1;
-	struct sockaddr_in tivo_bcast;
-	#endif
 	char * sql;
 	short int new_db = 0;
 	pthread_t thread[2];
+#ifdef TIVO_SUPPORT
+	unsigned short int loop_cnt = 0;
+	int sbeacon = -1;
+	struct sockaddr_in tivo_bcast;
+#endif
 
 	if(init(argc, argv) != 0)
 		return 1;
 
+#ifdef READYNAS
+	DPRINTF(E_WARN, L_GENERAL, "Starting ReadyDLNA...\n");
+#else
 	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA...\n");
+#endif
 	LIST_INIT(&upnphttphead);
 
 	if( access(DB_PATH, F_OK) != 0 )

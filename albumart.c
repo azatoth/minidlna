@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <libgen.h>
 #include <setjmp.h>
+#include <errno.h>
 
 #include <jpeglib.h>
 
@@ -119,7 +120,15 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 		}
 		else
 		{
-			DPRINTF(E_WARN, L_METADATA, "Linking %s to %s failed\n", art_path, last_path);
+			if( errno == ENOENT )
+			{
+				cache_dir = strdup(art_path);
+				make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+				free(cache_dir);
+				if( link(last_path, art_path) == 0 )
+					return(art_path);
+			}
+			DPRINTF(E_WARN, L_METADATA, "Linking %s to %s failed [%s]\n", art_path, last_path, strerror(errno));
 			free(art_path);
 			art_path = NULL;
 		}
