@@ -79,6 +79,7 @@ struct upnphttp {
 #define FLAG_CHUNKED            0x0100
 #define FLAG_TIMESEEK           0x0200
 #define FLAG_REALTIMEINFO       0x0400
+#define FLAG_PLAYSPEED          0x0800
 #define FLAG_XFERSTREAMING      0x1000
 #define FLAG_XFERINTERACTIVE    0x2000
 #define FLAG_XFERBACKGROUND     0x4000

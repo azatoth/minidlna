@@ -15,6 +15,8 @@
 #define VIDEO_DIR_ID	"2$15"
 #define IMAGE_DIR_ID	"3$16"
 
+extern int valid_cache;
+
 int
 is_video(const char * file);
 

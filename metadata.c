@@ -847,7 +847,7 @@ GetVideoMetadata(const char * path, char * name)
 	if( !m.mime )
 	{
 		if( strcmp(ctx->iformat->name, "avi") == 0 )
-			asprintf(&m.mime, "video/x-msvideo");
+			asprintf(&m.mime, "video/avi");
 		else if( strcmp(ctx->iformat->name, "mpegts") == 0 )
 			asprintf(&m.mime, "video/mpeg");
 		else if( strcmp(ctx->iformat->name, "mpeg") == 0 )

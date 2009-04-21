@@ -214,6 +214,10 @@ intervening space) by either an integer or the keyword "infinite". */
 			{
 				h->reqflags |= FLAG_TIMESEEK;
 			}
+			else if(strncasecmp(line, "PlaySpeed.dlna.org", 18)==0)
+			{
+				h->reqflags |= FLAG_PLAYSPEED;
+			}
 			else if(strncasecmp(line, "realTimeInfo.dlna.org", 21)==0)
 			{
 				h->reqflags |= FLAG_REALTIMEINFO;
@@ -556,9 +560,10 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			DPRINTF(E_WARN, L_HTTP, "Invalid request, responding ERROR 400.  (No Host specified in HTTP headers?)\n");
 			Send400(h);
 		}
-		else if( h->reqflags & FLAG_TIMESEEK )
+		else if( (h->reqflags & FLAG_TIMESEEK) || (h->reqflags & FLAG_PLAYSPEED) )
 		{
-			DPRINTF(E_WARN, L_HTTP, "DLNA TimeSeek requested, responding ERROR 406\n");
+			DPRINTF(E_WARN, L_HTTP, "DLNA %s requested, responding ERROR 406\n",
+			                        h->reqflags&FLAG_TIMESEEK ? "TimeSeek" : "PlaySpeed");
 			Send406(h);
 		}
 		else if(strcmp("GET", HttpCommand) == 0)
@@ -1353,7 +1358,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			goto error;
 		}
 	}
-	if( h->reqflags & FLAG_XFERINTERACTIVE )
+	else if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
 		if( h->reqflags & FLAG_REALTIMEINFO )
 		{
@@ -1361,12 +1366,14 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			Send400(h);
 			goto error;
 		}
+#if 1 // Some Samsung TVs do this?
 		if( strncmp(last_file.mime, "image", 5) != 0 )
 		{
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Interactive without an image!\n");
 			Send406(h);
 			goto error;
 		}
+#endif
 	}
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));

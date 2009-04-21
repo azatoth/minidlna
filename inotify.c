@@ -461,6 +461,8 @@ inotify_remove_file(const char * path)
 	sqlite_int64 detailID = 0;
 	int i, rows, children, ret = 1;
 
+	/* Invalidate the scanner cache so we don't insert files into non-existent containers */
+	valid_cache = 0;
 	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH = '%q'", path);
 	if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
 	{

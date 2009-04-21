@@ -35,6 +35,8 @@
 #include "scanner.h"
 #include "log.h"
 
+int valid_cache = 0;
+
 struct virtual_item
 {
 	int  objectID;
@@ -188,7 +190,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		{
 			strcpy(date_taken, "Unknown Date");
 		}
-		if( strcmp(last_date.name, date_taken) == 0 )
+		if( valid_cache && strcmp(last_date.name, date_taken) == 0 )
 		{
 			last_date.objectID++;
 			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
@@ -218,14 +220,14 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		{
 			strcpy(camera, "Unknown Camera");
 		}
-		if( strcmp(camera, last_cam.name) != 0 )
+		if( !valid_cache || strcmp(camera, last_cam.name) != 0 )
 		{
 			container = insert_container(camera, "3$13", NULL, "storageFolder", NULL, NULL, NULL, NULL);
 			sprintf(last_cam.parentID, "3$13$%llX", container>>32);
 			strncpy(last_cam.name, camera, 255);
 			last_camdate.name[0] = '\0';
 		}
-		if( strcmp(last_camdate.name, date_taken) == 0 )
+		if( valid_cache && strcmp(last_camdate.name, date_taken) == 0 )
 		{
 			last_camdate.objectID++;
 			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last camdate item: %s/%s/%s/%X\n", camera, last_camdate.name, last_camdate.parentID, last_camdate.objectID);
@@ -283,7 +285,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 
 		if( album )
 		{
-			if( strcmp(album, last_album.name) == 0 )
+			if( valid_cache && strcmp(album, last_album.name) == 0 )
 			{
 				last_album.objectID++;
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
@@ -306,7 +308,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		if( artist )
 		{
-			if( strcmp(artist, last_artist.name) != 0 )
+			if( !valid_cache || strcmp(artist, last_artist.name) != 0 )
 			{
 				container = insert_container(artist, "1$6", NULL, "person.musicArtist", NULL, genre, NULL, NULL);
 				sprintf(last_artist.parentID, "1$6$%llX", container>>32);
@@ -321,7 +323,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			{
 				last_artistAlbumAll.objectID++;
 			}
-			if( strcmp(album?album:"Unknown Album", last_artistAlbum.name) == 0 )
+			if( valid_cache && strcmp(album?album:"Unknown Album", last_artistAlbum.name) == 0 )
 			{
 				last_artistAlbum.objectID++;
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
@@ -351,7 +353,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		if( genre )
 		{
-			if( strcmp(genre, last_genre.name) != 0 )
+			if( !valid_cache || strcmp(genre, last_genre.name) != 0 )
 			{
 				container = insert_container(genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL, NULL);
 				sprintf(last_genre.parentID, "1$5$%llX", container>>32);
@@ -366,7 +368,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			{
 				last_genreArtistAll.objectID++;
 			}
-			if( strcmp(artist?artist:"Unknown Artist", last_genreArtist.name) == 0 )
+			if( valid_cache && strcmp(artist?artist:"Unknown Artist", last_genreArtist.name) == 0 )
 			{
 				last_genreArtist.objectID++;
 			}
@@ -429,6 +431,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		return;
 	}
 	sqlite3_free_table(result);
+	valid_cache = 1;
 }
 
 int
