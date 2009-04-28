@@ -148,22 +148,28 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	{
 		asprintf(&art_path, DB_PATH "/art_cache%s", path);
 		if( access(art_path, F_OK) == 0 )
-			return art_path;
+			goto end_art;
 		cache_dir = strdup(art_path);
 		make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
 		free(cache_dir);
 		dstfile = fopen(art_path, "w");
 		if( !dstfile )
-			return NULL;
+		{
+			free(art_path);
+			art_path = NULL;
+			goto end_art;
+		}
 		nwritten = fwrite((void *)image_data, image_size, 1, dstfile);
 		fclose(dstfile);
 		if( nwritten != image_size )
 		{
 			remove(art_path);
 			free(art_path);
-			return NULL;
+			art_path = NULL;
+			goto end_art;
 		}
 	}
+end_art:
 	image_free(imsrc);
 	if( !art_path )
 	{
