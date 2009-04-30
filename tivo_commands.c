@@ -115,12 +115,6 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	int flags = 0;
 	int ret = 0;
 
-	passed_args->total++;
-	if( passed_args->start >= passed_args->total )
-		return 0;
-	if( (passed_args->requested > -100) && (passed_args->returned >= passed_args->requested) )
-		return 0;
-
 	if( strncmp(class, "item", 4) == 0 )
 	{
 		unescape_tag(title);
@@ -260,7 +254,13 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	else if( strncmp(class, "container", 9) == 0 )
 	{
 		/* Determine the number of children */
-		sprintf(str_buf, "SELECT count(ID) from OBJECTS where PARENT_ID = '%s';", id);
+#ifdef __sparc__ /* Adding filters on large containers can take a long time on slow processors */
+		sprintf(str_buf, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", id);
+#else
+		sprintf(str_buf, "SELECT count(*) from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where PARENT_ID = '%s' and "
+		                 " (MIME in ('image/jpeg', 'audio/mpeg', 'video/mpeg', 'video/x-tivo-mpeg')"
+		                 " or CLASS glob 'container*')", id);
+#endif
 		ret = sql_get_table(db, str_buf, &result, NULL, NULL);
 		ret = sprintf(str_buf, "<Item>"
 		                         "<Details>"
@@ -299,14 +299,14 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 	int ret;
 	memset(&args, 0, sizeof(args));
 
-	sprintf(resp, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
 	args.resp = resp;
+	args.size = sprintf(resp, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
 	args.requested = 1;
 	asprintf(&sql, "SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
 	               " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
 	               " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH "
 	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-		       " where o.DETAIL_ID = %lld", item);
+		       " where o.DETAIL_ID = %lld group by o.DETAIL_ID", item);
 	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	free(sql);
@@ -334,14 +334,25 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	char what[10], order[64]={0}, order2[64]={0}, myfilter[256]={0};
 	char str_buf[1024];
 	char *which;
+	char groupBy[19] = {0};
 	struct Response args;
+	int totalMatches = 0;
 	int i, ret;
 	memset(&args, 0, sizeof(args));
 	memset(resp, 0, sizeof(262144));
 
 	args.resp = resp;
 	args.size = 1024;
-	args.requested = itemCount;
+	if( itemCount >= 0 )
+	{
+		args.requested = itemCount;
+	}
+	else
+	{
+		if( itemCount == -100 )
+			itemCount = 1;
+		args.requested = itemCount * -1;
+	}
 
 	if( strlen(objectID) == 1 )
 	{
@@ -373,9 +384,14 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	}
 
 	if( recurse )
+	{
 		asprintf(&which, "OBJECT_ID glob '%s$*'", objectID);
+		strcpy(groupBy, "group by DETAIL_ID");
+	}
 	else
+	{
 		asprintf(&which, "PARENT_ID = '%s'", objectID);
+	}
 
 	if( sortOrder )
 	{
@@ -481,7 +497,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 			}
 			else if( strncasecmp(item, "video", 5) == 0 )
 			{
-				strcat(myfilter, "MIME = 'video/mpeg' or MIME = 'video/x-tivo-mpeg'");
+				strcat(myfilter, "MIME in ('video/mpeg', 'video/x-tivo-mpeg')");
 			}
 			else
 			{
@@ -493,7 +509,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	}
 	else
 	{
-		strcpy(myfilter, "MIME = 'image/jpeg' or MIME = 'audio/mpeg' or CLASS glob 'container*'");
+		strcpy(myfilter, "MIME in ('image/jpeg', 'audio/mpeg', 'video/mpeg', 'video/x-tivo-mpeg') or CLASS glob 'container*'");
 	}
 
 	if( anchorItem )
@@ -510,12 +526,8 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		sqlite3Prng.isInit = 0;
 		sql = sqlite3_mprintf("SELECT %s from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
 		                      " where %s and (%s)"
-	                              " group by DETAIL_ID"
-		                      " order by %s", what, which, myfilter, order2);
-		if( itemCount < 0 )
-		{
-			args.requested *= -1;
-		}
+	                              " %s"
+		                      " order by %s", what, which, myfilter, groupBy, order2);
 		DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
 		if( (sql_get_table(db, sql, &result, &ret, NULL) == SQLITE_OK) && ret )
 		{
@@ -536,13 +548,29 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	}
 	args.start = itemStart+anchorOffset;
 	sqlite3Prng.isInit = 0;
+
+	asprintf(&sql, "SELECT count(*) from "
+	               "( select 1 from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	               " where %s and (%s)"
+	               " %s )",
+	               which, myfilter, groupBy);
+	DPRINTF(E_DEBUG, L_TIVO, "Count SQL: %s\n", sql);
+	ret = sql_get_table(db, sql, &result, NULL, NULL);
+	if( ret == SQLITE_OK )
+	{
+		totalMatches = atoi(result[1]);
+		sqlite3_free_table(result);
+	}
+	free(sql);
+
 	sql = sqlite3_mprintf("SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
 	                      " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
 	                      " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH "
 	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		              " where %s and (%s)"
-	                      " group by DETAIL_ID"
-			      " order by %s", which, myfilter, order);
+	                      " %s"
+			      " order by %s limit %d, %d",
+	                      which, myfilter, groupBy, order, args.start, args.requested);
 	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	sqlite3_free(sql);
@@ -563,7 +591,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                         "<ItemStart>%d</ItemStart>"
 	                         "<ItemCount>%d</ItemCount>",
 	                         (objectID[0]=='1' ? "music":"photos"),
-	                         args.total, title, args.start, args.returned);
+	                         totalMatches, title, args.start, args.returned);
 	args.resp = resp+1024-ret;
 	memcpy(args.resp, &str_buf, ret);
 	ret = sprintf(str_buf, "</TiVoContainer>");
