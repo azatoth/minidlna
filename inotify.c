@@ -33,7 +33,6 @@ struct watch
 	int wd;		/* watch descriptor */
 	char *path;	/* watched path */
 	struct watch *next;
-	struct watch *prev;
 };
 
 static struct watch *watches;
@@ -73,7 +72,6 @@ add_watch(int fd, const char * path)
 		return -1;
 	}
 	nw->wd = wd;
-	nw->prev = lastwatch;
 	nw->next = NULL;
 	nw->path = strdup(path);
 
@@ -125,7 +123,7 @@ inotify_create_watches(int fd)
 	int i, rows = 0;
 	struct media_dir_s * media_path;
 
-	if( sql_get_table(db, "SELECT count(ID) from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL) == SQLITE_OK )
+	if( sql_get_table(db, "SELECT count(*) from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL) == SQLITE_OK )
 	{
 		if( rows )
 		{
@@ -483,7 +481,7 @@ inotify_remove_file(const char * path)
 			for( i=1; i < rows; i++ )
 			{
 				free(sql);
-				asprintf(&sql, "SELECT count(OBJECT_ID) from OBJECTS where PARENT_ID = '%s'", result[i]);
+				asprintf(&sql, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
 				if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
 				{
 					children = atoi(result2[1]);
@@ -498,7 +496,7 @@ inotify_remove_file(const char * path)
 					{
 						*rindex(result[i], '$') = '\0';
 						free(sql);
-						asprintf(&sql, "SELECT count(OBJECT_ID) from OBJECTS where PARENT_ID = '%s'", result[i]);
+						asprintf(&sql, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
 						if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
 						{
 							if( atoi(result2[1]) == 0 )
