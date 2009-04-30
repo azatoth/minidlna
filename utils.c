@@ -82,7 +82,7 @@ modifyString(char * string, const char * before, const char * after, short like)
 				while( *++t != '"' )
 					continue;
 			memmove(t+1, t, strlen(t)+1);
-			*t = '%';
+			*t = '*';
 		}
 		memmove(p + newlen, p + oldlen, strlen(p + oldlen) + 1);
 		memcpy(p, after, newlen);
