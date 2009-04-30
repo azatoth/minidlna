@@ -502,7 +502,12 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 			else
 			{
 				DPRINTF(E_INFO, L_TIVO, "Unhandled Filter [%s]\n", item);
-				strcat(myfilter, "0 = 1");
+				if( i )
+				{
+					ret = strlen(myfilter);
+					myfilter[ret-4] = '\0';
+				}
+				i--;
 			}
 			item = strtok_r(NULL, ",", &saveptr);
 		}
