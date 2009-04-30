@@ -845,6 +845,10 @@ start_scanner()
 		system("/bin/sh /ramfs/.rescan_done");
 	unlink("/ramfs/.upnp-av_scan");
 #endif
+	/* Create this index after scanning, so it doesn't slow down the scanning process.
+	 * This index is very useful for large libraries used with an XBox360 (or any
+	 * client that uses UPnPSearch on large containers). */
+	sql_exec(db, "create INDEX IDX_SEARCH_OPT ON OBJECTS(OBJECT_ID, CLASS, DETAIL_ID);");
 
 	return 0;
 }
