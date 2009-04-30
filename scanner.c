@@ -461,7 +461,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 		{
 			if( strcmp(id_buf, last_found) == 0 )
 				break;
-			sql = sqlite3_mprintf("SELECT count(OBJECT_ID) from OBJECTS where OBJECT_ID = '%s'", id_buf);
+			sql = sqlite3_mprintf("SELECT count(*) from OBJECTS where OBJECT_ID = '%s'", id_buf);
 			if( (sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK) && atoi(result[1]) )
 			{
 				sqlite3_free_table(result);

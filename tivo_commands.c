@@ -554,11 +554,10 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	args.start = itemStart+anchorOffset;
 	sqlite3Prng.isInit = 0;
 
-	asprintf(&sql, "SELECT count(*) from "
-	               "( select 1 from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
-	               " where %s and (%s)"
-	               " %s )",
-	               which, myfilter, groupBy);
+	asprintf(&sql, "SELECT count(distinct DETAIL_ID) "
+	               "from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	               " where %s and (%s)",
+	               which, myfilter);
 	DPRINTF(E_DEBUG, L_TIVO, "Count SQL: %s\n", sql);
 	ret = sql_get_table(db, sql, &result, NULL, NULL);
 	if( ret == SQLITE_OK )

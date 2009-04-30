@@ -127,7 +127,12 @@ GetSortCapabilities(struct upnphttp * h, const char * action)
 	static const char resp[] =
 		"<u:%sResponse "
 		"xmlns:u=\"%s\">"
-		"<SortCaps></SortCaps>"
+		"<SortCaps>"
+                  "dc:title,"
+                  "dc:date,"
+		  "upnp:class,"
+                  "upnp:originalTrackNumber"
+		"</SortCaps>"
 		"</u:%sResponse>";
 
 	char body[512];
@@ -275,6 +280,81 @@ set_filter_flags(char * filter)
 	return flags;
 }
 
+char *
+parse_sort_criteria(char * sortCriteria)
+{
+	char *order = NULL;
+	char *item, *saveptr;
+	int i, ret, reverse, title_sorted = 0;
+
+	if( !sortCriteria )
+		return NULL;
+
+	if( (item = strtok_r(sortCriteria, ",", &saveptr)) )
+	{
+		order = malloc(4096);
+		strcpy(order, "order by ");
+	}
+	for( i=0; item != NULL; i++ )
+	{
+		reverse=0;
+		if( i )
+			strcat(order, ", ");
+		if( *item == '+' )
+		{
+			item++;
+		}
+		else if( *item == '-' )
+		{
+			reverse = 1;
+			item++;
+		}
+		if( strcasecmp(item, "upnp:class") == 0 )
+		{
+			strcat(order, "o.CLASS");
+		}
+		else if( strcasecmp(item, "dc:title") == 0 )
+		{
+			strcat(order, "d.TITLE");
+			title_sorted = 1;
+		}
+		else if( strcasecmp(item, "dc:date") == 0 )
+		{
+			strcat(order, "d.DATE");
+		}
+		else if( strcasecmp(item, "upnp:originalTrackNumber") == 0 )
+		{
+			strcat(order, "d.TRACK");
+		}
+		else
+		{
+			printf("Unhandled SortCriteria [%s]\n", item);
+			if( i )
+			{
+				ret = strlen(order);
+				order[ret-2] = '\0';
+			}
+			i--;
+			goto unhandled_order;
+		}
+
+		if( reverse )
+			strcat(order, " DESC");
+		unhandled_order:
+		item = strtok_r(NULL, ",", &saveptr);
+	}
+	if( i <= 0 )
+	{
+		free(order);
+		return NULL;
+	}
+	/* Add a "tiebreaker" sort order */
+	if( !title_sorted )
+		strcat(order, ", TITLE ASC");
+
+	return order;
+}
+
 #define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.PARENT_ID, o.REF_ID, o.DETAIL_ID, o.CLASS," \
                        " d.SIZE, d.TITLE, d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST," \
                        " d.ALBUM, d.GENRE, d.COMMENT, d.CHANNELS, d.TRACK, d.DATE, d.RESOLUTION," \
@@ -294,10 +374,6 @@ callback(void *args, int argc, char **argv, char **azColName)
 	int children, ret = 0;
 	static int warned = 0;
 
-	passed_args->total++;
-
-	if( passed_args->requested && (passed_args->returned >= passed_args->requested) )
-		return 0;
 	/* Make sure we have at least 4KB left of allocated memory to finish the response. */
 	if( passed_args->size > 1044480 && !warned )
 	{
@@ -459,7 +535,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		passed_args->size += ret;
 		if( passed_args->filter & FILTER_CHILDCOUNT )
 		{
-			sprintf(str_buf, "SELECT count(ID) from OBJECTS where PARENT_ID = '%s';", id);
+			sprintf(str_buf, "SELECT count(*) from OBJECTS where PARENT_ID = '%s';", id);
 			ret = sql_get_table(db, str_buf, &result, NULL, NULL);
 			if( ret == SQLITE_OK ) {
 				children = atoi(result[1]);
@@ -542,8 +618,10 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	char str_buf[512];
 	char *zErrMsg = 0;
 	char *sql;
+	char **result;
 	int ret;
 	struct Response args;
+	int totalMatches = 0;
 	struct NameValueParserData data;
 	*resp = '\0';
 
@@ -554,9 +632,18 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	char * Filter = GetValueFromNameValueList(&data, "Filter");
 	char * BrowseFlag = GetValueFromNameValueList(&data, "BrowseFlag");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
+	char * orderBy = NULL;
 	if( !ObjectId )
 		ObjectId = GetValueFromNameValueList(&data, "ContainerID");
 	memset(&args, 0, sizeof(args));
+
+	if( !RequestedCount )
+		RequestedCount = -1;
+#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+	if( totalMatches < 10000 )
+#endif
+		orderBy = parse_sort_criteria(SortCriteria);
+
 
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
@@ -572,7 +659,6 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	memcpy(resp+args.size, &str_buf, ret+1);
 	args.size += ret;
 
-	args.total = StartingIndex;
 	args.returned = 0;
 	args.requested = RequestedCount;
 	args.client = h->req_client;
@@ -603,14 +689,23 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		                      " where OBJECT_ID = '%s';"
 		                      , ObjectId);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
+		totalMatches = args.returned;
 	}
 	else
 	{
+		sprintf(str_buf, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", ObjectId);
+		ret = sql_get_table(db, str_buf, &result, NULL, NULL);
+		if( ret == SQLITE_OK ) {
+			totalMatches = atoi(result[1]);
+			sqlite3_free_table(result);
+		}
 		sql = sqlite3_mprintf( SELECT_COLUMNS
 		                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-				      " where PARENT_ID = '%s' order by d.TRACK, d.ARTIST, d.TITLE limit %d, -1;",
-				      ObjectId, StartingIndex);
+				      " where PARENT_ID = '%s' %s limit %d, %d;",
+				      ObjectId, orderBy, StartingIndex, RequestedCount);
+		DPRINTF(E_DEBUG, L_HTTP, "Browse SQL: %s\n", sql);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
+		totalMatches = args.returned;
 	}
 	sqlite3_free(sql);
 	if( ret != SQLITE_OK )
@@ -623,11 +718,13 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	                                         "<TotalMatches>%u</TotalMatches>\n"
 	                                         "<UpdateID>%u</UpdateID>"
 	                                         "</u:BrowseResponse>",
-	                                         args.returned, args.total, updateID);
+	                                         args.returned, totalMatches, updateID);
 	memcpy(resp+args.size, &str_buf, ret+1);
 	args.size += ret;
 	BuildSendAndCloseSoapResp(h, resp, args.size);
 	ClearNameValueList(&data);
+	if( orderBy )
+		free(orderBy);
 	free(resp);
 	if( h->req_client == EXbox )
 	{
@@ -648,9 +745,11 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char *resp = malloc(1048576);
 	char *zErrMsg = 0;
 	char *sql;
+	char **result;
 	char str_buf[4096];
 	int ret;
 	struct Response args;
+	int totalMatches = 0;
 	*resp = '\0';
 
 	struct NameValueParserData data;
@@ -662,8 +761,16 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char * SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
 	char * newSearchCriteria = NULL;
-
+	char * orderBy = NULL;
+	char groupBy[] = "group by DETAIL_ID";
 	memset(&args, 0, sizeof(args));
+
+	if( !RequestedCount )
+		RequestedCount = -1;
+#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+	if( totalMatches < 10000 )
+#endif
+		orderBy = parse_sort_criteria(SortCriteria);
 
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
@@ -679,7 +786,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	memcpy(resp+args.size, &str_buf, ret+1);
 	args.size += ret;
 
-	args.total = StartingIndex;
 	args.returned = 0;
 	args.requested = RequestedCount;
 	args.client = h->req_client;
@@ -695,6 +801,20 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			ContainerID = strdup("1$7");
 		else
 			ContainerID = strdup(ContainerID);
+		#if 0 // Looks like the 360 already does this
+		/* Sort by track number for some containers */
+		if( orderBy &&
+		    ((strncmp(ContainerID, "1$5", 3) == 0) ||
+		     (strncmp(ContainerID, "1$6", 3) == 0) ||
+		     (strncmp(ContainerID, "1$7", 3) == 0)) )
+		{
+			DPRINTF(E_DEBUG, L_HTTP, "Old sort order: %s\n", orderBy);
+			sprintf(str_buf, "d.TRACK, ");
+			memmove(orderBy+18, orderBy+9, strlen(orderBy)+1);
+			memmove(orderBy+9, &str_buf, 9);
+			DPRINTF(E_DEBUG, L_HTTP, "New sort order: %s\n", orderBy);
+		}
+		#endif
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
 	                         " * ObjectID: %s\n"
@@ -708,6 +828,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 
 	if( strcmp(ContainerID, "0") == 0 )
 		*ContainerID = '*';
+	else if( strcmp(ContainerID, "1$4") == 0 )
+		groupBy[0] = '\0';
 	if( !SearchCriteria )
 	{
 		asprintf(&newSearchCriteria, "1 = 1");
@@ -717,8 +839,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	{
 		SearchCriteria = modifyString(SearchCriteria, "&quot;", "\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&apos;", "'", 0);
-		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "like", 1);
-		SearchCriteria = modifyString(SearchCriteria, "contains", "like", 1);
+		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "glob", 1);
+		SearchCriteria = modifyString(SearchCriteria, "contains", "glob", 1);
 		SearchCriteria = modifyString(SearchCriteria, "dc:title", "d.TITLE", 0);
 		SearchCriteria = modifyString(SearchCriteria, "dc:creator", "d.CREATOR", 0);
 		SearchCriteria = modifyString(SearchCriteria, "upnp:class", "o.CLASS", 0);
@@ -738,17 +860,30 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Translated SearchCriteria: %s\n", SearchCriteria);
 
+	sprintf(str_buf, "SELECT (select count(distinct DETAIL_ID) from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	                 " where (OBJECT_ID glob '%s$*') and (%s))"
+	                 " + "
+	                 "(select count(*) from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	                 " where (OBJECT_ID = '%s') and (%s))",
+	                 ContainerID, SearchCriteria, ContainerID, SearchCriteria);
+	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "Count SQL: %s\n", sql);
+	ret = sql_get_table(db, str_buf, &result, NULL, NULL);
+	if( ret == SQLITE_OK ) {
+		totalMatches = atoi(result[1]);
+		sqlite3_free_table(result);
+	}
+
 	sql = sqlite3_mprintf( SELECT_COLUMNS
 	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-	                      " where OBJECT_ID glob '%s$*' and (%s) group by DETAIL_ID "
-	                      "%z"
-	                      " order by d.TRACK, d.TITLE limit %d, -1;",
-	                      ContainerID, SearchCriteria,
+	                      " where OBJECT_ID glob '%s$*' and (%s) %s "
+	                      "%z %s"
+	                      " limit %d, %d",
+	                      ContainerID, SearchCriteria, groupBy,
 	                      (*ContainerID == '*') ? NULL :
                               sqlite3_mprintf("UNION ALL " SELECT_COLUMNS
 	                                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 	                                      " where OBJECT_ID = '%s' and (%s) ", ContainerID, SearchCriteria),
-	                      StartingIndex);
+	                      orderBy, StartingIndex, RequestedCount);
 	DPRINTF(E_DEBUG, L_HTTP, "Search SQL: %s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	if( ret != SQLITE_OK )
@@ -763,11 +898,13 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	                                         "<TotalMatches>%u</TotalMatches>\n"
 	                                         "<UpdateID>%u</UpdateID>"
 	                                         "</u:SearchResponse>",
-	                                         args.returned, args.total, updateID);
+	                                         args.returned, totalMatches, updateID);
 	memcpy(resp+args.size, &str_buf, ret+1);
 	args.size += ret;
 	BuildSendAndCloseSoapResp(h, resp, args.size);
 	ClearNameValueList(&data);
+	if( orderBy )
+		free(orderBy);
 	if( newSearchCriteria )
 		free(newSearchCriteria);
 	free(resp);

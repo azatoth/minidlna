@@ -20,7 +20,6 @@ struct Response
 	int start;
 	int returned;
 	int requested;
-	int total;
 	int size;
 	u_int32_t filter;
 	enum clientType client;
