@@ -224,6 +224,9 @@ init(int argc, char * * argv)
 	const char * presurl = 0;
 	const char * optionsfile = "/etc/minidlna.conf";
 	char * mac_str = calloc(1, 64);
+	char * string, * word;
+	enum media_types type;
+	char * path;
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -315,8 +318,7 @@ init(int argc, char * * argv)
 				friendly_name[FRIENDLYNAME_MAX_LEN-1] = '\0';
 				break;
 			case UPNPMEDIADIR:
-				usleep(1);
-				enum media_types type = ALL_MEDIA;
+				type = ALL_MEDIA;
 				char * myval = NULL;
 				switch( ary_options[i].value[0] )
 				{
@@ -334,8 +336,7 @@ init(int argc, char * * argv)
 						type = IMAGES_ONLY;
 					myval = index(ary_options[i].value, '/');
 				case '/':
-					usleep(1);
-					char * path = realpath(myval ? myval:ary_options[i].value, NULL);
+					path = realpath(myval ? myval:ary_options[i].value, NULL);
 					if( access(path, F_OK) != 0 )
 					{
 						fprintf(stderr, "Media directory not accessible! [%s]\n",
@@ -365,8 +366,6 @@ init(int argc, char * * argv)
 				}
 				break;
 			case UPNPALBUMART_NAMES:
-				usleep(1);
-				char *string, *word;
 				for( string = ary_options[i].value; (word = strtok(string, "/")); string = NULL ) {
 					struct album_art_name_s * this_name = calloc(1, sizeof(struct album_art_name_s));
 					this_name->name = strdup(word);
