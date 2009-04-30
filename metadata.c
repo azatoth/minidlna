@@ -327,7 +327,6 @@ GetImageMetadata(const char * path, char * name)
 	char *date = NULL, *cam = NULL;
 	char make[32], model[64] = {'\0'};
 	char b[1024];
-	char *esc_name = NULL;
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
@@ -340,7 +339,6 @@ GetImageMetadata(const char * path, char * name)
 	else
 		return 0;
 	strip_ext(name);
-	esc_name = escape_tag(name);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
@@ -443,7 +441,7 @@ GetImageMetadata(const char * path, char * name)
 				" (PATH, TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
 				" (%Q, '%q', %llu, %Q, %Q, %d, %Q, %Q, %Q);",
-				path, esc_name?esc_name:name, size, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
+				path, name, size, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -461,8 +459,6 @@ GetImageMetadata(const char * path, char * name)
 		free(m.dlna_pn);
 	if( m.mime )
 		free(m.mime);
-	if( esc_name )
-		free(esc_name);
 	if( date )
 		free(date);
 	if( cam )
@@ -478,7 +474,6 @@ GetVideoMetadata(const char * path, char * name)
 	char *sql;
 	int ret, i;
 	struct tm *modtime;
-	char *esc_name = NULL;
 	char date[20];
 	AVFormatContext *ctx;
 	int audio_stream = -1, video_stream = -1;
@@ -498,7 +493,6 @@ GetVideoMetadata(const char * path, char * name)
 		size = file.st_size;
 	}
 	strip_ext(name);
-	esc_name = escape_tag(name);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
 
 	av_register_all();
@@ -879,8 +873,7 @@ GetVideoMetadata(const char * path, char * name)
 	                       path, size, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,
-	                       esc_name?esc_name:name,
-	                       m.dlna_pn, m.mime);
+	                       name, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -908,8 +901,6 @@ GetVideoMetadata(const char * path, char * name)
 		free(m.bps);
 	if( m.channels )
 		free(m.channels);
-	if( esc_name )
-		free(esc_name);
 
 	return ret;
 }
