@@ -16,6 +16,8 @@ DB_PATH="/tmp/minidlna"
 # detecting the OS name and version
 OS_NAME=`uname -s`
 OS_VERSION=`uname -r`
+TIVO="/*#define TIVO_SUPPORT*/"
+READYNAS="/*#define READYNAS*/"
 
 ${RM} ${CONFIGFILE}
 
@@ -34,7 +36,7 @@ ${RM} ${CONFIGFILE}
   ! -e "/usr/include/ffmpeg/libavutil/avutil.h" ] && MISSING="libavutil $MISSING"
 [ ! -e "/usr/include/ffmpeg/avformat.h" -a \
   ! -e "/usr/include/libavformat/avformat.h" -a \
-  ! -e "/usr/include/ffmpeg/libavformat/avformat.h" ] && MISSING="libformat $MISSING"
+  ! -e "/usr/include/ffmpeg/libavformat/avformat.h" ] && MISSING="libavformat $MISSING"
 [ ! -e "/usr/include/ffmpeg/avcodec.h" -a \
   ! -e "/usr/include/libavcodec/avcodec.h" -a \
   ! -e "/usr/include/ffmpeg/libavcodec/avcodec.h" ] && MISSING="libavcodec $MISSING"
@@ -100,8 +102,16 @@ case $OS_NAME in
 		KERNVERC=`echo $OS_VERSION | awk -F. '{print $3}'`
 		KERNVERD=`echo $OS_VERSION | awk -F. '{print $4}'`
 		#echo "$KERNVERA.$KERNVERB.$KERNVERC.$KERNVERD"
+		# NETGEAR ReadyNAS special case
+		if [ -f /etc/raidiator_version ]; then
+			OS_NAME=$(awk -F'!!|=' '{ print $1 }' /etc/raidiator_version)
+			OS_VERSION=$(awk -F'!!|[=,]' '{ print $3 }' /etc/raidiator_version)
+			OS_URL=http://www.readynas.com/
+			DB_PATH="/var/cache/minidlna"
+			TIVO="#define TIVO_SUPPORT"
+			READYNAS="#define READYNAS"
 		# Debian GNU/Linux special case
-		if [ -f /etc/debian_version ]; then
+		elif [ -f /etc/debian_version ]; then
 			OS_NAME=Debian
 			OS_VERSION=`cat /etc/debian_version`
 			OS_URL=http://www.debian.org/
@@ -112,11 +122,9 @@ case $OS_NAME in
 			OS_NAME=`${LSB_RELEASE} -i -s`
 			OS_VERSION=`${LSB_RELEASE} -r -s`
 		fi
-		echo "#define USE_NETFILTER 1" >> ${CONFIGFILE}
 		;;
 	*)
 		echo "Unknown OS : $OS_NAME"
-		echo "Please contact the author at http://miniupnp.free.fr/"
 		exit 1
 		;;
 esac
@@ -144,7 +152,9 @@ fi
 echo "" >> ${CONFIGFILE}
 
 echo "/* Enable NETGEAR ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
-echo "/*#define READYNAS*/" >> ${CONFIGFILE}
+echo "${READYNAS}" >> ${CONFIGFILE}
+echo "/* Compile in TiVo support. */" >> ${CONFIGFILE}
+echo "${TIVO}" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "#endif" >> ${CONFIGFILE}

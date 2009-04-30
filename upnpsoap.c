@@ -639,11 +639,6 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 
 	if( !RequestedCount )
 		RequestedCount = -1;
-#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
-	if( totalMatches < 10000 )
-#endif
-		orderBy = parse_sort_criteria(SortCriteria);
-
 
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
@@ -699,6 +694,11 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			totalMatches = atoi(result[1]);
 			sqlite3_free_table(result);
 		}
+#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+		if( totalMatches < 10000 )
+#endif
+			orderBy = parse_sort_criteria(SortCriteria);
+
 		sql = sqlite3_mprintf( SELECT_COLUMNS
 		                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 				      " where PARENT_ID = '%s' %s limit %d, %d;",
@@ -767,10 +767,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 
 	if( !RequestedCount )
 		RequestedCount = -1;
-#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
-	if( totalMatches < 10000 )
-#endif
-		orderBy = parse_sort_criteria(SortCriteria);
 
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
@@ -872,6 +868,10 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		totalMatches = atoi(result[1]);
 		sqlite3_free_table(result);
 	}
+#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+	if( totalMatches < 10000 )
+#endif
+		orderBy = parse_sort_criteria(SortCriteria);
 
 	sql = sqlite3_mprintf( SELECT_COLUMNS
 	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
