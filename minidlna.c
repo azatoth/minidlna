@@ -926,6 +926,19 @@ shutdown:
 	free(sql);
 	sqlite3_close(db);
 
+	struct media_dir_s * media_path = media_dirs;
+	while( media_path )
+	{
+		free(media_path->path);
+		media_path = media_path->next;
+	}
+	struct album_art_name_s * art_names = album_art_names;
+	while( art_names )
+	{
+		free(art_names->name);
+		art_names = art_names->next;
+	}
+
 	if(unlink(pidfilename) < 0)
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "Failed to remove pidfile %s: %s\n", pidfilename, strerror(errno));

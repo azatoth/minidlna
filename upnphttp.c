@@ -305,12 +305,12 @@ intervening space) by either an integer or the keyword "infinite". */
 				if( clients[n].addr.s_addr )
 					continue;
 				clients[n].addr = h->clientaddr;
-				clients[n].type = h->req_client;
 				DPRINTF(E_DEBUG, L_HTTP, "Added client [%d/%X] to cache slot %d.\n",
-				                         clients[n].type, clients[n].addr.s_addr, n);
+				                         h->req_client, clients[n].addr.s_addr, n);
 				break;
 			}
 		}
+		clients[n].type = h->req_client;
 		clients[n].age = time(NULL);
 	}
 	else if( n >= 0 )

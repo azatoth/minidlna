@@ -754,17 +754,17 @@ GetVideoMetadata(const char * path, char * name)
 				if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("XVID") )
 				{
 					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s XViD\n", video_stream, path, m.resolution);
-					asprintf(&m.mime, "video/divx");
+					asprintf(&m.artist, "DiVX");
 				}
 				else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DX50") )
 				{
 					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s DiVX5\n", video_stream, path, m.resolution);
-					asprintf(&m.mime, "video/divx");
+					asprintf(&m.artist, "DiVX");
 				}
 				else if( ctx->streams[video_stream]->codec->codec_tag == get_fourcc("DIVX") )
 				{
 					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is DiVX\n", video_stream, path);
-					asprintf(&m.mime, "video/divx");
+					asprintf(&m.artist, "DiVX");
 				}
 				else
 				{
@@ -832,7 +832,7 @@ GetVideoMetadata(const char * path, char * name)
 				}
 				break;
 			case CODEC_ID_MSMPEG4V3:
-				asprintf(&m.mime, "video/avi");
+				asprintf(&m.mime, "video/x-msvideo");
 			default:
 				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s [type %d]\n", video_stream, path, m.resolution, ctx->streams[video_stream]->codec->codec_id);
 				break;
@@ -841,7 +841,7 @@ GetVideoMetadata(const char * path, char * name)
 	if( !m.mime )
 	{
 		if( strcmp(ctx->iformat->name, "avi") == 0 )
-			asprintf(&m.mime, "video/avi");
+			asprintf(&m.mime, "video/x-msvideo");
 		else if( strcmp(ctx->iformat->name, "mpegts") == 0 )
 			asprintf(&m.mime, "video/mpeg");
 		else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
@@ -867,13 +867,13 @@ GetVideoMetadata(const char * path, char * name)
 #endif
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
 	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
-	                       "  TITLE, DLNA_PN, MIME) "
+	                       "  CREATOR, TITLE, DLNA_PN, MIME) "
 	                       "VALUES"
-	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
+	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
 	                       path, size, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,
-	                       name, m.dlna_pn, m.mime);
+	                       m.artist, name, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -901,6 +901,8 @@ GetVideoMetadata(const char * path, char * name)
 		free(m.bps);
 	if( m.channels )
 		free(m.channels);
+	if( m.artist )
+		free(m.artist);
 
 	return ret;
 }

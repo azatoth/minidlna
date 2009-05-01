@@ -446,15 +446,22 @@ callback(void *args, int argc, char **argv, char **azColName)
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
-		if( passed_args->client == EXbox )
+		switch( passed_args->client )
 		{
-			if( strcmp(mime, "video/divx") == 0 )
-			{
-				mime[6] = 'a';
-				mime[7] = 'v';
-				mime[8] = 'i';
-				mime[9] = '\0';
-			}
+			case EPS3:
+				if( creator && (strcmp(mime, "video/x-msvideo") == 0) )
+				{
+					strcpy(mime+6, "divx");
+					break;
+				}
+			case EXbox:
+				if( strcmp(mime, "video/x-msvideo") == 0 )
+				{
+					strcpy(mime+6, "avi");
+				}
+				break;
+			default:
+				break;
 		}
 		ret = sprintf(str_buf, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
