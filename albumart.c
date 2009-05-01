@@ -102,6 +102,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	size_t nwritten;
 	static char last_path[PATH_MAX];
 	static unsigned int last_hash = 0;
+	static int last_success = 0;
 	unsigned int hash;
 
 	if( !image_data || !image_size || !path )
@@ -113,6 +114,8 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	hash = DJBHash(image_data, image_size);
 	if( hash == last_hash )
 	{
+		if( !last_success )
+			return NULL;
 		asprintf(&art_path, DB_PATH "/art_cache%s", path);
 		if( link(last_path, art_path) == 0 )
 		{
@@ -133,10 +136,14 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 			art_path = NULL;
 		}
 	}
+	last_hash = hash;
 
 	imsrc = image_new_from_jpeg(NULL, 0, image_data, image_size);
 	if( !imsrc )
+	{
+		last_success = 0;
 		return NULL;
+	}
 	width = imsrc->width;
 	height = imsrc->height;
 
@@ -174,10 +181,11 @@ end_art:
 	if( !art_path )
 	{
 		DPRINTF(E_WARN, L_METADATA, "Invalid embedded album art in %s\n", basename((char *)path));
+		last_success = 0;
 		return NULL;
 	}
 	DPRINTF(E_DEBUG, L_METADATA, "Found new embedded album art in %s\n", basename((char *)path));
-	last_hash = hash;
+	last_success = 1;
 	strcpy(last_path, art_path);
 
 	return(art_path);
