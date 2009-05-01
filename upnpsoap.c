@@ -232,51 +232,107 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 static u_int32_t
 set_filter_flags(char * filter)
 {
+	char *item, *saveptr = NULL;
 	u_int32_t flags = 0;
 
-	if( !filter || (strlen(filter) <= 1) )
-		return 0xFFFFFFFF;
-	if( strstr(filter, "@childCount") )
-		flags |= FILTER_CHILDCOUNT;
-	if( strstr(filter, "dc:creator") )
-		flags |= FILTER_DC_CREATOR;
-	if( strstr(filter, "dc:date") )
-		flags |= FILTER_DC_DATE;
-	if( strstr(filter, "dc:description") )
-		flags |= FILTER_DC_DESCRIPTION;
-	if( strstr(filter, "dlna") )
-		flags |= FILTER_DLNA_NAMESPACE;
-	if( strstr(filter, "@refID") )
-		flags |= FILTER_REFID;
-	if( strstr(filter, "res") )
-		flags |= FILTER_RES;
-	if( strstr(filter, "res@bitrate") )
-		flags |= FILTER_RES_BITRATE;
-	if( strstr(filter, "res@duration") )
-		flags |= FILTER_RES_DURATION;
-	if( strstr(filter, "res@nrAudioChannels") )
-		flags |= FILTER_RES_NRAUDIOCHANNELS;
-	if( strstr(filter, "res@resolution") )
-		flags |= FILTER_RES_RESOLUTION;
-	if( strstr(filter, "res@sampleFrequency") )
-		flags |= FILTER_RES_SAMPLEFREQUENCY;
-	if( strstr(filter, "res@size") )
-		flags |= FILTER_RES_SIZE;
-	if( strstr(filter, "upnp:album") )
-		flags |= FILTER_UPNP_ALBUM;
-	if( strstr(filter, "upnp:albumArtURI") )
-		flags |= FILTER_UPNP_ALBUMARTURI;
-	if( strstr(filter, "upnp:albumArtURI@dlna:profileID") )
-		flags |= FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID;
-	if( strstr(filter, "upnp:artist") )
-		flags |= FILTER_UPNP_ARTIST;
-	if( strstr(filter, "upnp:genre") )
-		flags |= FILTER_UPNP_GENRE;
-	if( strstr(filter, "upnp:originalTrackNumber") )
-		flags |= FILTER_UPNP_ORIGINALTRACKNUMBER;
-	if( strstr(filter, "upnp:searchClass") )
-		flags |= FILTER_UPNP_SEARCHCLASS;
-	
+	item = strtok_r(filter, ",", &saveptr);
+	while( item != NULL )
+	{
+		if( strcmp(item, "@childCount") == 0 )
+		{
+			flags |= FILTER_CHILDCOUNT;
+		}
+		else if( strcmp(item, "dc:creator") == 0 )
+		{
+			flags |= FILTER_DC_CREATOR;
+		}
+		else if( strcmp(item, "dc:date") == 0 )
+		{
+			flags |= FILTER_DC_DATE;
+		}
+		else if( strcmp(item, "dc:description") == 0 )
+		{
+			flags |= FILTER_DC_DESCRIPTION;
+		}
+		else if( strcmp(item, "dlna") == 0 )
+		{
+			flags |= FILTER_DLNA_NAMESPACE;
+		}
+		else if( strcmp(item, "@refID") == 0 )
+		{
+			flags |= FILTER_REFID;
+		}
+		else if( strcmp(item, "upnp:album") == 0 )
+		{
+			flags |= FILTER_UPNP_ALBUM;
+		}
+		else if( strcmp(item, "upnp:albumArtURI") == 0 )
+		{
+			flags |= FILTER_UPNP_ALBUMARTURI;
+		}
+		else if( strcmp(item, "upnp:albumArtURI@dlna:profileID") == 0 )
+		{
+			flags |= FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID;
+		}
+		else if( strcmp(item, "upnp:artist") == 0 )
+		{
+			flags |= FILTER_UPNP_ARTIST;
+		}
+		else if( strcmp(item, "upnp:genre") == 0 )
+		{
+			flags |= FILTER_UPNP_GENRE;
+		}
+		else if( strcmp(item, "upnp:originalTrackNumber") == 0 )
+		{
+			flags |= FILTER_UPNP_ORIGINALTRACKNUMBER;
+		}
+		else if( strcmp(item, "upnp:searchClass") == 0 )
+		{
+			flags |= FILTER_UPNP_SEARCHCLASS;
+		}
+		else if( strcmp(item, "res") == 0 )
+		{
+			flags |= FILTER_RES;
+		}
+		else if( (strcmp(item, "res@bitrate") == 0) ||
+		         ((strcmp(item, "bitrate") == 0) && (flags & FILTER_RES)) )
+		{
+			flags |= FILTER_RES;
+			flags |= FILTER_RES_BITRATE;
+		}
+		else if( (strcmp(item, "res@duration") == 0) ||
+		         ((strcmp(item, "duration") == 0) && (flags & FILTER_RES)) )
+		{
+			flags |= FILTER_RES;
+			flags |= FILTER_RES_DURATION;
+		}
+		else if( (strcmp(item, "res@nrAudioChannels") == 0) ||
+		         ((strcmp(item, "nrAudioChannels") == 0) && (flags & FILTER_RES)) )
+		{
+			flags |= FILTER_RES;
+			flags |= FILTER_RES_NRAUDIOCHANNELS;
+		}
+		else if( (strcmp(item, "res@resolution") == 0) ||
+		         ((strcmp(item, "resolution") == 0) && (flags & FILTER_RES)) )
+		{
+			flags |= FILTER_RES;
+			flags |= FILTER_RES_RESOLUTION;
+		}
+		else if( (strcmp(item, "res@sampleFrequency") == 0) ||
+		         ((strcmp(item, "sampleFrequency") == 0) && (flags & FILTER_RES)) )
+		{
+			flags |= FILTER_RES;
+			flags |= FILTER_RES_SAMPLEFREQUENCY;
+		}
+		else if( (strcmp(item, "res@size") == 0) ||
+		         ((strcmp(item, "size") == 0) && (flags & FILTER_RES)) )
+		{
+			flags |= FILTER_RES;
+			flags |= FILTER_RES_SIZE;
+		}
+		item = strtok_r(NULL, ",", &saveptr);
+	}
+
 	return flags;
 }
 
