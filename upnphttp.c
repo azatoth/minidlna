@@ -86,6 +86,27 @@ Delete_upnphttp(struct upnphttp * h)
 	}
 }
 
+int
+SearchClientCache(struct in_addr addr)
+{
+	int i;
+	for( i=0; i<CLIENT_CACHE_SLOTS; i++ )
+	{
+		if( clients[i].addr.s_addr == addr.s_addr )
+		{
+			/* Invalidate this client cache if it's older than 2 hours */
+			if( (time(NULL) - clients[i].age) > 7200 )
+			{
+				memset(&clients[i], 0, sizeof(struct client_cache_s));
+				return -1;
+			}
+			DPRINTF(E_DEBUG, L_HTTP, "Client [%d] found in cache.\n", clients[i].type);
+			return i;
+		}
+	}
+	return -1;
+}
+
 /* parse HttpHeaders of the REQUEST */
 static void
 ParseHttpHeaders(struct upnphttp * h)
@@ -191,6 +212,14 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = EXbox;
 				}
+				else if(strncmp(p, "PLAYSTATION", 11)==0)
+				{
+					h->req_client = EPS3;
+				}
+				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)
+				{
+					h->req_client = ESamsungTV;
+				}
 			}
 			else if(strncasecmp(line, "Transfer-Encoding", 17)==0)
 			{
@@ -261,6 +290,32 @@ intervening space) by either an integer or the keyword "infinite". */
 		{
 			h->req_chunklen = -1;
 		}
+	}
+	/* If the client type wasn't found, search the cache.
+	 * This is done because a lot of clients like to send a
+	 * different User-Agent with different types of requests. */
+	n = SearchClientCache(h->clientaddr);
+	if( h->req_client )
+	{
+		/* Add this client to the cache if it's not there already. */
+		if( n < 0 )
+		{
+			for( n=0; n<CLIENT_CACHE_SLOTS; n++ )
+			{
+				if( clients[n].addr.s_addr )
+					continue;
+				clients[n].addr = h->clientaddr;
+				clients[n].type = h->req_client;
+				DPRINTF(E_DEBUG, L_HTTP, "Added client [%d/%X] to cache slot %d.\n",
+				                         clients[n].type, clients[n].addr.s_addr, n);
+				break;
+			}
+		}
+		clients[n].age = time(NULL);
+	}
+	else if( n >= 0 )
+	{
+		h->req_client = clients[n].type;
 	}
 }
 
@@ -1366,14 +1421,17 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			Send400(h);
 			goto error;
 		}
-#if 1 // Some Samsung TVs do this?
 		if( strncmp(last_file.mime, "image", 5) != 0 )
 		{
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Interactive without an image!\n");
-			Send406(h);
-			goto error;
+			/* Samsung TVs (well, at least the A950) do this for some reason,
+			 * and I don't see them fixing this bug any time soon. */
+			if( h->req_client != ESamsungTV )
+			{
+				Send406(h);
+				goto error;
+			}
 		}
-#endif
 	}
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));

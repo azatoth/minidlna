@@ -66,6 +66,9 @@ OpenAndConfHTTPSocket(unsigned short port)
 	int i = 1;
 	struct sockaddr_in listenname;
 
+	/* Initialize client type cache */
+	memset(&clients, 0, sizeof(struct client_cache_s));
+
 	if( (s = socket(PF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "socket(http): %s\n", strerror(errno));

@@ -15,6 +15,7 @@
 
 #include <sqlite3.h>
 
+#define CLIENT_CACHE_SLOTS 20
 #define USE_FORK 1
 #define DB_VERSION 1
 
@@ -91,6 +92,7 @@ extern sqlite3 *db;
 extern char friendly_name[];
 extern struct media_dir_s * media_dirs;
 extern struct album_art_name_s * album_art_names;
+extern struct client_cache_s clients[CLIENT_CACHE_SLOTS];
 extern short int scanning;
 extern volatile __u32 updateID;
 

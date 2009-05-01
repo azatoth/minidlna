@@ -22,7 +22,7 @@ struct Response
 	int requested;
 	int size;
 	u_int32_t filter;
-	enum clientType client;
+	enum client_types client;
 };
 
 /* ExecuteSoapAction():

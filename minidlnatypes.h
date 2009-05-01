@@ -28,6 +28,12 @@ enum media_types {
 	IMAGES_ONLY
 };
 
+enum client_types {
+	EXbox = 1,
+	EPS3,
+	ESamsungTV
+};
+
 struct media_dir_s {
 	char * path;            /* Base path */
 	enum media_types type;  /* type of files to scan */
@@ -37,6 +43,12 @@ struct media_dir_s {
 struct album_art_name_s {
 	char * name;            /* Base path */
 	struct album_art_name_s * next;
+};
+
+struct client_cache_s {
+	struct in_addr addr;
+	enum client_types type;
+	time_t age;
 };
 
 #endif
