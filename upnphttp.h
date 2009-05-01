@@ -54,7 +54,7 @@ struct upnphttp {
 	long long int req_RangeStart;
 	long long int req_RangeEnd;
 	long int req_chunklen;
-	int reqflags;
+	u_int32_t reqflags;
 	int respflags;
 	/* response */
 	char * res_buf;
@@ -65,21 +65,23 @@ struct upnphttp {
 	LIST_ENTRY(upnphttp) entries;
 };
 
-#define FLAG_TIMEOUT	0x01
-#define FLAG_SID		0x02
-#define FLAG_RANGE		0x04
-#define FLAG_HOST		0x08
+#define FLAG_TIMEOUT            0x00000001
+#define FLAG_SID                0x00000002
+#define FLAG_RANGE              0x00000004
+#define FLAG_HOST               0x00000008
 
-#define FLAG_HTML		0x80
-#define FLAG_INVALID_REQ	0x10
+#define FLAG_HTML               0x00000080
+#define FLAG_INVALID_REQ        0x00000010
 
-#define FLAG_CHUNKED            0x0100
-#define FLAG_TIMESEEK           0x0200
-#define FLAG_REALTIMEINFO       0x0400
-#define FLAG_PLAYSPEED          0x0800
-#define FLAG_XFERSTREAMING      0x1000
-#define FLAG_XFERINTERACTIVE    0x2000
-#define FLAG_XFERBACKGROUND     0x4000
+#define FLAG_CHUNKED            0x00000100
+#define FLAG_TIMESEEK           0x00000200
+#define FLAG_REALTIMEINFO       0x00000400
+#define FLAG_PLAYSPEED          0x00000800
+#define FLAG_XFERSTREAMING      0x00001000
+#define FLAG_XFERINTERACTIVE    0x00002000
+#define FLAG_XFERBACKGROUND     0x00004000
+
+#define FLAG_DLNA               0x00100000
 
 /* New_upnphttp() */
 struct upnphttp *

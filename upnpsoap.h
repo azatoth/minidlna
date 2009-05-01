@@ -22,6 +22,7 @@ struct Response
 	int requested;
 	int size;
 	u_int32_t filter;
+	u_int32_t flags;
 	enum client_types client;
 };
 

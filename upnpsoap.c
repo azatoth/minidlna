@@ -446,22 +446,33 @@ callback(void *args, int argc, char **argv, char **azColName)
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
-		switch( passed_args->client )
+		/* We may need special handling for MIME types */
+		if( strncmp(mime, "video", 5) == 0 )
 		{
-			case EPS3:
-				if( creator && (strcmp(mime, "video/x-msvideo") == 0) )
-				{
-					strcpy(mime+6, "divx");
+			switch( passed_args->client )
+			{
+				case EPS3:
+					if( creator && (strcmp(mime, "video/x-msvideo") == 0) )
+					{
+						strcpy(mime+6, "divx");
+						break;
+					}
+				case EXbox:
+					if( strcmp(mime, "video/x-msvideo") == 0 )
+					{
+						strcpy(mime+6, "avi");
+					}
 					break;
-				}
-			case EXbox:
-				if( strcmp(mime, "video/x-msvideo") == 0 )
+				default:
+					break;
+			}
+			if( !(passed_args->flags & FLAG_DLNA) )
+			{
+				if( strcmp(mime+6, "vnd.dlna.mpeg-tts") == 0 )
 				{
-					strcpy(mime+6, "avi");
+					strcpy(mime+6, "mpeg");
 				}
-				break;
-			default:
-				break;
+			}
 		}
 		ret = sprintf(str_buf, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
@@ -720,6 +731,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.returned = 0;
 	args.requested = RequestedCount;
 	args.client = h->req_client;
+	args.flags = h->reqflags;
 	if( h->req_client == EXbox )
 	{
 		if( strcmp(ObjectId, "16") == 0 )
@@ -848,6 +860,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	args.returned = 0;
 	args.requested = RequestedCount;
 	args.client = h->req_client;
+	args.flags = h->reqflags;
 	if( h->req_client == EXbox )
 	{
 		if( strcmp(ContainerID, "4") == 0 )

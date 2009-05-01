@@ -31,7 +31,8 @@ enum media_types {
 enum client_types {
 	EXbox = 1,
 	EPS3,
-	ESamsungTV
+	ESamsungTV,
+	EUnknownClient
 };
 
 struct media_dir_s {
@@ -48,6 +49,7 @@ struct album_art_name_s {
 struct client_cache_s {
 	struct in_addr addr;
 	enum client_types type;
+	u_int32_t flags;
 	time_t age;
 };
 

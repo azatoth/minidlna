@@ -215,10 +215,17 @@ intervening space) by either an integer or the keyword "infinite". */
 				else if(strncmp(p, "PLAYSTATION", 11)==0)
 				{
 					h->req_client = EPS3;
+					h->reqflags |= FLAG_DLNA;
 				}
 				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)
 				{
 					h->req_client = ESamsungTV;
+					h->reqflags |= FLAG_DLNA;
+				}
+				else if(strcasestr(p, "DLNADOC/"))
+				{
+					h->req_client = EUnknownClient;
+					h->reqflags |= FLAG_DLNA;
 				}
 			}
 			else if(strncasecmp(line, "Transfer-Encoding", 17)==0)
@@ -311,10 +318,12 @@ intervening space) by either an integer or the keyword "infinite". */
 			}
 		}
 		clients[n].type = h->req_client;
+		clients[n].flags = h->reqflags & 0xFFF00000;
 		clients[n].age = time(NULL);
 	}
 	else if( n >= 0 )
 	{
+		h->reqflags |= clients[n].flags;
 		h->req_client = clients[n].type;
 	}
 }
