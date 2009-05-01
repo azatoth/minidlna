@@ -222,7 +222,7 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = ESamsungTV;
 					h->reqflags |= FLAG_DLNA;
 				}
-				else if(strcasestr(p, "DLNADOC/"))
+				else if(strcasestr(p, "DLNADOC/1.50"))
 				{
 					h->req_client = EUnknownClient;
 					h->reqflags |= FLAG_DLNA;
