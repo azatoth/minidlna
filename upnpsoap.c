@@ -235,6 +235,8 @@ set_filter_flags(char * filter)
 	char *item, *saveptr = NULL;
 	u_int32_t flags = 0;
 
+	if( !filter || (strlen(filter) <= 1) )
+		return 0xFFFFFFFF;
 	item = strtok_r(filter, ",", &saveptr);
 	while( item != NULL )
 	{
