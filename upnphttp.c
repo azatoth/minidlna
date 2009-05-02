@@ -100,7 +100,7 @@ SearchClientCache(struct in_addr addr)
 				memset(&clients[i], 0, sizeof(struct client_cache_s));
 				return -1;
 			}
-			DPRINTF(E_DEBUG, L_HTTP, "Client [%d] found in cache.\n", clients[i].type);
+			DPRINTF(E_DEBUG, L_HTTP, "Client found in cache. [type %d/entry %d]\n", clients[i].type, i);
 			return i;
 		}
 	}
@@ -205,6 +205,9 @@ intervening space) by either an integer or the keyword "infinite". */
 			}
 			else if(strncasecmp(line, "User-Agent", 10)==0)
 			{
+				/* Skip client detection if we already detected it. */
+				if( h->req_client )
+					continue;
 				p = colon + 1;
 				while(isspace(*p))
 					p++;
@@ -225,6 +228,17 @@ intervening space) by either an integer or the keyword "infinite". */
 				else if(strcasestr(p, "DLNADOC/1.50"))
 				{
 					h->req_client = EUnknownClient;
+					h->reqflags |= FLAG_DLNA;
+				}
+			}
+			else if(strncasecmp(line, "X-AV-Client-Info", 16)==0)
+			{
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				if(strstr(p, "PLAYSTATION 3"))
+				{
+					h->req_client = EPS3;
 					h->reqflags |= FLAG_DLNA;
 				}
 			}
@@ -316,6 +330,13 @@ intervening space) by either an integer or the keyword "infinite". */
 				                         h->req_client, clients[n].addr.s_addr, n);
 				break;
 			}
+		}
+		else if( (n < EUnknownClient) && (h->req_client == EUnknownClient) )
+		{
+			/* If we know the client, but our new detection is generic, use our cached info */
+			h->reqflags |= clients[n].flags;
+			h->req_client = clients[n].type;
+			return;
 		}
 		clients[n].type = h->req_client;
 		clients[n].flags = h->reqflags & 0xFFF00000;

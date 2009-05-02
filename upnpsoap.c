@@ -452,11 +452,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 			switch( passed_args->client )
 			{
 				case EPS3:
-					if( creator && (strcmp(mime, "video/x-msvideo") == 0) )
+					if( strcmp(mime, "video/x-msvideo") == 0 )
 					{
-						strcpy(mime+6, "divx");
-						break;
+						if( creator )
+							strcpy(mime+6, "divx");
+						else
+							strcpy(mime+6, "avi");
 					}
+					break;
 				case EXbox:
 					if( strcmp(mime, "video/x-msvideo") == 0 )
 					{
@@ -751,7 +754,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				ObjectId, RequestedCount, StartingIndex,
 	                        BrowseFlag, Filter, SortCriteria);
 
-	if( strcmp(BrowseFlag, "BrowseMetadata") == 0 )
+	if( BrowseFlag && (strcmp(BrowseFlag, "BrowseMetadata") == 0) )
 	{
 		args.requested = 1;
 		sql = sqlite3_mprintf( SELECT_COLUMNS
@@ -780,7 +783,6 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				      ObjectId, orderBy, StartingIndex, RequestedCount);
 		DPRINTF(E_DEBUG, L_HTTP, "Browse SQL: %s\n", sql);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
-		totalMatches = args.returned;
 	}
 	sqlite3_free(sql);
 	if( ret != SQLITE_OK )
