@@ -787,11 +787,6 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	if( !parent )
 	{
 		startID = get_next_available_id("OBJECTS", BROWSEDIR_ID);
-		#ifdef READYNAS
-		FILE * flag = fopen("/ramfs/.upnp-av_scan", "w");
-		if( flag )
-			fclose(flag);
-		#endif
 	}
 
 	for (i=0; i < n; i++) {
@@ -831,6 +826,11 @@ start_scanner()
 	if (setpriority(PRIO_PROCESS, 0, 15) == -1)
 		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce scanner thread priority\n");
 
+#ifdef READYNAS
+	FILE * flag = fopen("/ramfs/.upnp-av_scan", "w");
+	if( flag )
+		fclose(flag);
+#endif
 	scanning = 1;
 	freopen("/dev/null", "a", stderr);
 	while( media_path )

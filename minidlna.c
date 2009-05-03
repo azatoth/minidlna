@@ -610,6 +610,7 @@ main(int argc, char * * argv)
 
 #ifdef READYNAS
 	DPRINTF(E_WARN, L_GENERAL, "Starting ReadyDLNA...\n");
+	unlink("/ramfs/.upnp-av_scan");
 #else
 	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA...\n");
 #endif
