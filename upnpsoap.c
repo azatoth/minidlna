@@ -332,6 +332,8 @@ set_filter_flags(char * filter)
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_SIZE;
 		}
+		if( *saveptr )
+			*(saveptr-1) = ',';
 		item = strtok_r(NULL, ",", &saveptr);
 	}
 
