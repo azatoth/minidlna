@@ -207,7 +207,7 @@ intervening space) by either an integer or the keyword "infinite". */
 			{
 				/* Skip client detection if we already detected it. */
 				if( h->req_client )
-					continue;
+					goto next_header;
 				p = colon + 1;
 				while(isspace(*p))
 					p++;
@@ -233,6 +233,9 @@ intervening space) by either an integer or the keyword "infinite". */
 			}
 			else if(strncasecmp(line, "X-AV-Client-Info", 16)==0)
 			{
+				/* Skip client detection if we already detected it. */
+				if( h->req_client )
+					goto next_header;
 				p = colon + 1;
 				while(isspace(*p))
 					p++;
@@ -291,6 +294,7 @@ intervening space) by either an integer or the keyword "infinite". */
 				}
 			}
 		}
+next_header:
 		while(!(line[0] == '\r' && line[1] == '\n'))
 			line++;
 		line += 2;
