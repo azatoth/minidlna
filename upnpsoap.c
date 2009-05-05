@@ -481,7 +481,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 			}
 		}
-		ret = sprintf(str_buf, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
+		ret = snprintf(str_buf, 512, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 		passed_args->size += ret;
 		if( refID && (passed_args->filter & FILTER_REFID) ) {
@@ -489,39 +489,39 @@ callback(void *args, int argc, char **argv, char **azColName)
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
-		ret = sprintf(str_buf, "&gt;"
-		                       "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
-		                       "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
-		                       title, class);
+		ret = snprintf(str_buf, 512, "&gt;"
+		                             "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
+		                             "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
+		                             title, class);
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 		passed_args->size += ret;
 		if( comment && (passed_args->filter & FILTER_DC_DESCRIPTION) ) {
-			ret = sprintf(str_buf, "&lt;dc:description&gt;%s&lt;/dc:description&gt;", comment);
+			ret = snprintf(str_buf, 512, "&lt;dc:description&gt;%.384s&lt;/dc:description&gt;", comment);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( creator && (passed_args->filter & FILTER_DC_CREATOR) ) {
-			ret = sprintf(str_buf, "&lt;dc:creator&gt;%s&lt;/dc:creator&gt;", creator);
+			ret = snprintf(str_buf, 512, "&lt;dc:creator&gt;%s&lt;/dc:creator&gt;", creator);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( date && (passed_args->filter & FILTER_DC_DATE) ) {
-			ret = sprintf(str_buf, "&lt;dc:date&gt;%s&lt;/dc:date&gt;", date);
+			ret = snprintf(str_buf, 512, "&lt;dc:date&gt;%s&lt;/dc:date&gt;", date);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( artist && (passed_args->filter & FILTER_UPNP_ARTIST) ) {
-			ret = sprintf(str_buf, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
+			ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( album && (passed_args->filter & FILTER_UPNP_ALBUM) ) {
-			ret = sprintf(str_buf, "&lt;upnp:album&gt;%s&lt;/upnp:album&gt;", album);
+			ret = snprintf(str_buf, 512, "&lt;upnp:album&gt;%s&lt;/upnp:album&gt;", album);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( genre && (passed_args->filter & FILTER_UPNP_GENRE) ) {
-			ret = sprintf(str_buf, "&lt;upnp:genre&gt;%s&lt;/upnp:genre&gt;", genre);
+			ret = snprintf(str_buf, 512, "&lt;upnp:genre&gt;%s&lt;/upnp:genre&gt;", genre);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
@@ -642,24 +642,24 @@ callback(void *args, int argc, char **argv, char **azColName)
 				passed_args->size += ret;
 			}
 		}
-		ret = sprintf(str_buf, "&gt;"
-		                       "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
-		                       "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
-		                       title, class);
+		ret = snprintf(str_buf, 512, "&gt;"
+		                             "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
+		                             "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
+		                             title, class);
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 		passed_args->size += ret;
 		if( creator && (passed_args->filter & FILTER_DC_CREATOR) ) {
-			ret = sprintf(str_buf, "&lt;dc:creator&gt;%s&lt;/dc:creator&gt;", creator);
+			ret = snprintf(str_buf, 512, "&lt;dc:creator&gt;%s&lt;/dc:creator&gt;", creator);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( genre && (passed_args->filter & FILTER_UPNP_GENRE) ) {
-			ret = sprintf(str_buf, "&lt;upnp:genre&gt;%s&lt;/upnp:genre&gt;", genre);
+			ret = snprintf(str_buf, 512, "&lt;upnp:genre&gt;%s&lt;/upnp:genre&gt;", genre);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
 		if( artist && (passed_args->filter & FILTER_UPNP_ARTIST) ) {
-			ret = sprintf(str_buf, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
+			ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
