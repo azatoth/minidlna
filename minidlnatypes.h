@@ -32,7 +32,7 @@ enum client_types {
 	EXbox = 1,
 	EPS3,
 	ESamsungTV,
-	EUnknownClient
+	EStandardDLNA150 = 100
 };
 
 struct media_dir_s {

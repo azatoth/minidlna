@@ -227,7 +227,7 @@ intervening space) by either an integer or the keyword "infinite". */
 				}
 				else if(strcasestr(p, "DLNADOC/1.50"))
 				{
-					h->req_client = EUnknownClient;
+					h->req_client = EStandardDLNA150;
 					h->reqflags |= FLAG_DLNA;
 				}
 			}
@@ -335,7 +335,7 @@ next_header:
 				break;
 			}
 		}
-		else if( (n < EUnknownClient) && (h->req_client == EUnknownClient) )
+		else if( (n < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
 		{
 			/* If we know the client, but our new detection is generic, use our cached info */
 			h->reqflags |= clients[n].flags;

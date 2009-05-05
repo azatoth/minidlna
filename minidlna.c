@@ -489,6 +489,10 @@ init(int argc, char * * argv)
 		case 'f':
 			i++;	/* discarding, the config file is already read */
 			break;
+		case 'V':
+			printf("Version " MINIDLNA_VERSION "\n");
+			exit(0);
+			break;
 		default:
 			fprintf(stderr, "Unknown option: %s\n", argv[i]);
 		}
@@ -512,6 +516,7 @@ init(int argc, char * * argv)
 				"of daemon uptime.\n"
 				"\t-B sets bitrates reported by daemon in bits per second.\n"
 				"\t-w sets the presentation url. Default is http address on port 80\n"
+				"\t-V print the version number\n"
 		        "", argv[0], pidfilename);
 		return 1;
 	}
@@ -554,8 +559,13 @@ init(int argc, char * * argv)
 	}
 	else
 	{
+#ifdef READYNAS
+		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
+		         "https://%s/admin/", lan_addr[0].str);
+#else
 		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
 		         "http://%s/", lan_addr[0].str);
+#endif
 	}
 
 	/* set signal handler */
@@ -609,10 +619,10 @@ main(int argc, char * * argv)
 		return 1;
 
 #ifdef READYNAS
-	DPRINTF(E_WARN, L_GENERAL, "Starting ReadyDLNA...\n");
+	DPRINTF(E_WARN, L_GENERAL, "Starting ReadyDLNA version " MINIDLNA_VERSION ".\n");
 	unlink("/ramfs/.upnp-av_scan");
 #else
-	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA...\n");
+	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA version " MINIDLNA_VERSION ".\n");
 #endif
 	LIST_INIT(&upnphttphead);
 
