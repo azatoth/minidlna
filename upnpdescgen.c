@@ -305,19 +305,19 @@ static const struct stateVar ConnectionManagerVars[] =
 
 static const struct argument GetSearchCapabilitiesArgs[] =
 {
-	{"SearchCaps", 2, 16},
+	{"SearchCaps", 2, 10},
 	{0, 0}
 };
 
 static const struct argument GetSortCapabilitiesArgs[] =
 {
-	{"SortCaps", 2, 17},
+	{"SortCaps", 2, 11},
 	{0, 0}
 };
 
 static const struct argument GetSystemUpdateIDArgs[] =
 {
-	{"Id", 2, 18},
+	{"Id", 2, 12},
 	{0, 0}
 };
 
@@ -374,7 +374,7 @@ static const struct action ContentDirectoryActions[] =
 
 static const struct stateVar ContentDirectoryVars[] =
 {
-	{"TransferIDs", 1<<7, 0, 46, 46}, /* 0 */
+	{"TransferIDs", 1<<7, 0, 0, 46}, /* 0 */
 	{"A_ARG_TYPE_ObjectID", 0, 0},
 	{"A_ARG_TYPE_Result", 0, 0},
 	{"A_ARG_TYPE_SearchCriteria", 0, 0},
@@ -385,12 +385,6 @@ static const struct stateVar ContentDirectoryVars[] =
 	{"A_ARG_TYPE_Index", 3, 0},
 	{"A_ARG_TYPE_Count", 3, 0},
 	{"A_ARG_TYPE_UpdateID", 3, 0},
-	{"A_ARG_TYPE_UpdateID", 3, 0},
-	{"A_ARG_TYPE_UpdateID", 3, 0},
-	{"A_ARG_TYPE_UpdateID", 3, 0},
-	{"A_ARG_TYPE_UpdateID", 3, 0},
-	{"A_ARG_TYPE_UpdateID", 3, 0},
-	{"A_ARG_TYPE_UpdateID", 3, 0},
 	//JM{"A_ARG_TYPE_TransferID", 3, 0}, /* 10 */
 	//JM{"A_ARG_TYPE_TransferStatus", 0, 0, 39},
 	/* Allowed Values : COMPLETED / ERROR / IN_PROGRESS / STOPPED */
@@ -400,7 +394,7 @@ static const struct stateVar ContentDirectoryVars[] =
 	//JM{"A_ARG_TYPE_URI", 5, 0}, /* 15 */
 	{"SearchCapabilities", 0, 0},
 	{"SortCapabilities", 0, 0},
-	{"SystemUpdateID", 3|0x80, 0, 46, 255},
+	{"SystemUpdateID", 3|0x80, 0, 0, 255},
 	//{"ContainerUpdateIDs", 0, 0},
 	{0, 0}
 };
@@ -695,18 +689,9 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 			j = 0;
 			while(args[j].dir)
 			{
-				//JM str = strcat_str(str, len, &tmplen, "<argument><name>New");
 				str = strcat_str(str, len, &tmplen, "<argument><name>");
 				p = vars[args[j].relatedVar].name;
-				if(0 == memcmp(p, "PortMapping", 11)
-				   && 0 != memcmp(p + 11, "Description", 11)) {
-					if(0 == memcmp(p + 11, "NumberOfEntries", 15))
-						str = strcat_str(str, len, &tmplen, "PortMappingIndex");
-					else
-						str = strcat_str(str, len, &tmplen, p + 11);
-				} else {
-					str = strcat_str(str, len, &tmplen, (args[j].name ? args[j].name : p));
-				}
+				str = strcat_str(str, len, &tmplen, (args[j].name ? args[j].name : p));
 				str = strcat_str(str, len, &tmplen, "</name><direction>");
 				str = strcat_str(str, len, &tmplen, args[j].dir==1?"in":"out");
 				str = strcat_str(str, len, &tmplen,

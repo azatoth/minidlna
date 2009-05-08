@@ -110,6 +110,10 @@ main(int argc, char * * argv)
 	xml_pretty_print(s, l, stdout);
 	free(s);
 	printf("\n-------------\n");
+	s = genX_MS_MediaReceiverRegistrar(&l);
+	xml_pretty_print(s, l, stdout);
+	free(s);
+	printf("\n-------------\n");
 /*
 	stupid_test();
 */

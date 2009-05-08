@@ -63,7 +63,7 @@ minidlna:	$(BASEOBJS) $(LNXOBJS) $(LIBS)
 
 testupnpdescgen:	$(TESTUPNPDESCGENOBJS)
 	@echo Linking $@
-	@$(CC) $(CFLAGS) -o $@ $(BASEOBJS) $(LNXOBJS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $@ $(TESTUPNPDESCGENOBJS)
 
 config.h:	genconfig.sh
 	./genconfig.sh
