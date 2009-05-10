@@ -105,8 +105,8 @@ case $OS_NAME in
 		# NETGEAR ReadyNAS special case
 		if [ -f /etc/raidiator_version ]; then
 			OS_NAME=$(awk -F'!!|=' '{ print $1 }' /etc/raidiator_version)
-			OS_VERSION=$(awk -F'!!|[=,]' '{ print $3 }' /etc/raidiator_version)
-			OS_URL=http://www.readynas.com/
+			OS_VERSION=$(awk -F'!!|[=,.]' '{ print $3"."$4 }' /etc/raidiator_version)
+			OS_URL="http://www.readynas.com/"
 			DB_PATH="/var/cache/minidlna"
 			TIVO="#define TIVO_SUPPORT"
 			READYNAS="#define READYNAS"

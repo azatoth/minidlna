@@ -447,7 +447,7 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 	}
 }
 
-#ifdef USE_MINIUPNPDCTL
+#ifdef USE_MINIDLNACTL
 void write_events_details(int s) {
 	int n;
 	char buff[80];

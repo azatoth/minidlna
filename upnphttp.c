@@ -824,13 +824,11 @@ Process_upnphttp(struct upnphttp * h)
 
 static const char httpresphead[] =
 	"%s %d %s\r\n"
-	/*"Content-Type: text/xml; charset=\"utf-8\"\r\n"*/
 	"Content-Type: %s\r\n"
 	"Connection: close\r\n"
 	"Content-Length: %d\r\n"
-	/*"Server: miniupnpd/1.0 UPnP/1.0\r\n"*/
+	"Server: " MINIDLNA_SERVER_STRING "\r\n"
 //	"Accept-Ranges: bytes\r\n"
-	//"Server: " MINIUPNPD_SERVER_STRING "\r\n"
 	;	/*"\r\n";*/
 /*
 		"<?xml version=\"1.0\"?>\n"
@@ -884,9 +882,6 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 		                          "SID: %s\r\n", h->req_SID);
 	}
 #if 0 // DLNA
-	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
-	                          h->res_buf_alloclen - h->res_buflen,
-	                          "Server: Microsoft-Windows-NT/5.1 UPnP/1.0 UPnP-Device-Host/1.0\r\n");
 	char   szTime[30];
 	time_t curtime = time(NULL);
 	strftime(szTime, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
@@ -1046,7 +1041,7 @@ SendResp_icon(struct upnphttp * h, char * icon)
 			  "Content-Length: %d\r\n"
 			  "Connection: close\r\n"
 			  "Date: %s\r\n"
-			  "Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n\r\n",
+			  "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
 			  mime, size, date);
 
 	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
@@ -1110,7 +1105,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 				"Date: %s\r\n"
 				"EXT:\r\n"
 			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
-				"Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n",
+				"Server: " MINIDLNA_SERVER_STRING "\r\n",
 				size, date);
 
 		if( h->reqflags & FLAG_XFERBACKGROUND )
@@ -1190,7 +1185,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 				"Date: %s\r\n"
 				"EXT:\r\n"
 			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
-				"Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n",
+				"Server: " MINIDLNA_SERVER_STRING "\r\n",
 				ed->size, date);
 
 		if( h->reqflags & FLAG_XFERBACKGROUND )
@@ -1353,7 +1348,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	                                    "Date: %s\r\n"
 	                                    "EXT:\r\n"
 	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
-	                                    "Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA_TN/1.0\r\n",
+	                                    "Server: " MINIDLNA_SERVER_STRING "\r\n",
 	                                    h->HttpVer, size, date);
 
 	if( h->reqflags & FLAG_XFERINTERACTIVE )
@@ -1550,7 +1545,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			 "Date: %s\r\n"
 			 "EXT:\r\n"
 			 "contentFeatures.dlna.org: DLNA.ORG_PN=%s\r\n"
-			 "Server: RAIDiator/4.1, UPnP/1.0, MiniDLNA/1.0\r\n\r\n",
+			 "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
 			 date, last_file.dlna);
 	strcat(header, hdr_buf);
 

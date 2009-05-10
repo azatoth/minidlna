@@ -81,31 +81,6 @@ GetValueFromNameValueList(struct NameValueParserData * pdata,
     return p;
 }
 
-#if 0
-/* useless now that minixml ignores namespaces by itself */
-char *
-GetValueFromNameValueListIgnoreNS(struct NameValueParserData * pdata,
-                                  const char * Name)
-{
-	struct NameValue * nv;
-	char * p = NULL;
-	char * pname;
-	for(nv = pdata->head.lh_first;
-	    (nv != NULL) && (p == NULL);
-		nv = nv->entries.le_next)
-	{
-		pname = strrchr(nv->name, ':');
-		if(pname)
-			pname++;
-		else
-			pname = nv->name;
-		if(strcmp(pname, Name)==0)
-			p = nv->value;
-	}
-	return p;
-}
-#endif
-
 /* debug all-in-one function 
  * do parsing then display to stdout */
 #ifdef DEBUG

@@ -479,7 +479,6 @@ static const struct argument GetTotalPacketsReceivedArgs[] =
 
 static const struct serviceDesc scpdContentDirectory =
 { ContentDirectoryActions, ContentDirectoryVars };
-//{ ContentDirectoryActions, ContentDirectoryVars };
 
 static const struct serviceDesc scpdConnectionManager =
 { ConnectionManagerActions, ConnectionManagerVars };
@@ -626,21 +625,12 @@ genRootDesc(int * len)
 	str = (char *)malloc(tmplen);
 	if(str == NULL)
 		return NULL;
-#if 1
 	* len = strlen(xmlver);
 	/*strcpy(str, xmlver); */
 	memcpy(str, xmlver, *len + 1);
 	str = genXML(str, len, &tmplen, rootDesc);
 	str[*len] = '\0';
 	return str;
-#else
-char *ret = calloc(1, 8192);
-sprintf(ret, "<?xml version='1.0' encoding='UTF-8' ?>\r\n"
-"<root xmlns=\"urn:schemas-upnp-org:device-1-0\" xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion><device><deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType><friendlyName>MiniDLNA (MaggardMachine2)</friendlyName><manufacturer>NETGEAR</manufacturer><manufacturerURL>http://www.netgear.com</manufacturerURL><modelDescription>NETGEAR ReadyNAS NV</modelDescription><modelName>ReadyNAS</modelName><modelNumber>NV</modelNumber><modelURL>http://www.netgear.com</modelURL><UDN>uuid:aefc3d94-8cf7-11dd-b3bb-ff0d6f9a7e6d</UDN><dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC>\r\n"
-"<serviceList><service><serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType><serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId><SCPDURL>/ConnectionMgr.xml</SCPDURL><controlURL>/ctl/ConnectionMgr</controlURL><eventSubURL>/evt/ConnectionMgr</eventSubURL></service><service><serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType><serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId><SCPDURL>/ContentDir.xml</SCPDURL><controlURL>/ctl/ContentDir</controlURL><eventSubURL>/evt/ContentDir</eventSubURL></service></serviceList></device></root>");
-	* len = strlen(ret);
-return ret;
-#endif
 }
 
 /* genServiceDesc() :

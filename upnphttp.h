@@ -14,7 +14,7 @@
 #include "config.h"
 
 /* server: HTTP header returned in all HTTP responses : */
-#define MINIUPNPD_SERVER_STRING	OS_VERSION " UPnP/1.0 miniupnpd/1.0"
+#define MINIDLNA_SERVER_STRING	OS_VERSION " UPnP/1.0 MiniDLNA/1.0"
 
 /*
  states :

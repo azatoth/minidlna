@@ -214,7 +214,7 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname,
 		"ST: %.*s%s\r\n"
 		"USN: %s::%.*s%s\r\n"
 		"EXT:\r\n"
-		"SERVER: " MINIUPNPD_SERVER_STRING "\r\n"
+		"SERVER: " MINIDLNA_SERVER_STRING "\r\n"
 		"LOCATION: http://%s:%u" ROOTDESC_PATH "\r\n"
 		"Content-Length: 0\r\n"
 		"\r\n",
@@ -266,7 +266,7 @@ SendSSDPNotifies(int s, const char * host, unsigned short port,
 					"HOST:%s:%d\r\n"
 					"CACHE-CONTROL:max-age=%u\r\n"
 					"LOCATION:http://%s:%d" ROOTDESC_PATH"\r\n"
-					"SERVER: " MINIUPNPD_SERVER_STRING "\r\n"
+					"SERVER: " MINIDLNA_SERVER_STRING "\r\n"
 					"NT:%s%s\r\n"
 					"USN:%s::%s%s\r\n"
 					"NTS:ssdp:alive\r\n"

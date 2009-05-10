@@ -9,14 +9,16 @@
 #include "config.h"
 
 /* strings used in the root device xml description */
+#define ROOTDEV_MANUFACTURERURL		OS_URL
 #ifdef READYNAS
 #define ROOTDEV_MANUFACTURER		"NETGEAR"
+#define ROOTDEV_MODELNAME		"Windows Media Connect compatible (ReadyDLNA)"
+#define ROOTDEV_MODELDESCRIPTION	"ReadyDLNA on ReadyNAS RAIDiator OS"
 #else
 #define ROOTDEV_MANUFACTURER		"Justin Maggard"
+#define ROOTDEV_MODELNAME		"Windows Media Connect compatible (MiniDLNA)"
+#define ROOTDEV_MODELDESCRIPTION	"MiniDLNA on " OS_NAME
 #endif
-#define ROOTDEV_MANUFACTURERURL		OS_URL
-#define ROOTDEV_MODELNAME		"Windows Media Connect compatible (minidlna)"
-#define ROOTDEV_MODELDESCRIPTION	OS_NAME " *ReadyNAS dev DLNA"
 #define ROOTDEV_MODELURL		OS_URL
 
 #endif

@@ -1036,19 +1036,6 @@ QueryStateVariable(struct upnphttp * h, const char * action)
 		                   "Connected", action);
 		BuildSendAndCloseSoapResp(h, body, bodylen);
 	}
-#if 0
-	/* not useful */
-	else if(strcmp(var_name, "ConnectionType") == 0)
-	{	
-		bodylen = snprintf(body, sizeof(body), resp, "IP_Routed");
-		BuildSendAndCloseSoapResp(h, body, bodylen);
-	}
-	else if(strcmp(var_name, "LastConnectionError") == 0)
-	{	
-		bodylen = snprintf(body, sizeof(body), resp, "ERROR_NONE");
-		BuildSendAndCloseSoapResp(h, body, bodylen);
-	}
-#endif
 	else
 	{
 		DPRINTF(E_WARN, L_HTTP, "%s: Unknown: %s\n", action, var_name?var_name:"");
