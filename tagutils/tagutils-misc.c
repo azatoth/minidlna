@@ -194,7 +194,8 @@ vc_scan(struct song_metadata *psong, const char *comment, const size_t length)
 	// PARTNUMBER, GENRE, DATE, LOCATION, COMMENT
 	if(!strncasecmp(strbuf, "ALBUM=", 6))
 	{
-		psong->album = strdup(strbuf + 6);
+		if( *(strbuf+6) )
+			psong->album = strdup(strbuf + 6);
 	}
 	else if(!strncasecmp(strbuf, "ARTIST=", 7))
 	{
