@@ -355,7 +355,7 @@ inotify_insert_file(char * name, const char * path)
 
 		if( strcmp(parent_buf, "/") == 0 )
 		{
-			id = calloc(1, 3);
+			id = strdup(BROWSEDIR_ID);
 			depth = 0;
 			break;
 		}
