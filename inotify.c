@@ -389,18 +389,9 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	                      " where d.PATH = '%q' and REF_ID is NULL", parent_buf);
 	if( sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK )
 	{
- 		if( rows )
-		{
-			id = strdup(result[1]);
-			sqlite3_free_table(result);
-			insert_directory(name, path, BROWSEDIR_ID, id+2, get_next_available_id("OBJECTS", id));
-			free(id);
-		}
-		else
-		{
-			sqlite3_free_table(result);
-			insert_directory(name, path, BROWSEDIR_ID, "", get_next_available_id("OBJECTS", id));
-		}
+		id = strdup(rows?result[1]:BROWSEDIR_ID);
+		insert_directory(name, path, BROWSEDIR_ID, id+2, get_next_available_id("OBJECTS", id));
+		free(id);
 	}
 	free(parent_buf);
 	sqlite3_free(sql);
