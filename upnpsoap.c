@@ -119,6 +119,7 @@ GetProtocolInfo(struct upnphttp * h, const char * action)
 		action, "urn:schemas-upnp-org:service:ConnectionManager:1",
 		action);	
 	BuildSendAndCloseSoapResp(h, body, bodylen);
+	free(body);
 }
 
 static void

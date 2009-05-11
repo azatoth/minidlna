@@ -34,6 +34,17 @@
 #include "log.h"
 
 char *
+art_cache_path(const char * orig_path)
+{
+	char * cache_file;
+
+	asprintf(&cache_file, DB_PATH "/art_cache%s", orig_path);
+	strcpy(strchr(cache_file, '\0')-4, ".jpg");
+
+	return cache_file;
+}
+
+char *
 save_resized_album_art(image * imsrc, const char * path)
 {
 	int dstw, dsth;
@@ -44,7 +55,7 @@ save_resized_album_art(image * imsrc, const char * path)
 	if( !imsrc )
 		return NULL;
 
-	asprintf(&cache_file, DB_PATH "/art_cache%s", path);
+	cache_file = art_cache_path(path);
 	if( access(cache_file, F_OK) == 0 )
 		return cache_file;
 
@@ -116,7 +127,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	{
 		if( !last_success )
 			return NULL;
-		asprintf(&art_path, DB_PATH "/art_cache%s", path);
+		art_path = art_cache_path(path);
 		if( link(last_path, art_path) == 0 )
 		{
 			return(art_path);
@@ -153,7 +164,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	}
 	else if( width > 0 && height > 0 )
 	{
-		asprintf(&art_path, DB_PATH "/art_cache%s", path);
+		art_path = art_cache_path(path);
 		if( access(art_path, F_OK) == 0 )
 			goto end_art;
 		cache_dir = strdup(art_path);
