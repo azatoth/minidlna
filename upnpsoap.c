@@ -208,6 +208,58 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 	BuildSendAndCloseSoapResp(h, body, bodylen);
 }
 
+static void
+mime_to_ext(const char * mime, char * buf)
+{
+	switch( *mime )
+	{
+		/* Audio extensions */
+		case 'a':
+			if( strcmp(mime+6, "mpeg") == 0 )
+				strcpy(buf, "mp3");
+			else if( strcmp(mime+6, "mp4") == 0 )
+				strcpy(buf, "m4a");
+			else if( strcmp(mime+6, "x-ms-wma") == 0 )
+				strcpy(buf, "wma");
+			else if( strcmp(mime+6, "x-flac") == 0 )
+				strcpy(buf, "flac");
+			else
+				strcpy(buf, "dat");
+			break;
+		case 'v':
+			if( strcmp(mime+6, "mpeg") == 0 )
+				strcpy(buf, "mpg");
+			else if( strcmp(mime+6, "mp4") == 0 )
+				strcpy(buf, "mp4");
+			else if( strcmp(mime+6, "x-msvideo") == 0 )
+				strcpy(buf, "avi");
+			else if( strcmp(mime+6, "x-ms-wmv") == 0 )
+				strcpy(buf, "wmv");
+			else if( strcmp(mime+6, "x-matroska") == 0 )
+				strcpy(buf, "mkv");
+			else if( strcmp(mime+6, "x-flv") == 0 )
+				strcpy(buf, "flv");
+			else if( strcmp(mime+6, "vnd.dlna.mpeg-tts") == 0 )
+				strcpy(buf, "mpg");
+			else if( strcmp(mime+6, "x-tivo-mpeg") == 0 )
+				strcpy(buf, "TiVo");
+			else
+				strcpy(buf, "dat");
+			break;
+		case 'i':
+			if( strcmp(mime+6, "jpeg") == 0 )
+				strcpy(buf, "jpg");
+			else if( strcmp(mime+6, "png") == 0 )
+				strcpy(buf, "png");
+			else
+				strcpy(buf, "dat");
+			break;
+		default:
+			strcpy(buf, "dat");
+			break;
+	}
+}
+
 #define FILTER_CHILDCOUNT                        0x00000001
 #define FILTER_DC_CREATOR                        0x00000002
 #define FILTER_DC_DATE                           0x00000004
@@ -429,6 +481,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	     *genre = argv[12], *comment = argv[13], *nrAudioChannels = argv[14], *track = argv[15], *date = argv[16], *resolution = argv[17],
 	     *tn = argv[18], *creator = argv[19], *dlna_pn = argv[20], *mime = argv[21], *album_art = argv[22];
 	char dlna_buf[64];
+	char ext[5];
 	char str_buf[512];
 	char **result;
 	int children, ret = 0;
@@ -545,6 +598,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 			passed_args->size += ret;
 		}
 		if( passed_args->filter & FILTER_RES ) {
+			mime_to_ext(mime, ext);
 			ret = sprintf(str_buf, "&lt;res ");
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
@@ -582,9 +636,9 @@ callback(void *args, int argc, char **argv, char **azColName)
 				passed_args->size += ret;
 			}
 			ret = sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-			                       "http://%s:%d/MediaItems/%s.dat"
+			                       "http://%s:%d/MediaItems/%s.%s"
 			                       "&lt;/res&gt;",
-			                       mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID);
+			                       mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID, ext);
 			#if 0 //JPEG_RESIZE
 			if( dlna_pn && (strncmp(dlna_pn, "JPEG_LRG", 8) == 0) ) {
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
@@ -600,7 +654,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
-				                       "http://%s:%d/Thumbnails/%s.dat"
+				                       "http://%s:%d/Thumbnails/%s.jpg"
 				                       "&lt;/res&gt;",
 				                       mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
 			}
