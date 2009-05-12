@@ -224,6 +224,8 @@ mime_to_ext(const char * mime, char * buf)
 				strcpy(buf, "wma");
 			else if( strcmp(mime+6, "x-flac") == 0 )
 				strcpy(buf, "flac");
+			else if( strncmp(mime+6, "L16", 3) == 0 )
+				strcpy(buf, "wav");
 			else
 				strcpy(buf, "dat");
 			break;
