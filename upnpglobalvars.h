@@ -15,7 +15,7 @@
 
 #include <sqlite3.h>
 
-#define MINIDLNA_VERSION "1.0.9"
+#define MINIDLNA_VERSION "1.0.10"
 
 #define CLIENT_CACHE_SLOTS 20
 #define USE_FORK 1
