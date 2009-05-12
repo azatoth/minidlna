@@ -25,7 +25,6 @@
  * This file is derived from mt-daap project.
  */
 
-// _get_mp3tags
 static int
 _get_mp3tags(char *file, struct song_metadata *psong)
 {

@@ -67,7 +67,8 @@ is_audio(const char * file)
 		ends_with(file, ".wma") || ends_with(file, ".asf")  ||
 		ends_with(file, ".fla") || ends_with(file, ".flc")  ||
 		ends_with(file, ".m4a") || ends_with(file, ".aac")  ||
-		ends_with(file, ".mp4") || ends_with(file, ".m4p"));
+		ends_with(file, ".mp4") || ends_with(file, ".m4p")  ||
+		ends_with(file, ".wav"));
 }
 
 int
@@ -378,7 +379,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				sprintf(last_genreArtist.parentID, "%s$%llX", last_genre.parentID, container>>32);
 				last_genreArtist.objectID = (int)container;
 				strcpy(last_genreArtist.name, artist?artist:"Unknown Artist");
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/artist item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre/artist item: %s/%s/%X\n", last_genreArtist.name, last_genreArtist.parentID, last_genreArtist.objectID);
 			}
 			sql = sqlite3_mprintf(	"INSERT into OBJECTS"
 						" (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "

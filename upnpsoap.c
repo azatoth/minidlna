@@ -535,6 +535,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 			}
 		}
+		else if( !(passed_args->flags & FLAG_DLNA) )
+		{
+			if( strncmp(mime, "audio/L16", 9) == 0 )
+			{
+				strcpy(mime+6, "x-wav");
+			}
+		}
+
 		ret = snprintf(str_buf, 512, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 		passed_args->size += ret;

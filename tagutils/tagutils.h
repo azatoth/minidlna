@@ -86,6 +86,7 @@ struct song_metadata {
 	int lossless;
 	int blockalignment;
 
+	char *mime;				// MIME type
 	char *dlna_pn;				// DLNA Profile Name
 
 	char *tagversion;

@@ -1560,4 +1560,5 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	if( !newpid )
 		_exit(0);
 #endif
+	return;
 }

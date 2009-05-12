@@ -105,7 +105,7 @@ albumart.o: upnpglobalvars.h albumart.h utils.h image_utils.h sql.h log.h
 tagutils/misc.o: tagutils/misc.h
 tagutils/textutils.o: tagutils/misc.h tagutils/textutils.h log.h
 tagutils/tagutils.o: tagutils/tagutils-asf.c tagutils/tagutils-flc.c tagutils/tagutils-plist.c tagutils/tagutils-misc.c
-tagutils/tagutils.o: tagutils/tagutils-aac.c tagutils/tagutils-asf.h tagutils/tagutils-flc.h tagutils/tagutils-mp3.c
+tagutils/tagutils.o: tagutils/tagutils-aac.c tagutils/tagutils-asf.h tagutils/tagutils-flc.h tagutils/tagutils-mp3.c tagutils/tagutils-wav.c
 tagutils/tagutils.o: tagutils/tagutils-ogg.c tagutils/tagutils-aac.h tagutils/tagutils.h tagutils/tagutils-mp3.h tagutils/tagutils-ogg.h log.h
 image_utils.o: image_utils.h
 tivo_utils.o: config.h tivo_utils.h

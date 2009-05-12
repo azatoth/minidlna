@@ -178,6 +178,11 @@ GetAudioMetadata(const char * path, char * name)
 		strcpy(type, "flc");
 		strcpy(mime, "audio/x-flac");
 	}
+	else if( ends_with(path, ".wav") )
+	{
+		strcpy(type, "wav");
+		strcpy(mime, "audio/x-wav");
+	}
 	else
 	{
 		DPRINTF(E_WARN, L_GENERAL, "Unhandled file extension on %s\n", path);
@@ -269,7 +274,7 @@ GetAudioMetadata(const char * path, char * name)
 				genre,
 				comment,
 				song.track,
-				dlna_pn, mime,
+				dlna_pn, song.mime?song.mime:mime,
 				album_art, album_art?art_dlna_pn:NULL );
         freetags(&song);
 	if( dlna_pn )

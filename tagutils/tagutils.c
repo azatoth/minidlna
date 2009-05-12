@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <time.h>
 #include <iconv.h>
 #include <sys/time.h>
@@ -103,6 +105,7 @@ char *winamp_genre[] = {
 #include "tagutils-ogg.h"
 #include "tagutils-flc.h"
 #include "tagutils-asf.h"
+#include "tagutils-wav.h"
 
 static int _get_tags(char *file, struct song_metadata *psong);
 static int _get_fileinfo(char *file, struct song_metadata *psong);
@@ -124,6 +127,7 @@ static taghandler taghandlers[] = {
 	{ "flc", _get_flctags, _get_flcfileinfo                                  },
 	{ "ogg", 0,            _get_oggfileinfo                                  },
 	{ "asf", 0,            _get_asffileinfo                                  },
+	{ "wav", _get_wavtags, _get_wavfileinfo                                  },
 	{ NULL,  0 }
 };
 
@@ -136,6 +140,7 @@ static taghandler taghandlers[] = {
 #include "tagutils-ogg.c"
 #include "tagutils-flc.c"
 #include "tagutils-asf.c"
+#include "tagutils-wav.c"
 
 //*********************************************************************************
 // freetags()
@@ -157,6 +162,7 @@ freetags(struct song_metadata *psong)
 		MAYBEFREE(psong->contributor_sort[role]);
 	}
 	MAYBEFREE(psong->grouping);
+	MAYBEFREE(psong->mime);
 	MAYBEFREE(psong->dlna_pn);
 	MAYBEFREE(psong->tagversion);
 	MAYBEFREE(psong->musicbrainz_albumid);

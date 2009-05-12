@@ -105,7 +105,6 @@ _asf_read_media_stream(FILE *fp, struct song_metadata *psong, __u32 size)
 		{
 			case WMAV1:
 			case WMAV2:
-				printf("*****  JM: bitrate: %d\n", psong->bitrate);
 				if( psong->bitrate < 193000 )
 					asprintf(&(psong->dlna_pn), "WMABASE");
 				else
