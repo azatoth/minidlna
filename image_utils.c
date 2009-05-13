@@ -132,7 +132,15 @@ init_source(j_decompress_ptr cinfo)
 static int
 fill_input_buffer(j_decompress_ptr cinfo)
 {
-	return 1;
+	struct my_src_mgr *src = (void *)cinfo->src;
+
+	/* Create a fake EOI marker */
+	src->eoi_buffer[0] = (JOCTET) 0xFF;
+	src->eoi_buffer[1] = (JOCTET) JPEG_EOI;
+	src->pub.next_input_byte = src->eoi_buffer;
+	src->pub.bytes_in_buffer = 2;
+
+	return TRUE;
 }
 
 static void
