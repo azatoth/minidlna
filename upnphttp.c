@@ -649,12 +649,15 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			DPRINTF(E_WARN, L_HTTP, "Invalid request, responding ERROR 400.  (No Host specified in HTTP headers?)\n");
 			Send400(h);
 		}
-		else if( (h->reqflags & FLAG_TIMESEEK) || (h->reqflags & FLAG_PLAYSPEED) )
+		#if 1 /* 7.3.33.4 */
+		else if( ((h->reqflags & FLAG_TIMESEEK) || (h->reqflags & FLAG_PLAYSPEED)) &&
+		         !(h->reqflags & FLAG_RANGE) )
 		{
 			DPRINTF(E_WARN, L_HTTP, "DLNA %s requested, responding ERROR 406\n",
 			                        h->reqflags&FLAG_TIMESEEK ? "TimeSeek" : "PlaySpeed");
 			Send406(h);
 		}
+		#endif
 		else if(strcmp("GET", HttpCommand) == 0)
 		{
 			h->req_command = EGet;
@@ -1544,7 +1547,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			 "Connection: close\r\n"
 			 "Date: %s\r\n"
 			 "EXT:\r\n"
-			 "contentFeatures.dlna.org: DLNA.ORG_PN=%s\r\n"
+			 "contentFeatures.dlna.org: %s\r\n"
 			 "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
 			 date, last_file.dlna);
 	strcat(header, hdr_buf);

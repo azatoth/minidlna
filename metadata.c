@@ -202,11 +202,11 @@ GetAudioMetadata(const char * path, char * name)
 		asprintf(&date, "%04d-01-01", song.year);
 	sprintf(duration, "%d:%02d:%02d.%03d",
 	                  (song.song_length/3600000),
-	                  (song.song_length/60000),
+	                  (song.song_length/60000%60),
 	                  (song.song_length/1000%60),
 	                  (song.song_length%1000));
 	title = song.title;
-	if( title )
+	if( title && *title )
 	{
 		title = trim(title);
 		if( (esc_tag = escape_tag(title)) )
@@ -221,7 +221,7 @@ GetAudioMetadata(const char * path, char * name)
 	}
 	for( i=ROLE_START; i<N_ROLE; i++ )
 	{
-		if( song.contributor[i] )
+		if( song.contributor[i] && *song.contributor[i] )
 		{
 			artist = trim(song.contributor[i]);
 			if( (esc_tag = escape_tag(artist)) )
@@ -232,7 +232,7 @@ GetAudioMetadata(const char * path, char * name)
 			break;
 		}
 	}
-	if( song.album )
+	if( song.album && *song.album )
 	{
 		album = trim(song.album);
 		if( (esc_tag = escape_tag(album)) )
@@ -241,7 +241,7 @@ GetAudioMetadata(const char * path, char * name)
 			album = esc_tag;
 		}
 	}
-	if( song.genre )
+	if( song.genre && *song.genre )
 	{
 		genre = trim(song.genre);
 		if( (esc_tag = escape_tag(genre)) )
@@ -250,7 +250,7 @@ GetAudioMetadata(const char * path, char * name)
 			genre = esc_tag;
 		}
 	}
-	if( song.comment )
+	if( song.comment && *song.comment )
 	{
 		comment = trim(song.comment);
 		if( (esc_tag = escape_tag(comment)) )
@@ -438,8 +438,6 @@ GetImageMetadata(const char * path, char * name)
 		asprintf(&m.dlna_pn, "JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	else if( width <= 4096 && height <= 4096 )
 		asprintf(&m.dlna_pn, "JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-	else
-		asprintf(&m.dlna_pn, "JPEG_XL");
 	asprintf(&m.resolution, "%dx%d", width, height);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"

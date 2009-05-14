@@ -191,13 +191,11 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 		"xmlns:u=\"%s\">"
 		"<RcsID>-1</RcsID>"
 		"<AVTransportID>-1</AVTransportID>"
-		"<ProtocolInfo>"
-			"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN,"
-		"</ProtocolInfo>"
-		"<PeerConnectionManager>0</PeerConnectionManager>"
+		"<ProtocolInfo></ProtocolInfo>"
+		"<PeerConnectionManager></PeerConnectionManager>"
 		"<PeerConnectionID>-1</PeerConnectionID>"
-		"<Direction>0</Direction>"
-		"<Status>0</Status>"
+		"<Direction>Output</Direction>"
+		"<Status>Unknown</Status>"
 		"</u:%sResponse>";
 
 	char body[sizeof(resp)+128];
@@ -329,6 +327,7 @@ set_filter_flags(char * filter)
 		}
 		else if( strcmp(item, "upnp:albumArtURI@dlna:profileID") == 0 )
 		{
+			flags |= FILTER_UPNP_ALBUMARTURI;
 			flags |= FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID;
 		}
 		else if( strcmp(item, "upnp:artist") == 0 )
@@ -396,11 +395,12 @@ set_filter_flags(char * filter)
 }
 
 char *
-parse_sort_criteria(char * sortCriteria)
+parse_sort_criteria(char * sortCriteria, int * error)
 {
 	char *order = NULL;
 	char *item, *saveptr;
 	int i, ret, reverse, title_sorted = 0;
+	*error = 0;
 
 	if( !sortCriteria )
 		return NULL;
@@ -444,6 +444,7 @@ parse_sort_criteria(char * sortCriteria)
 		else
 		{
 			printf("Unhandled SortCriteria [%s]\n", item);
+			*error = 1;
 			if( i )
 			{
 				ret = strlen(order);
@@ -842,9 +843,16 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			sqlite3_free_table(result);
 		}
 #ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+		ret = 0;
 		if( totalMatches < 10000 )
 #endif
-			orderBy = parse_sort_criteria(SortCriteria);
+			orderBy = parse_sort_criteria(SortCriteria, &ret);
+		/* If it's a DLNA client, return an error for bad sort criteria */
+		if( (args.flags & FLAG_DLNA) && ret )
+		{
+			SoapError(h, 709, "Unsupported or invalid sort criteria");
+			goto browse_error;
+		}
 
 		sql = sqlite3_mprintf( SELECT_COLUMNS
 		                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
@@ -859,6 +867,23 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
+	/* Does the object even exist? */
+	if( !totalMatches )
+	{
+		ret = 0;
+		sql = sqlite3_mprintf("SELECT count(*) from OBJECTS where OBJECT_ID = '%q'", ObjectId);
+		if( sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK )
+		{
+			ret = atoi(result[1]);
+			sqlite3_free_table(result);
+		}
+		sqlite3_free(sql);
+		if( !ret )
+		{
+			SoapError(h, 701, "No such object error");
+			goto browse_error;
+		}
+	}
 	ret = snprintf(str_buf, sizeof(str_buf), "&lt;/DIDL-Lite&gt;</Result>\n"
 	                                         "<NumberReturned>%u</NumberReturned>\n"
 	                                         "<TotalMatches>%u</TotalMatches>\n"
@@ -868,6 +893,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	memcpy(resp+args.size, &str_buf, ret+1);
 	args.size += ret;
 	BuildSendAndCloseSoapResp(h, resp, args.size);
+browse_error:
 	ClearNameValueList(&data);
 	if( orderBy )
 		free(orderBy);
@@ -959,7 +985,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		}
 		#endif
 	}
-	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
+	DPRINTF(E_DEBUG, L_HTTP, "Searching ContentDirectory:\n"
 	                         " * ObjectID: %s\n"
 	                         " * Count: %d\n"
 	                         " * StartingIndex: %d\n"
@@ -1011,14 +1037,46 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	                 ContainerID, SearchCriteria, ContainerID, SearchCriteria);
 	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "Count SQL: %s\n", sql);
 	ret = sql_get_table(db, str_buf, &result, NULL, NULL);
-	if( ret == SQLITE_OK ) {
+	if( ret == SQLITE_OK )
+	{
 		totalMatches = atoi(result[1]);
 		sqlite3_free_table(result);
 	}
+	else
+	{
+		/* Must be invalid SQL, so most likely bad or unhandled search criteria. */
+		SoapError(h, 708, "Unsupported or invalid search criteria");
+		goto search_error;
+	}
+	/* Does the object even exist? */
+	if( !totalMatches )
+	{
+		ret = 0;
+		sql = sqlite3_mprintf("SELECT count(*) from OBJECTS where OBJECT_ID = '%q'",
+		                      !strcmp(ContainerID, "*")?"0":ContainerID);
+		if( sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK )
+		{
+			ret = atoi(result[1]);
+			sqlite3_free_table(result);
+		}
+		sqlite3_free(sql);
+		if( !ret )
+		{
+			SoapError(h, 710, "No such container");
+			goto search_error;
+		}
+	}
 #ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+	ret = 0;
 	if( totalMatches < 10000 )
 #endif
-		orderBy = parse_sort_criteria(SortCriteria);
+		orderBy = parse_sort_criteria(SortCriteria, &ret);
+	/* If it's a DLNA client, return an error for bad sort criteria */
+	if( (args.flags & FLAG_DLNA) && ret )
+	{
+		SoapError(h, 709, "Unsupported or invalid sort criteria");
+		goto search_error;
+	}
 
 	sql = sqlite3_mprintf( SELECT_COLUMNS
 	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
@@ -1049,6 +1107,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	memcpy(resp+args.size, &str_buf, ret+1);
 	args.size += ret;
 	BuildSendAndCloseSoapResp(h, resp, args.size);
+search_error:
 	ClearNameValueList(&data);
 	if( orderBy )
 		free(orderBy);
