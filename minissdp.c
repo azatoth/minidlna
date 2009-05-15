@@ -6,6 +6,7 @@
  * in the LICENCE file provided within the distribution */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -321,8 +322,8 @@ ProcessSSDPRequest(int s, unsigned short port)
 	struct sockaddr_in sendername;
 	int i, l;
 	int lan_addr_index = 0;
-	char * st = 0;
-	int st_len = 0;
+	char * st = NULL, * mx = NULL, * man = NULL, * mx_end = NULL;
+	int st_len = 0, mx_len = 0, man_len = 0, mx_val = 0;
 	len_r = sizeof(struct sockaddr_in);
 
 	n = recvfrom(s, bufr, sizeof(bufr), 0,
@@ -340,22 +341,41 @@ ProcessSSDPRequest(int s, unsigned short port)
 	}
 	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
 	{
-		i = 0;
+		for(i=0; i < n; i++)
+		{
+			if( bufr[i] == '*' )
+				break;
+		}
+		if( !strcasestr(bufr+i, "HTTP/1.1") )
+		{
+			return;
+		}
 		while(i < n)
 		{
 			while(bufr[i] != '\r' || bufr[i+1] != '\n')
 				i++;
 			i += 2;
-			if(strncasecmp(bufr+i, "st:", 3) == 0)
+			if(strncasecmp(bufr+i, "ST:", 3) == 0)
 			{
 				st = bufr+i+3;
 				st_len = 0;
 				while(*st == ' ' || *st == '\t') st++;
 				while(st[st_len]!='\r' && st[st_len]!='\n') st_len++;
-				/*DPRINTF(E_INFO, L_SSDP, "ST: %.*s", st_len, st);*/
-				/*j = 0;*/
-				/*while(bufr[i+j]!='\r') j++;*/
-				/*DPRINTF(E_INFO, L_SSDP, "%.*s", j, bufr+i);*/
+			}
+			else if(strncasecmp(bufr+i, "MX:", 3) == 0)
+			{
+				mx = bufr+i+3;
+				mx_len = 0;
+				while(*mx == ' ' || *mx == '\t') mx++;
+				while(mx[mx_len]!='\r' && mx[mx_len]!='\n') mx_len++;
+        			mx_val = strtol(mx, &mx_end, 10);
+			}
+			else if(strncasecmp(bufr+i, "MAN:", 4) == 0)
+			{
+				man = bufr+i+4;
+				man_len = 0;
+				while(*man == ' ' || *man == '\t') man++;
+				while(man[man_len]!='\r' && man[man_len]!='\n') man_len++;
 			}
 		}
 		/*DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH packet received from %s:%d\n",
@@ -366,13 +386,22 @@ ProcessSSDPRequest(int s, unsigned short port)
 			DPRINTF(E_INFO, L_SSDP, "WARNING: Ignoring invalid SSDP M-SEARCH from %s [bad source port %d]\n",
 			   inet_ntoa(sendername.sin_addr), ntohs(sendername.sin_port));
 		}
-		else if(st)
+		else if( !man || (strncmp(man, "\"ssdp:discover\"", 15) != 0) )
+		{
+			DPRINTF(E_INFO, L_SSDP, "WARNING: Ignoring invalid SSDP M-SEARCH from %s [bad MAN header %.*s]\n",
+			   inet_ntoa(sendername.sin_addr), man_len, man);
+		}
+		else if( !mx || mx == mx_end || mx_val < 0 ) {
+			DPRINTF(E_INFO, L_SSDP, "WARNING: Ignoring invalid SSDP M-SEARCH from %s [bad MX header %.*s]\n",
+			   inet_ntoa(sendername.sin_addr), mx_len, mx);
+		}
+		else if( st )
 		{
 			/* TODO : doesnt answer at once but wait for a random time */
-			DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH from %s:%d ST: %.*s\n",
+			DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH from %s:%d ST: %.*s, MX: %.*s, MAN: %.*s\n",
 	        	   inet_ntoa(sendername.sin_addr),
 	           	   ntohs(sendername.sin_port),
-				   st_len, st);
+			   st_len, st, mx_len, mx, man_len, man);
 			/* find in which sub network the client is */
 			for(i = 0; i<n_lan_addr; i++)
 			{
@@ -386,9 +415,12 @@ ProcessSSDPRequest(int s, unsigned short port)
 			/* Responds to request with a device as ST header */
 			for(i = 0; known_service_types[i]; i++)
 			{
-				l = (int)strlen(known_service_types[i]);
+				l = strlen(known_service_types[i]);
 				if(l<=st_len && (0 == memcmp(st, known_service_types[i], l)))
 				{
+					/* Check version number - must always be 1 currently. */
+					if( (st[st_len-2] == ':') && (atoi(st+st_len-1) != 1) )
+						break;
 					SendSSDPAnnounce2(s, sendername,
 					                  st, st_len, "",
 					                  lan_addr[lan_addr_index].str, port);
