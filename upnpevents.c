@@ -150,8 +150,10 @@ upnpevents_removeSubscriber(const char * sid, int sidlen)
 	struct subscriber * sub;
 	if(!sid)
 		return -1;
+	DPRINTF(E_DEBUG, L_HTTP, "removeSubscriber(%.*s)\n",
+	       sidlen, sid);
 	for(sub = subscriberlist.lh_first; sub != NULL; sub = sub->entries.le_next) {
-		if(memcmp(sid, sub->uuid, 41)) {
+		if(memcmp(sid, sub->uuid, 41) == 0) {
 			if(sub->notify) {
 				sub->notify->sub = NULL;
 			}
@@ -238,7 +240,7 @@ upnp_event_notify_connect(struct upnp_event_notify * obj)
 		i = 1;
 		p++;
 		port = (unsigned short)atoi(p);
-		while(*p != '/') {
+		while(*p != '/' && *p != '\0') {
 			if(i<7) obj->portstr[i++] = *p;
 			p++;
 		}
@@ -247,7 +249,10 @@ upnp_event_notify_connect(struct upnp_event_notify * obj)
 		port = 80;
 		obj->portstr[0] = '\0';
 	}
-	obj->path = p;
+	if( *p )
+		obj->path = p;
+	else
+		obj->path = "/";
 	addr.sin_family = AF_INET;
 	inet_aton(obj->addrstr, &addr.sin_addr);
 	addr.sin_port = htons(port);
@@ -313,6 +318,7 @@ static void upnp_event_prepare(struct upnp_event_notify * obj)
 static void upnp_event_send(struct upnp_event_notify * obj)
 {
 	int i;
+	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "Sending UPnP Event:\n%s", obj->buffer+obj->sent);
 	i = send(obj->s, obj->buffer + obj->sent, obj->tosend - obj->sent, 0);
 	if(i<0) {
 		DPRINTF(E_WARN, L_HTTP, "%s: send(): %s\n", "upnp_event_send", strerror(errno));
@@ -422,11 +428,13 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 			}
 			if(obj->sub)
 				obj->sub->notify = NULL;
+#if 0 /* Just let it time out instead of explicitly removing the subscriber */
 			/* remove also the subscriber from the list if there was an error */
 			if(obj->state == EError && obj->sub) {
 				LIST_REMOVE(obj->sub, entries);
 				free(obj->sub);
 			}
+#endif
 			if(obj->buffer) {
 				free(obj->buffer);
 			}

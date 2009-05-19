@@ -188,11 +188,21 @@ USN:uuid:upnp-InternetGatewayDevice-1_0-0090a2777777::upnp:rootdevice
 EXT:
  */
 
+static const char * const known_service_types[] =
+{
+	uuidvalue,
+	"upnp:rootdevice",
+	"urn:schemas-upnp-org:device:MediaServer:",
+	"urn:schemas-upnp-org:service:ContentDirectory:",
+	"urn:schemas-upnp-org:service:ConnectionManager:",
+	"urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:",
+	0
+};
+
 /* not really an SSDP "announce" as it is the response
  * to a SSDP "M-SEARCH" */
 static void
-SendSSDPAnnounce2(int s, struct sockaddr_in sockname,
-                  const char * st, int st_len, const char * suffix,
+SendSSDPAnnounce2(int s, struct sockaddr_in sockname, int st_no,
                   const char * host, unsigned short port)
 {
 	int l, n;
@@ -211,18 +221,18 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname,
 	l = snprintf(buf, sizeof(buf), "HTTP/1.1 200 OK\r\n"
 		"CACHE-CONTROL: max-age=1810\r\n"
 		"DATE: %s\r\n"
-		"Ext:\r\n"
-		"ST: %.*s%s\r\n"
-		"USN: %s%s%.*s%s\r\n"
+		"ST: %s%s\r\n"
+		"USN: %s%s%s%s\r\n"
 		"EXT:\r\n"
 		"SERVER: " MINIDLNA_SERVER_STRING "\r\n"
 		"LOCATION: http://%s:%u" ROOTDESC_PATH "\r\n"
 		"Content-Length: 0\r\n"
 		"\r\n",
 		szTime,
-		st_len, st, suffix,
-		uuidvalue, st_len?"::":"", st_len, st, suffix,
+		known_service_types[st_no], (st_no>1?"1":""),
+		uuidvalue, (st_no>0?"::":""), (st_no>0?known_service_types[st_no]:""), (st_no>1?"1":""),
 		host, (unsigned int)port);
+	//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Sending M-SEARCH response:\n%s", buf);
 	n = sendto(s, buf, l, 0,
 	           (struct sockaddr *)&sockname, sizeof(struct sockaddr_in) );
 	if(n < 0)
@@ -230,17 +240,6 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname,
 		DPRINTF(E_ERROR, L_SSDP, "sendto(udp): %s\n", strerror(errno));
 	}
 }
-
-static const char * const known_service_types[] =
-{
-	uuidvalue,
-	"upnp:rootdevice",
-	"urn:schemas-upnp-org:device:MediaServer:",
-	"urn:schemas-upnp-org:service:ContentDirectory:",
-	"urn:schemas-upnp-org:service:ConnectionManager:",
-	"urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:",
-	0
-};
 
 static void
 SendSSDPNotifies(int s, const char * host, unsigned short port,
@@ -282,7 +281,7 @@ SendSSDPNotifies(int s, const char * host, unsigned short port,
 				DPRINTF(E_WARN, L_SSDP, "SendSSDPNotifies(): truncated output\n");
 				l = sizeof(bufr);
 			}
-			//DEBUG printf("Sending NOTIFY:\n%s", bufr);
+			//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Sending NOTIFY:\n%s", bufr);
 			n = sendto(s, bufr, l, 0,
 				(struct sockaddr *)&sockname, sizeof(struct sockaddr_in) );
 			if(n < 0)
@@ -341,6 +340,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 	}
 	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
 	{
+		//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Received SSDP request:\n%.*s", n, bufr);
 		for(i=0; i < n; i++)
 		{
 			if( bufr[i] == '*' )
@@ -397,7 +397,6 @@ ProcessSSDPRequest(int s, unsigned short port)
 		}
 		else if( st )
 		{
-			/* TODO : doesnt answer at once but wait for a random time */
 			DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH from %s:%d ST: %.*s, MX: %.*s, MAN: %.*s\n",
 	        	   inet_ntoa(sendername.sin_addr),
 	           	   ntohs(sendername.sin_port),
@@ -421,8 +420,9 @@ ProcessSSDPRequest(int s, unsigned short port)
 					/* Check version number - must always be 1 currently. */
 					if( (st[st_len-2] == ':') && (atoi(st+st_len-1) != 1) )
 						break;
+					usleep(random()>>20);
 					SendSSDPAnnounce2(s, sendername,
-					                  st, st_len, "",
+					                  i,
 					                  lan_addr[lan_addr_index].str, port);
 					break;
 				}
@@ -431,22 +431,13 @@ ProcessSSDPRequest(int s, unsigned short port)
 			/* strlen("ssdp:all") == 8 */
 			if(st_len==8 && (0 == memcmp(st, "ssdp:all", 8)))
 			{
-				SendSSDPAnnounce2(s, sendername, "", 0, "",
-				                  lan_addr[lan_addr_index].str, port);
-				for(i=1; known_service_types[i]; i++)
+				for(i=0; known_service_types[i]; i++)
 				{
 					l = (int)strlen(known_service_types[i]);
 					SendSSDPAnnounce2(s, sendername,
-					                  known_service_types[i], l, i==1?"":"1",
+					                  i,
 					                  lan_addr[lan_addr_index].str, port);
 				}
-			}
-			/* responds to request by UUID value */
-			l = (int)strlen(uuidvalue);
-			if(l==st_len && (0 == memcmp(st, uuidvalue, l)))
-			{
-				SendSSDPAnnounce2(s, sendername, st, st_len, "",
-				                  lan_addr[lan_addr_index].str, port);
 			}
 		}
 		else
@@ -491,7 +482,7 @@ SendSSDPGoodbye(int * sockets, int n_sockets)
 	                 SSDP_MCAST_ADDR, SSDP_PORT,
 			 known_service_types[i], (i>1?"1":""),
 	                 uuidvalue, (i>0?"::":""), (i>0?known_service_types[i]:""), (i>1?"1":"") );
-		//DEBUG printf("Sending NOTIFY:\n%s", bufr);
+		//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Sending NOTIFY:\n%s", bufr);
 		n = sendto(sockets[j], bufr, l, 0,
 	                   (struct sockaddr *)&sockname, sizeof(struct sockaddr_in) );
 		if(n < 0)

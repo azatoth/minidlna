@@ -555,6 +555,7 @@ with HTTP error 412 Precondition Failed. */
 				/* A DLNA device must enforce a 5 minute timeout */
 				h->respflags = FLAG_TIMEOUT;
 				h->req_Timeout = 300;
+				h->respflags |= FLAG_SID;
 				BuildResp_upnphttp(h, 0, 0);
 			}
 		}
@@ -853,7 +854,7 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 	int templen;
 	if(!h->res_buf)
 	{
-		templen = sizeof(httpresphead) + 128 + bodylen;
+		templen = sizeof(httpresphead) + 192 + bodylen;
 		h->res_buf = (char *)malloc(templen);
 		h->res_buf_alloclen = templen;
 	}
@@ -882,7 +883,7 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 	if(h->respflags & FLAG_SID) {
 		h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 		                          h->res_buf_alloclen - h->res_buflen,
-		                          "SID: %s\r\n", h->req_SID);
+		                          "SID: %.*s\r\n", h->req_SIDLen, h->req_SID);
 	}
 #if 0 // DLNA
 	char   szTime[30];

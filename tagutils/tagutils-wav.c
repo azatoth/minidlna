@@ -164,7 +164,9 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 	//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Song length: %d\n", psong->song_length);
 	//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Bit rate: %d\n", psong->bitrate);
 
+#if 0 // Wrong MIME type?  PS3 doesn't like it; it wants audio/x-wav.
 	asprintf(&(psong->mime), "audio/L16;rate=%d;channels=%d", psong->samplerate, psong->channels);
+#endif
 	return 0;
 }
 

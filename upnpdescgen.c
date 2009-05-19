@@ -84,7 +84,9 @@ static const char * const upnpallowedvalues[] =
 	0,
 	RESOURCE_PROTOCOL_INFO_VALUES,		/* 44 */
 	0,
-	"",			/* 46 */
+	"0",			/* 46 */
+	0,
+	"",			/* 48 */
 	0
 };
 
@@ -291,8 +293,8 @@ static const struct action ConnectionManagerActions[] =
 static const struct stateVar ConnectionManagerVars[] =
 {
 	{"SourceProtocolInfo", 1<<7, 0, 44, 44}, /* required */
-	{"SinkProtocolInfo", 1<<7, 0}, /* required */
-	{"CurrentConnectionIDs", 1<<7, 0}, /* required */
+	{"SinkProtocolInfo", 1<<7, 0, 0, 48}, /* required */
+	{"CurrentConnectionIDs", 1<<7, 0, 0, 46}, /* required */
 	{"A_ARG_TYPE_ConnectionStatus", 0, 0, 27}, /* required */
 	{"A_ARG_TYPE_ConnectionManager", 0, 0}, /* required */
 	{"A_ARG_TYPE_Direction", 0, 0, 33}, /* required */
@@ -374,7 +376,7 @@ static const struct action ContentDirectoryActions[] =
 
 static const struct stateVar ContentDirectoryVars[] =
 {
-	{"TransferIDs", 1<<7, 0, 0, 46}, /* 0 */
+	{"TransferIDs", 1<<7, 0, 0, 48}, /* 0 */
 	{"A_ARG_TYPE_ObjectID", 0, 0},
 	{"A_ARG_TYPE_Result", 0, 0},
 	{"A_ARG_TYPE_SearchCriteria", 0, 0},
@@ -434,10 +436,10 @@ static const struct stateVar X_MS_MediaReceiverRegistrarVars[] =
 	{"A_ARG_TYPE_RegistrationReqMsg", 7, 0},
 	{"A_ARG_TYPE_RegistrationRespMsg", 7, 0},
 	{"A_ARG_TYPE_Result", 6, 0},
-	{"AuthorizationDeniedUpdateID", (1<<7)|3, 0},
-	{"AuthorizationGrantedUpdateID", (1<<7)|3, 0},
-	{"ValidationRevokedUpdateID", (1<<7)|3, 0},
-	{"ValidationSucceededUpdateID", (1<<7)|3, 0},
+	{"AuthorizationDeniedUpdateID", 3, 0},
+	{"AuthorizationGrantedUpdateID", 3, 0},
+	{"ValidationRevokedUpdateID", 3, 0},
+	{"ValidationSucceededUpdateID", 3, 0},
 	{0, 0}
 };
 

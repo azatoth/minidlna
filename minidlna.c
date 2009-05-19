@@ -246,7 +246,7 @@ init(int argc, char * * argv)
 	if( (getifhwaddr("eth0", mac_str, 64) < 0) &&
 	    (getifhwaddr("eth1", mac_str, 64) < 0) )
 	{
-		printf("No MAC addresses found!\n");
+		DPRINTF(E_WARN, L_GENERAL, "No MAC address found.  Falling back to generic UUID.\n");
 		strcpy(mac_str, "554e4b4e4f57");
 	}
 	strcpy(uuidvalue+5, "4d696e69-444c-164e-9d41-");

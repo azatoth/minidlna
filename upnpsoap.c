@@ -351,37 +351,43 @@ set_filter_flags(char * filter)
 			flags |= FILTER_RES;
 		}
 		else if( (strcmp(item, "res@bitrate") == 0) ||
+		         (strcmp(item, "@bitrate") == 0) ||
 		         ((strcmp(item, "bitrate") == 0) && (flags & FILTER_RES)) )
 		{
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_BITRATE;
 		}
 		else if( (strcmp(item, "res@duration") == 0) ||
+		         (strcmp(item, "@duration") == 0) ||
 		         ((strcmp(item, "duration") == 0) && (flags & FILTER_RES)) )
 		{
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_DURATION;
 		}
 		else if( (strcmp(item, "res@nrAudioChannels") == 0) ||
+		         (strcmp(item, "@nrAudioChannels") == 0) ||
 		         ((strcmp(item, "nrAudioChannels") == 0) && (flags & FILTER_RES)) )
 		{
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_NRAUDIOCHANNELS;
 		}
 		else if( (strcmp(item, "res@resolution") == 0) ||
+		         (strcmp(item, "@resolution") == 0) ||
 		         ((strcmp(item, "resolution") == 0) && (flags & FILTER_RES)) )
 		{
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_RESOLUTION;
 		}
 		else if( (strcmp(item, "res@sampleFrequency") == 0) ||
+		         (strcmp(item, "@sampleFrequency") == 0) ||
 		         ((strcmp(item, "sampleFrequency") == 0) && (flags & FILTER_RES)) )
 		{
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_SAMPLEFREQUENCY;
 		}
 		else if( (strcmp(item, "res@size") == 0) ||
-		         ((strcmp(item, "size") == 0) && (flags & FILTER_RES)) )
+		         (strcmp(item, "@size") == 0) ||
+		         (strcmp(item, "size") == 0) )
 		{
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_SIZE;
