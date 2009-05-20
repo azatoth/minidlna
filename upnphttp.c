@@ -160,14 +160,26 @@ ParseHttpHeaders(struct upnphttp * h)
 			}
 			else if(strncasecmp(line, "SID", 3)==0)
 			{
-				p = colon + 1;
-				while(isspace(*p))
-					p++;
-				n = 0;
-				while(!isspace(p[n]))
-					n++;
-				h->req_SID = p;
-				h->req_SIDLen = n;
+				//zqiu: fix bug for test 4.0.5
+				//Skip the extra header like "SIDHEADER: xxxxxx xxx"
+				for(p=line+3;p<colon;p++)
+				{
+					if(!isspace(*p))
+					{
+						p = NULL; //unexpected header
+						break;
+					}
+				}
+				if(p) {
+					p = colon + 1;
+					while(isspace(*p))
+						p++;
+					n = 0;
+					while(!isspace(p[n]))
+						n++;
+					h->req_SID = p;
+					h->req_SIDLen = n;
+				}
 			}
 			/* Timeout: Seconds-nnnn */
 /* TIMEOUT
@@ -892,12 +904,12 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 	                          h->res_buf_alloclen - h->res_buflen,
 	                          "Date: %s\r\n", szTime);
-//	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
-//	                          h->res_buf_alloclen - h->res_buflen,
-//	                          "contentFeatures.dlna.org: \r\n");
-//	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
-//	                          h->res_buf_alloclen - h->res_buflen,
-//	                          "EXT:\r\n");
+	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
+	                          h->res_buf_alloclen - h->res_buflen,
+	                          "contentFeatures.dlna.org: \r\n");
+	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
+	                          h->res_buf_alloclen - h->res_buflen,
+	                          "EXT:\r\n");
 #endif
 	h->res_buf[h->res_buflen++] = '\r';
 	h->res_buf[h->res_buflen++] = '\n';

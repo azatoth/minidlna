@@ -426,7 +426,9 @@ static const struct action X_MS_MediaReceiverRegistrarActions[] =
 {
 	{"IsAuthorized", GetIsAuthorizedArgs}, /* R */
 	{"IsValidated", GetIsValidatedArgs}, /* R */
+#if 0 // Not needed?  WMP12 still works.  Need to check with 360 and WMP11.
 	{"RegisterDevice", GetRegisterDeviceArgs}, /* R */
+#endif
 	{0, 0}
 };
 

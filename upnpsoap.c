@@ -786,8 +786,23 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	char * BrowseFlag = GetValueFromNameValueList(&data, "BrowseFlag");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
 	char * orderBy = NULL;
+	if( !BrowseFlag || (strcmp(BrowseFlag, "BrowseDirectChildren") && strcmp(BrowseFlag, "BrowseMetadata")) )
+	{
+		SoapError(h, 402, "Invalid Args");
+		if( h->req_client == EXbox )
+			ObjectId = malloc(1);
+		goto browse_error;
+	}
 	if( !ObjectId )
-		ObjectId = GetValueFromNameValueList(&data, "ContainerID");
+	{
+		if( !(ObjectId = GetValueFromNameValueList(&data, "ContainerID")) )
+		{
+			SoapError(h, 701, "No such object error");
+			if( h->req_client == EXbox )
+				ObjectId = malloc(1);
+			goto browse_error;
+		}
+	}
 	memset(&args, 0, sizeof(args));
 
 	if( !RequestedCount )
@@ -830,7 +845,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				ObjectId, RequestedCount, StartingIndex,
 	                        BrowseFlag, Filter, SortCriteria);
 
-	if( BrowseFlag && (strcmp(BrowseFlag, "BrowseMetadata") == 0) )
+	if( strcmp(BrowseFlag+6, "Metadata") == 0 )
 	{
 		args.requested = 1;
 		sql = sqlite3_mprintf( SELECT_COLUMNS
@@ -941,6 +956,13 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char * newSearchCriteria = NULL;
 	char * orderBy = NULL;
 	char groupBy[] = "group by DETAIL_ID";
+	if( !ContainerID )
+	{
+		SoapError(h, 701, "No such object error");
+		if( h->req_client == EXbox )
+			ContainerID = malloc(1);
+		goto search_error;
+	}
 	memset(&args, 0, sizeof(args));
 
 	if( !RequestedCount )
