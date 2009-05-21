@@ -292,7 +292,7 @@ static const struct action ConnectionManagerActions[] =
 
 static const struct stateVar ConnectionManagerVars[] =
 {
-	{"SourceProtocolInfo", 1<<7, 0, 44, 44}, /* required */
+	{"SourceProtocolInfo", 1<<7, 0, 0, 44}, /* required */
 	{"SinkProtocolInfo", 1<<7, 0, 0, 48}, /* required */
 	{"CurrentConnectionIDs", 1<<7, 0, 0, 46}, /* required */
 	{"A_ARG_TYPE_ConnectionStatus", 0, 0, 27}, /* required */
