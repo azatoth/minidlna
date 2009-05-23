@@ -709,6 +709,7 @@ filter_audio(const struct dirent *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
+	          (d->d_type == DT_LNK) ||
 		  ((d->d_type == DT_REG) &&
 		   is_audio(d->d_name) )
 	       ) );
@@ -719,6 +720,7 @@ filter_video(const struct dirent *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
+	          (d->d_type == DT_LNK) ||
 		  ((d->d_type == DT_REG) &&
 		   is_video(d->d_name) )
 	       ) );
@@ -729,6 +731,7 @@ filter_images(const struct dirent *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
+	          (d->d_type == DT_LNK) ||
 		  ((d->d_type == DT_REG) &&
 		   is_image(d->d_name) )
 	       ) );
@@ -739,16 +742,62 @@ filter_media(const struct dirent *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
-		  ((d->d_type == DT_REG) &&
-		   (is_image(d->d_name) ||
-		    is_audio(d->d_name) ||
-		    is_video(d->d_name)
-		   )
-	       )) );
+	          (d->d_type == DT_LNK) ||
+	          ((d->d_type == DT_REG) &&
+	           (is_image(d->d_name) ||
+	            is_audio(d->d_name) ||
+	            is_video(d->d_name)
+	           )
+	       ) ));
+}
+
+#define TYPE_OTHER  0
+#define TYPE_DIR    1
+#define TYPE_FILE   2
+unsigned char
+resolve_link(const char * path, enum media_types dir_type)
+{
+	struct stat entry;
+	unsigned char type = TYPE_OTHER;
+
+	if( stat(path, &entry) == 0 )
+	{
+		if( S_ISDIR(entry.st_mode) )
+		{
+			type = TYPE_DIR;
+		}
+		else if( S_ISREG(entry.st_mode) )
+		{
+			switch( dir_type )
+			{
+				case ALL_MEDIA:
+					if( is_image(path) ||
+					    is_audio(path) ||
+					    is_video(path) )
+						type = TYPE_FILE;
+					break;
+				case AUDIO_ONLY:
+					if( is_audio(path) )
+						type = TYPE_FILE;
+					break;
+				case VIDEO_ONLY:
+					if( is_video(path) )
+						type = TYPE_FILE;
+					break;
+				case IMAGES_ONLY:
+					if( is_image(path) )
+						type = TYPE_FILE;
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	return type;
 }
 
 void
-ScanDirectory(const char * dir, const char * parent, enum media_types type)
+ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 {
 	struct dirent **namelist;
 	int i, n, startID=0;
@@ -756,13 +805,14 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 	char full_path[PATH_MAX];
 	char * name = NULL;
 	static long long unsigned int fileno = 0;
+	unsigned char type;
 
 	setlocale(LC_COLLATE, "");
 	if( chdir(dir) != 0 )
 		return;
 
 	DPRINTF(parent?E_INFO:E_WARN, L_SCANNER, "Scanning %s\n", dir);
-	switch( type )
+	switch( dir_type )
 	{
 		case ALL_MEDIA:
 			n = scandir(".", &namelist, filter_media, alphasort);
@@ -790,16 +840,30 @@ ScanDirectory(const char * dir, const char * parent, enum media_types type)
 		startID = get_next_available_id("OBJECTS", BROWSEDIR_ID);
 	}
 
-	for (i=0; i < n; i++) {
+	for (i=0; i < n; i++)
+	{
+		type = 0;
 		sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
 		name = escape_tag(namelist[i]->d_name);
 		if( namelist[i]->d_type == DT_DIR )
+		{
+			type = TYPE_DIR;
+		}
+		else if( namelist[i]->d_type == DT_REG )
+		{
+			type = TYPE_FILE;
+		}
+		else
+		{
+			type = resolve_link(full_path, dir_type);
+		}
+		if( type == TYPE_DIR )
 		{
 			insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i+startID);
 			sprintf(parent_id, "%s$%X", (parent ? parent:""), i+startID);
 			ScanDirectory(full_path, parent_id, type);
 		}
-		else
+		else if( type == TYPE_FILE )
 		{
 			if( insert_file(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i+startID) == 0 )
 				fileno++;
