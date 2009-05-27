@@ -142,6 +142,7 @@ sqlite_int64
 GetAudioMetadata(const char * path, char * name)
 {
 	char duration[16], mime[16], type[4];
+	static char lang[6] = { '\0' };
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
@@ -189,7 +190,16 @@ GetAudioMetadata(const char * path, char * name)
 		return 0;
 	}
 
-	if( readtags((char *)path, &song, &file, NULL, type) != 0 )
+	if( !(*lang) )
+	{
+		if( !getenv("LANG") )
+			strcpy(lang, "en_US");
+		else
+			strncpy(lang, getenv("LANG"), 5);
+		lang[5] = '\0';
+	}
+
+	if( readtags((char *)path, &song, &file, lang, type) != 0 )
 	{
 		DPRINTF(E_WARN, L_GENERAL, "Cannot extract tags from %s!\n", path);
         	freetags(&song);
@@ -484,6 +494,8 @@ GetVideoMetadata(const char * path, char * name)
 	ts_timestamp_t ts_timestamp = NONE;
 	int duration, hours, min, sec, ms;
 	aac_object_type_t aac_type = AAC_INVALID;
+	sqlite_int64 album_art = 0;
+	char art_dlna_pn[9];
 	metadata_t m;
 	memset(&m, '\0', sizeof(m));
 	date[0] = '\0';
@@ -868,15 +880,18 @@ GetVideoMetadata(const char * path, char * name)
 		asprintf(&m.mime, "video/x-tivo-mpeg");
 	}
 #endif
+	album_art = find_album_art(path, art_dlna_pn, NULL, 0);
+
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
 	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
-	                       "  CREATOR, TITLE, DLNA_PN, MIME) "
+	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART, ART_DLNA_PN) "
 	                       "VALUES"
-	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q');",
+	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld, %Q);",
 	                       path, size, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,
-	                       m.artist, name, m.dlna_pn, m.mime);
+	                       m.artist, name, m.dlna_pn, m.mime,
+	                       album_art, album_art?art_dlna_pn:NULL );
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{

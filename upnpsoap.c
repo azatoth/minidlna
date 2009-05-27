@@ -39,7 +39,7 @@ BuildSendAndCloseSoapResp(struct upnphttp * h,
                           const char * body, int bodylen)
 {
 	static const char beforebody[] =
-		"<?xml version=\"1.0\"?>\r\n"
+		"<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n"
 		"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
 		"s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
 		"<s:Body>";
@@ -601,22 +601,42 @@ callback(void *args, int argc, char **argv, char **azColName)
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
-		if( album_art && atoi(album_art) && (passed_args->filter & FILTER_UPNP_ALBUMARTURI) ) {
-			ret = sprintf(str_buf, "&lt;upnp:albumArtURI ");
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
-			if( passed_args->filter & FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID ) {
-				ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", "JPEG_TN");
+		if( album_art && atoi(album_art) )
+		{
+			/* Video and audio album art is handled differently */
+			if( *mime == 'v' && (passed_args->filter & FILTER_RES) ) {
+				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN\"&gt;"
+				                       "http://%s:%d/AlbumArt/%s.jpg"
+				                       "&lt;/res&gt;",
+				                       lan_addr[0].str, runtime_vars.port, album_art);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
-			ret = sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
-					 lan_addr[0].str, runtime_vars.port, album_art);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			else if( passed_args->filter & FILTER_UPNP_ALBUMARTURI ) {
+				ret = sprintf(str_buf, "&lt;upnp:albumArtURI ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				if( passed_args->filter & FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID ) {
+					ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlnaorg:metadata-1-0/\"", "JPEG_TN");
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+				ret = sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
+						 lan_addr[0].str, runtime_vars.port, album_art);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
 		}
 		if( passed_args->filter & FILTER_RES ) {
 			mime_to_ext(mime, ext);
+			if( tn && atoi(tn) && dlna_pn ) {
+				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
+				                       "http://%s:%d/Thumbnails/%s.jpg"
+				                       "&lt;/res&gt;",
+				                       mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
 			ret = sprintf(str_buf, "&lt;res ");
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
@@ -668,14 +688,6 @@ callback(void *args, int argc, char **argv, char **azColName)
 						 mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port, id);
 			}
 			#endif
-			if( tn && atoi(tn) && dlna_pn ) {
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
-				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
-				                       "http://%s:%d/Thumbnails/%s.jpg"
-				                       "&lt;/res&gt;",
-				                       mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
-			}
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}

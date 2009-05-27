@@ -72,10 +72,11 @@ struct {
 	char *lang;
 	char *cpnames[N_LANG_ALT];
 } iconv_map[] = {
-	{ "JA",                { "ISO-8859-1", "CP932", "ISO8859-1", "CP950",     "CP936",     0 } },
-	{ "ZH_CN",             { "ISO-8859-1", "CP936", "CP950",     "CP932",     0 } },
-	{ "ZH_TW",             { "ISO-8859-1", "CP950", "CP936",     "CP932",     0 } },
-	{ 0,                   { 0 } }
+	{ "ja_JP",     { "CP932", "CP950", "CP936", "ISO-8859-1", 0 } },
+	{ "zh_CN",  { "CP936", "CP950", "CP932", "ISO-8859-1", 0 } },
+	{ "zh_TW",  { "CP950", "CP936", "CP932", "ISO-8859-1", 0 } },
+	{ "ko_KR",  { "CP949", "ISO-8859-1", 0 } },
+	{ 0,        { 0 } }
 };
 static int lang_index = -1;
 
@@ -91,7 +92,7 @@ _lang2cp(char *lang)
 		if(!strcasecmp(iconv_map[cp].lang, lang))
 			return cp;
 	}
-	return -1;
+	return -2;
 }
 
 static unsigned char*
