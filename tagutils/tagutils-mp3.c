@@ -239,11 +239,11 @@ _get_mp3tags(char *file, struct song_metadata *psong)
 					native_text = id3_field_getfullstring(&pid3frame->fields[3]);
 					if(native_text)
 					{
-						//if (psong->comment)
-						//  free(psong->comment);
 						utf8_text = (unsigned char*)id3_ucs4_utf8duplicate(native_text);
 						if(utf8_text)
 						{
+							if (psong->comment)
+								free(psong->comment);
 							psong->comment = (char*)utf8_text;
 						}
 					}
