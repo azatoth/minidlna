@@ -76,6 +76,13 @@ _get_flctags(char *filename, struct song_metadata *psong)
 					block->data.vorbis_comment.comments[i].length);
 			}
 			break;
+		case FLAC__METADATA_TYPE_PICTURE:
+			psong->image_size = block->data.picture.data_length;
+			if((psong->image = malloc(psong->image_size)))
+				memcpy(psong->image, block->data.picture.data, psong->image_size);
+			else
+				DPRINTF(E_ERROR, L_SCANNER, "Out of memory [%s]\n", filename);
+			break;
 		default:
 			break;
 		}
