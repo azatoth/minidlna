@@ -513,8 +513,8 @@ callback(void *args, int argc, char **argv, char **azColName)
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
-		/* We may need special handling for MIME types */
-		if( strncmp(mime, "video", 5) == 0 )
+		/* We may need special handling for certain MIME types */
+		if( *mime == 'v' )
 		{
 			switch( passed_args->client )
 			{
@@ -544,9 +544,9 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 			}
 		}
-		else if( !(passed_args->flags & FLAG_DLNA) )
+		else if( strncmp(mime+6, "L16", 3) == 0 )
 		{
-			if( strncmp(mime, "audio/L16", 9) == 0 )
+			if( !(passed_args->flags & FLAG_DLNA) || (passed_args->client == EPS3) )
 			{
 				strcpy(mime+6, "x-wav");
 			}
