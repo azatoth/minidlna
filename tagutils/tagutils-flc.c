@@ -76,6 +76,7 @@ _get_flctags(char *filename, struct song_metadata *psong)
 					block->data.vorbis_comment.comments[i].length);
 			}
 			break;
+#if FLAC_API_VERSION_CURRENT >= 10
 		case FLAC__METADATA_TYPE_PICTURE:
 			psong->image_size = block->data.picture.data_length;
 			if((psong->image = malloc(psong->image_size)))
@@ -83,6 +84,7 @@ _get_flctags(char *filename, struct song_metadata *psong)
 			else
 				DPRINTF(E_ERROR, L_SCANNER, "Out of memory [%s]\n", filename);
 			break;
+#endif
 		default:
 			break;
 		}
