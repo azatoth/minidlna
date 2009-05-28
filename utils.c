@@ -29,8 +29,8 @@
 int
 ends_with(const char * haystack, const char * needle)
 {
-	const char *found = strcasestr(haystack, needle);
-	return (found && found[strlen(needle)] == '\0');
+	const char * end = strrchr(haystack, *needle);
+	return (strcasecmp(end?end:"", needle) ? 0 : 1);
 }
 
 char *
