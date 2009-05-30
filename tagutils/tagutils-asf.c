@@ -61,7 +61,9 @@ _asf_read_audio_stream(FILE *fp, struct song_metadata *psong, int size)
 	{
 		case WMAV1:
 		case WMAV2:
-			if( psong->bitrate < 193000 )
+			if( (psong->bitrate/1000+1) >= 385 || psong->samplerate > 48000 )
+				asprintf(&(psong->dlna_pn), "WMAPRO");
+			else if( (psong->bitrate / 1000)+1 < 192 )
 				asprintf(&(psong->dlna_pn), "WMABASE");
 			else
 				asprintf(&(psong->dlna_pn), "WMAFULL");
@@ -105,7 +107,9 @@ _asf_read_media_stream(FILE *fp, struct song_metadata *psong, __u32 size)
 		{
 			case WMAV1:
 			case WMAV2:
-				if( psong->bitrate < 193000 )
+				if( (psong->bitrate/1000+1) >= 385 || psong->samplerate > 48000 )
+					asprintf(&(psong->dlna_pn), "WMAPRO");
+				else if( (psong->bitrate / 1000)+1 < 192 )
 					asprintf(&(psong->dlna_pn), "WMABASE");
 				else
 					asprintf(&(psong->dlna_pn), "WMAFULL");

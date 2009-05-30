@@ -244,6 +244,28 @@ _aac_lookforatom(FILE *aac_fp, char *atom_path, unsigned int *atom_length)
 	return ftell(aac_fp) - 8;
 }
 
+int
+_aac_check_extended_descriptor(FILE *infile)
+{
+	short int i;
+	unsigned char buf[3];
+
+	if( !fread((void *)&buf, 3, 1, infile) )
+		return -1;
+	for( i=0; i<3; i++ )
+	{
+		if( (buf[i] != 0x80) &&
+		    (buf[i] != 0x81) &&
+		    (buf[i] != 0xFE) )
+		{
+			fseek(infile, -3, SEEK_CUR);
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
 // _get_aacfileinfo
 int
 _get_aacfileinfo(char *file, struct song_metadata *psong)
@@ -302,28 +324,49 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 
 	psong->bitrate = 0;
 
+	// see if it is aac or alac
+	atom_offset = _aac_lookforatom(infile, "moov:trak:mdia:minf:stbl:stsd:alac", (unsigned int*)&atom_length);
+	if(atom_offset != -1) {
+		fseek(infile, atom_offset + 32, SEEK_SET);
+		fread(buffer, sizeof(unsigned char), 2, infile);
+
+		psong->samplerate = (buffer[0] << 8) | (buffer[1]);
+		goto bad_esds;
+	}
+
 	// get samplerate from 'mp4a' (not from 'mdhd')
 	atom_offset = _aac_lookforatom(infile, "moov:trak:mdia:minf:stbl:stsd:mp4a", (unsigned int*)&atom_length);
 	if(atom_offset != -1)
 	{
 		fseek(infile, atom_offset + 32, SEEK_SET);
-
 		fread(buffer, sizeof(unsigned char), 2, infile);
 
 		psong->samplerate = (buffer[0] << 8) | (buffer[1]);
 
 		fseek(infile, 2, SEEK_CUR);
 
-		// get bitrate fomr 'esds'
+		// get bitrate from 'esds'
 		atom_offset = _aac_findatom(infile, atom_length - (ftell(infile) - atom_offset), "esds", &atom_length);
 
 		if(atom_offset != -1)
 		{
-			fseek(infile, atom_offset + 26, SEEK_CUR); // +22 is max bitrate, +26 is average bitrate
+			// skip the version number
+			fseek(infile, atom_offset + 4, SEEK_CUR);
+			// should be 0x03, to signify the descriptor type (section)
+			fread((void *)&buffer, 1, 1, infile);
+			if( (buffer[0] != 0x03) || (_aac_check_extended_descriptor(infile) != 0) )
+				goto bad_esds;
+			fseek(infile, 4, SEEK_CUR);
+			fread((void *)&buffer, 1, 1, infile);
+			if( (buffer[0] != 0x04) || (_aac_check_extended_descriptor(infile) != 0) )
+				goto bad_esds;
+			fseek(infile, 10, SEEK_CUR); // 10 bytes into section 4 should be average bitrate.  max bitrate is 6 bytes in.
 			fread((void *)&bitrate, sizeof(unsigned int), 1, infile);
 			psong->bitrate = ntohl(bitrate);
-
-			fseek(infile, 5, SEEK_CUR); // 5 bytes past bitrate is setup data
+			fread((void *)&buffer, 1, 1, infile);
+			if( (buffer[0] != 0x05) || (_aac_check_extended_descriptor(infile) != 0) )
+				goto bad_esds;
+			fseek(infile, 1, SEEK_CUR); // 1 bytes into section 5 should be the setup data
 			fread((void *)&buffer, 2, 1, infile);
 			profile_id = (buffer[0] >> 3); // first 5 bits of setup data is the Audo Profile ID
 			/* Frequency index: (((buffer[0] & 0x7) << 1) | (buffer[1] >> 7))) */
@@ -331,6 +374,7 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 			psong->channels = (samples == 7 ? 8 : samples);
 		}
 	}
+bad_esds:
 
 	atom_offset = _aac_lookforatom(infile, "mdat", (unsigned int*)&atom_length);
 	psong->audio_size = atom_length - 8;
@@ -338,13 +382,14 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 
 	if(!psong->bitrate)
 	{
-		DPRINTF(E_DEBUG, L_SCANNER, "No 'esds' atom. Guess bitrate.\n");
+		/* Dont' scare people with this for now.  Could be Apple Lossless?
+		DPRINTF(E_DEBUG, L_SCANNER, "No 'esds' atom. Guess bitrate. [%s]\n", basename(file)); */
 		if((atom_offset != -1) && (psong->song_length))
 		{
 			psong->bitrate = atom_length * 1000 / psong->song_length / 128;
 		}
 		/* If this is an obviously wrong bitrate, try something different */
-		if((psong->bitrate < 16000) && (psong->song_length))
+		if((psong->bitrate < 16000) && (psong->song_length > 1000))
 		{
 			psong->bitrate = (file_size * 8) / (psong->song_length / 1000);
 		}
@@ -373,7 +418,7 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 				                             psong->channels, psong->bitrate);
 			break;
 		default:
-			DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC type [%d]\n", profile_id);
+			DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC type %d [%s]\n", profile_id, basename(file));
 			break;
 	}
 

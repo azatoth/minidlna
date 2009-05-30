@@ -257,7 +257,6 @@ int
 readtags(char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type)
 {
 	char *fname;
-	int found = 0;
 
 	if(lang_index == -1)
 		lang_index = _lang2cp(lang);
@@ -277,19 +276,11 @@ readtags(char *path, struct song_metadata *psong, struct stat *stat, char *lang,
 	}
 
 	// get tag
-	found |= _get_tags(path, psong);
-
-	// get fileinfo
-	found |= _get_fileinfo(path, psong);
-
-	//
-	if(!found)
+	if( _get_tags(path, psong) == 0 )
 	{
 		_make_composite_tags(psong);
-		return 0;
 	}
-	else
-	{
-		return -1;
-	}
+	
+	// get fileinfo
+	return _get_fileinfo(path, psong);
 }
