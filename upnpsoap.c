@@ -1048,6 +1048,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	{
 		SearchCriteria = modifyString(SearchCriteria, "&quot;", "\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&apos;", "'", 0);
+		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
 		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "glob", 1);
 		SearchCriteria = modifyString(SearchCriteria, "contains", "glob", 1);
 		SearchCriteria = modifyString(SearchCriteria, "dc:title", "d.TITLE", 0);
@@ -1058,11 +1059,18 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "exists true", "is not NULL", 0);
 		SearchCriteria = modifyString(SearchCriteria, "exists false", "is NULL", 0);
 		SearchCriteria = modifyString(SearchCriteria, "@refID", "REF_ID", 0);
-		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
-		#if 0
+		if( strstr(SearchCriteria, "@id") )
+		{
+			newSearchCriteria = modifyString(strdup(SearchCriteria), "@id", "OBJECT_ID", 0);
+			SearchCriteria = newSearchCriteria;
+		}
+		#if 0 // Does 360 need this?
 		if( strstr(SearchCriteria, "&amp;") )
 		{
-			newSearchCriteria = modifyString(strdup(SearchCriteria), "&amp;", "&amp;amp;", 0);
+			if( newSearchCriteria )
+				newSearchCriteria = modifyString(newSearchCriteria, "&amp;", "&amp;amp;", 0);
+			else
+				newSearchCriteria = modifyString(strdup(SearchCriteria), "&amp;", "&amp;amp;", 0);
 			SearchCriteria = newSearchCriteria;
 		}
 		#endif

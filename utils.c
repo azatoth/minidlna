@@ -64,7 +64,7 @@ modifyString(char * string, const char * before, const char * after, short like)
 			chgcnt++;
 			s = p+oldlen;
 		}
-		string = realloc(string, strlen(string)+((newlen-oldlen)*chgcnt)+1);
+		string = realloc(string, strlen(string)+((newlen-oldlen)*chgcnt)+1+like);
 	}
 
 	s = string;
@@ -73,9 +73,11 @@ modifyString(char * string, const char * before, const char * after, short like)
 		p = strcasestr(s, before);
 		if( !p )
 			return string;
+		memmove(p + newlen, p + oldlen, strlen(p + oldlen) + 1);
+		memcpy(p, after, newlen);
 		if( like )
 		{
-			t = p+oldlen;
+			t = p+newlen;
 			while( isspace(*t) )
 				t++;
 			if( *t == '"' )
@@ -84,12 +86,8 @@ modifyString(char * string, const char * before, const char * after, short like)
 			memmove(t+1, t, strlen(t)+1);
 			*t = '*';
 		}
-		memmove(p + newlen, p + oldlen, strlen(p + oldlen) + 1);
-		memcpy(p, after, newlen);
 		s = p + newlen;
 	}
-	if( newlen < oldlen )
-		string = realloc(string, strlen(string)+1);
 
 	return string;
 }
