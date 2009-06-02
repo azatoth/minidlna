@@ -203,14 +203,33 @@ end_art:
 }
 
 char *
-check_for_album_file(char * dir)
+check_for_album_file(char * dir, const char * path)
 {
 	char * file = malloc(PATH_MAX);
 	struct album_art_name_s * album_art_name;
-	image * imsrc;
+	image * imsrc = NULL;
 	int width=0, height=0;
 	char * art_file;
 
+	/* First look for file-specific cover art */
+	sprintf(file, "%s.cover.jpg", path);
+	if( access(file, R_OK) == 0 )
+	{
+		imsrc = image_new_from_jpeg(file, 1, NULL, 0);
+		if( imsrc )
+			goto found_file;
+	}
+	sprintf(file, "%s", path);
+	strip_ext(file);
+	strcat(file, ".jpg");
+	if( access(file, R_OK) == 0 )
+	{
+		imsrc = image_new_from_jpeg(file, 1, NULL, 0);
+		if( imsrc )
+			goto found_file;
+	}
+
+	/* Then fall back to possible generic cover art file names */
 	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
 	{
 		sprintf(file, "%s/%s", dir, album_art_name->name);
@@ -219,6 +238,7 @@ check_for_album_file(char * dir)
 			imsrc = image_new_from_jpeg(file, 1, NULL, 0);
 			if( !imsrc )
 				continue;
+found_file:
 			width = imsrc->width;
 			height = imsrc->height;
 			if( width > 160 || height > 160 )
@@ -246,7 +266,7 @@ find_album_art(const char * path, char * dlna_pn, const char * image_data, int i
 	char * mypath = strdup(path);
 
 	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
-	    (album_art = check_for_album_file(dirname(mypath))) )
+	    (album_art = check_for_album_file(dirname(mypath), path)) )
 	{
 		strcpy(dlna_pn, "JPEG_TN");
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
