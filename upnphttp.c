@@ -242,6 +242,10 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EStandardDLNA150;
 					h->reqflags |= FLAG_DLNA;
 				}
+				else if(strstr(p, "fbxupnpav/"))
+				{
+					h->req_client = EFreeBox;
+				}
 			}
 			else if(strncasecmp(line, "X-AV-Client-Info", 16)==0)
 			{
@@ -1076,6 +1080,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 	char **result;
 	int rows = 0;
 	char *path;
+	char *dash;
 	char date[30];
 	time_t curtime = time(NULL);
 	off_t offset = 0, size;
@@ -1090,8 +1095,11 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 		return;
 	}
 
-	strip_ext(object);
+	dash = strchr(object, '-');
+	if( dash )
+		*dash = '\0';
 	sprintf(sql_buf, "SELECT PATH from ALBUM_ART where ID = %s", object);
+printf("sql: %s\n", sql_buf);
 	sql_get_table(db, sql_buf, &result, &rows, NULL);
 	if( !rows )
 	{

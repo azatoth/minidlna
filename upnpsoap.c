@@ -606,9 +606,9 @@ callback(void *args, int argc, char **argv, char **azColName)
 			/* Video and audio album art is handled differently */
 			if( *mime == 'v' && (passed_args->filter & FILTER_RES) ) {
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN\"&gt;"
-				                       "http://%s:%d/AlbumArt/%s.jpg"
+				                       "http://%s:%d/AlbumArt/%s-%s.jpg"
 				                       "&lt;/res&gt;",
-				                       lan_addr[0].str, runtime_vars.port, album_art);
+				                       lan_addr[0].str, runtime_vars.port, album_art, detailID);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
@@ -621,15 +621,15 @@ callback(void *args, int argc, char **argv, char **azColName)
 					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 					passed_args->size += ret;
 				}
-				ret = sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
-						 lan_addr[0].str, runtime_vars.port, album_art);
+				ret = sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s-%s.jpg&lt;/upnp:albumArtURI&gt;",
+						 lan_addr[0].str, runtime_vars.port, album_art, detailID);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
 		}
 		if( passed_args->filter & FILTER_RES ) {
 			mime_to_ext(mime, ext);
-			if( tn && atoi(tn) && dlna_pn ) {
+			if( tn && atoi(tn) && (passed_args->client == EFreeBox) && dlna_pn ) {
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
 				                       "http://%s:%d/Thumbnails/%s.jpg"
 				                       "&lt;/res&gt;",
@@ -690,6 +690,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 			#endif
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
+			if( tn && atoi(tn) && (passed_args->client != EFreeBox) && dlna_pn ) {
+				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
+				                       "http://%s:%d/Thumbnails/%s.jpg"
+				                       "&lt;/res&gt;",
+				                       mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
 		}
 		ret = sprintf(str_buf, "&lt;/item&gt;");
 	}
@@ -756,8 +764,8 @@ callback(void *args, int argc, char **argv, char **azColName)
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
-			ret = sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s.jpg&lt;/upnp:albumArtURI&gt;",
-					 lan_addr[0].str, runtime_vars.port, album_art);
+			ret = sprintf(str_buf, "&gt;http://%s:%d/AlbumArt/%s-%s.jpg&lt;/upnp:albumArtURI&gt;",
+					 lan_addr[0].str, runtime_vars.port, album_art, detailID);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
