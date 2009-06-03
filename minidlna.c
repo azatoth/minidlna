@@ -266,7 +266,7 @@ init(int argc, char * * argv)
 	if( parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
 		n_lan_addr++;
 	runtime_vars.port = -1;
-	runtime_vars.notify_interval = 30;	/* seconds between SSDP announces */
+	runtime_vars.notify_interval = 895;	/* seconds between SSDP announces */
 
 	/* read options file first since
 	 * command line arguments have final say */
@@ -597,23 +597,17 @@ main(int argc, char * * argv)
 {
 	int i;
 	int sudp = -1, shttpl = -1;
-	int snotify[MAX_LAN_ADDR];
 	LIST_HEAD(httplisthead, upnphttp) upnphttphead;
 	struct upnphttp * e = 0;
 	struct upnphttp * next;
 	fd_set readset;	/* for select() */
 	fd_set writeset;
-	struct timeval timeout, timeofday, lasttimeofday = {0, 0}, lastupdatetime = {0, 0};
+	struct timeval timeout;
 	int max_fd = -1;
-	int last_changecnt = 0;
 	char * sql;
 	short int new_db = 0;
-	pthread_t thread[2];
-#ifdef TIVO_SUPPORT
-	unsigned short int loop_cnt = 0;
-	int sbeacon = -1;
-	struct sockaddr_in tivo_bcast;
-#endif
+	pthread_t thread[3];
+	struct sockets notify;
 
 	if(init(argc, argv) != 0)
 		return 1;
@@ -702,7 +696,7 @@ main(int argc, char * * argv)
 	DPRINTF(E_WARN, L_GENERAL, "HTTP listening on port %d\n", runtime_vars.port);
 
 	/* open socket for sending notifications */
-	if(OpenAndConfSSDPNotifySockets(snotify) < 0)
+	if(OpenAndConfSSDPNotifySockets(notify.snotify) < 0)
 	{
 		DPRINTF(E_FATAL, L_GENERAL, "Failed to open sockets for sending SSDP notify "
 	                "messages. EXITING\n");
@@ -718,91 +712,27 @@ main(int argc, char * * argv)
 			DPRINTF(E_ERROR, L_TIVO, "ERROR: Failed to add sqlite randomize function for TiVo!\n");
 		}
 		/* open socket for sending Tivo notifications */
-		sbeacon = OpenAndConfTivoBeaconSocket();
-		if(sbeacon < 0)
+		notify.sbeacon = OpenAndConfTivoBeaconSocket();
+		if(notify.sbeacon < 0)
 		{
 			DPRINTF(E_FATAL, L_GENERAL, "Failed to open sockets for sending Tivo beacon notify "
 		                "messages. EXITING\n");
 		}
-		tivo_bcast.sin_family = AF_INET;
-		tivo_bcast.sin_addr.s_addr = htonl(getBcastAddress());
-		tivo_bcast.sin_port = htons( 2190 );
+		memset(&notify.tivo_bcast.sin_zero, '\0', sizeof(notify.tivo_bcast.sin_zero));
+		notify.tivo_bcast.sin_family = AF_INET;
+		notify.tivo_bcast.sin_addr.s_addr = htonl(getBcastAddress());
+		notify.tivo_bcast.sin_port = htons( 2190 );
 	}
 	#endif
 
-	SendSSDPGoodbye(snotify, n_lan_addr);
+	SendSSDPGoodbye(notify.snotify, n_lan_addr);
 
+	notify.timeout = &timeout;
+	pthread_create(&thread[2], NULL, start_notify, &notify);
+	sleep(1);
 	/* main loop */
 	while(!quitting)
 	{
-		/* Check if we need to send SSDP NOTIFY messages and do it if
-		 * needed */
-		/* Also check if we need to increment our SystemUpdateID
-		 * at most once every 2 seconds */
-		if(gettimeofday(&timeofday, 0) < 0)
-		{
-			DPRINTF(E_ERROR, L_GENERAL, "gettimeofday(): %s\n", strerror(errno));
-			timeout.tv_sec = runtime_vars.notify_interval;
-			timeout.tv_usec = 0;
-		}
-		else
-		{
-			/* the comparaison is not very precise but who cares ? */
-			if(timeofday.tv_sec >= (lasttimeofday.tv_sec + runtime_vars.notify_interval))
-			{
-				SendSSDPNotifies2(snotify,
-			                  (unsigned short)runtime_vars.port,
-			                  (runtime_vars.notify_interval << 1)+10);
-				memcpy(&lasttimeofday, &timeofday, sizeof(struct timeval));
-				timeout.tv_sec = runtime_vars.notify_interval;
-				timeout.tv_usec = 0;
-			}
-			else
-			{
-				timeout.tv_sec = lasttimeofday.tv_sec + runtime_vars.notify_interval
-				                 - timeofday.tv_sec;
-				if(timeofday.tv_usec > lasttimeofday.tv_usec)
-				{
-					timeout.tv_usec = 1000000 + lasttimeofday.tv_usec
-					                  - timeofday.tv_usec;
-					timeout.tv_sec--;
-				}
-				else
-				{
-					timeout.tv_usec = lasttimeofday.tv_usec - timeofday.tv_usec;
-				}
-			}
-			if(timeofday.tv_sec >= (lastupdatetime.tv_sec + 2))
-			{
-				if( sqlite3_total_changes(db) != last_changecnt )
-				{
-					updateID++;
-					last_changecnt = sqlite3_total_changes(db);
-					upnp_event_var_change_notify(EContentDirectory);
-				}
-				#ifdef TIVO_SUPPORT
-				if( GETFLAG(TIVOMASK) )
-				{
-					if( loop_cnt < 10 )
-					{
-   						sendBeaconMessage(sbeacon, &tivo_bcast, sizeof(struct sockaddr_in), 1);
-						loop_cnt++;
-					}
-					else
-					{
-   						if( loop_cnt == 30 )
-						{
-							sendBeaconMessage(sbeacon, &tivo_bcast, sizeof(struct sockaddr_in), 1);
-							loop_cnt = 10;
-						}
-						loop_cnt++;
-					}
-				}
-				#endif
-				memcpy(&lastupdatetime, &timeofday, sizeof(struct timeval));
-			}
-		}
-
 		/* select open sockets (SSDP, HTTP listen, and all HTTP soap sockets) */
 		FD_ZERO(&readset);
 
@@ -923,15 +853,15 @@ shutdown:
 	if (sudp >= 0) close(sudp);
 	if (shttpl >= 0) close(shttpl);
 	#ifdef TIVO_SUPPORT
-	if (sbeacon >= 0) close(sbeacon);
+	if (notify.sbeacon >= 0) close(notify.sbeacon);
 	#endif
 	
-	if(SendSSDPGoodbye(snotify, n_lan_addr) < 0)
+	if(SendSSDPGoodbye(notify.snotify, n_lan_addr) < 0)
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "Failed to broadcast good-bye notifications\n");
 	}
 	for(i=0; i<n_lan_addr; i++)
-		close(snotify[i]);
+		close(notify.snotify[i]);
 
 	asprintf(&sql, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
 	sql_exec(db, sql);

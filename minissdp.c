@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 #include <errno.h>
 
 #include "config.h"
@@ -19,6 +20,8 @@
 #include "minidlnapath.h"
 #include "upnphttp.h"
 #include "upnpglobalvars.h"
+#include "upnpevents.h"
+#include "tivo_beacon.h"
 #include "minissdp.h"
 #include "log.h"
 
@@ -211,7 +214,7 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname, int st_no,
 	 * follow guideline from document "UPnP Device Architecture 1.0"
 	 * put in uppercase.
 	 * DATE: is recommended
-	 * SERVER: OS/ver UPnP/1.0 miniupnpd/1.0
+	 * SERVER: OS/ver UPnP/1.0 minidlna/1.0
 	 * - check what to put in the 'Cache-Control' header 
 	 * */
 	char   szTime[30];
@@ -219,7 +222,7 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname, int st_no,
 	strftime(szTime, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&tTime));
 
 	l = snprintf(buf, sizeof(buf), "HTTP/1.1 200 OK\r\n"
-		"CACHE-CONTROL: max-age=1810\r\n"
+		"CACHE-CONTROL: max-age=%u\r\n"
 		"DATE: %s\r\n"
 		"ST: %s%s\r\n"
 		"USN: %s%s%s%s\r\n"
@@ -228,6 +231,7 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname, int st_no,
 		"LOCATION: http://%s:%u" ROOTDESC_PATH "\r\n"
 		"Content-Length: 0\r\n"
 		"\r\n",
+		(runtime_vars.notify_interval<<1)+10,
 		szTime,
 		known_service_types[st_no], (st_no>1?"1":""),
 		uuidvalue, (st_no>0?"::":""), (st_no>0?known_service_types[st_no]:""), (st_no>1?"1":""),
@@ -463,35 +467,118 @@ SendSSDPGoodbye(int * sockets, int n_sockets)
 	int i, j;
 	char bufr[512];
 
-    memset(&sockname, 0, sizeof(struct sockaddr_in));
-    sockname.sin_family = AF_INET;
-    sockname.sin_port = htons(SSDP_PORT);
-    sockname.sin_addr.s_addr = inet_addr(SSDP_MCAST_ADDR);
+	memset(&sockname, 0, sizeof(struct sockaddr_in));
+	sockname.sin_family = AF_INET;
+	sockname.sin_port = htons(SSDP_PORT);
+	sockname.sin_addr.s_addr = inet_addr(SSDP_MCAST_ADDR);
 
 	for(j=0; j<n_sockets; j++)
 	{
-	    for(i=0; known_service_types[i]; i++)
-	    {
-	        l = snprintf(bufr, sizeof(bufr),
-	                 "NOTIFY * HTTP/1.1\r\n"
-	                 "HOST:%s:%d\r\n"
-	                 "NT:%s%s\r\n"
-	                 "USN:%s%s%s%s\r\n"
-	                 "NTS:ssdp:byebye\r\n"
-	                 "\r\n",
-	                 SSDP_MCAST_ADDR, SSDP_PORT,
-			 known_service_types[i], (i>1?"1":""),
-	                 uuidvalue, (i>0?"::":""), (i>0?known_service_types[i]:""), (i>1?"1":"") );
-		//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Sending NOTIFY:\n%s", bufr);
-		n = sendto(sockets[j], bufr, l, 0,
-	                   (struct sockaddr *)&sockname, sizeof(struct sockaddr_in) );
-		if(n < 0)
+		for(i=0; known_service_types[i]; i++)
 		{
-			DPRINTF(E_ERROR, L_SSDP, "sendto(udp_shutdown=%d): %s\n", sockets[j], strerror(errno));
-			return -1;
+			l = snprintf(bufr, sizeof(bufr),
+			             "NOTIFY * HTTP/1.1\r\n"
+			             "HOST:%s:%d\r\n"
+			             "NT:%s%s\r\n"
+			             "USN:%s%s%s%s\r\n"
+			             "NTS:ssdp:byebye\r\n"
+			             "\r\n",
+			             SSDP_MCAST_ADDR, SSDP_PORT,
+			             known_service_types[i], (i>1?"1":""),
+			             uuidvalue, (i>0?"::":""), (i>0?known_service_types[i]:""), (i>1?"1":"") );
+			//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Sending NOTIFY:\n%s", bufr);
+			n = sendto(sockets[j], bufr, l, 0,
+			           (struct sockaddr *)&sockname, sizeof(struct sockaddr_in) );
+			if(n < 0)
+			{
+				DPRINTF(E_ERROR, L_SSDP, "sendto(udp_shutdown=%d): %s\n", sockets[j], strerror(errno));
+				return -1;
+			}
 		}
-    	    }
 	}
 	return 0;
 }
 
+void *
+start_notify(void * arg)
+{
+        struct sockets *s = (struct sockets *)arg;
+	struct timeval timeofday, lasttimeofday = {0, 0}, lastupdatetime = {0, 0};
+	int last_changecnt = 0;
+#ifdef TIVO_SUPPORT
+	short int loop_cnt = 0;
+#endif
+
+	while(1)
+	{
+		/* Check if we need to send SSDP NOTIFY messages and do it if needed */
+		/* Also check if we need to increment our SystemUpdateID
+		 * at most once every 2 seconds */
+		if(gettimeofday(&timeofday, 0) < 0)
+		{
+			DPRINTF(E_ERROR, L_GENERAL, "gettimeofday(): %s\n", strerror(errno));
+			s->timeout->tv_sec = runtime_vars.notify_interval;
+			s->timeout->tv_usec = 0;
+			sleep(2);
+			continue;
+		}
+		/* the comparaison is not very precise but who cares ? */
+		if(timeofday.tv_sec >= (lasttimeofday.tv_sec + runtime_vars.notify_interval))
+		{
+			SendSSDPNotifies2(s->snotify,
+		                  runtime_vars.port,
+		                  (runtime_vars.notify_interval << 1)+10);
+			memcpy(&lasttimeofday, &timeofday, sizeof(struct timeval));
+			s->timeout->tv_sec = runtime_vars.notify_interval;
+			s->timeout->tv_usec = 0;
+		}
+		else
+		{
+			s->timeout->tv_sec = lasttimeofday.tv_sec + runtime_vars.notify_interval
+			                 - timeofday.tv_sec;
+			if(timeofday.tv_usec > lasttimeofday.tv_usec)
+			{
+				s->timeout->tv_usec = 1000000 + lasttimeofday.tv_usec
+				                  - timeofday.tv_usec;
+				s->timeout->tv_sec--;
+			}
+			else
+			{
+				s->timeout->tv_usec = lasttimeofday.tv_usec - timeofday.tv_usec;
+			}
+		}
+		if(timeofday.tv_sec >= (lastupdatetime.tv_sec + 2))
+		{
+			if( sqlite3_total_changes(db) != last_changecnt )
+			{
+				updateID++;
+				last_changecnt = sqlite3_total_changes(db);
+				upnp_event_var_change_notify(EContentDirectory);
+			}
+#ifdef TIVO_SUPPORT
+			if( GETFLAG(TIVOMASK) )
+			{
+				if( loop_cnt < 20 )
+				{
+					if(loop_cnt % 3 == 0)
+   						sendBeaconMessage(s->sbeacon, &(s->tivo_bcast), sizeof(struct sockaddr_in), 1);
+					loop_cnt++;
+				}
+				else
+				{
+   					if( loop_cnt == 50 )
+					{
+						sendBeaconMessage(s->sbeacon, &(s->tivo_bcast), sizeof(struct sockaddr_in), 1);
+						loop_cnt = 20;
+					}
+					loop_cnt++;
+				}
+			}
+#endif
+			memcpy(&lastupdatetime, &timeofday, sizeof(struct timeval));
+		}
+		sleep(1);
+	}
+
+	return NULL;
+}

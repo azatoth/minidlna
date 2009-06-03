@@ -8,6 +8,16 @@
 
 /*#include "minidlnatypes.h"*/
 
+struct sockets
+{
+	int snotify[MAX_LAN_ADDR];
+#ifdef TIVO_SUPPORT
+	int sbeacon;
+	struct sockaddr_in tivo_bcast;
+#endif
+	struct timeval *timeout;
+};
+
 int
 OpenAndConfSSDPReceiveSocket();
 /* OpenAndConfSSDPReceiveSocket(int n_lan_addr, struct lan_addr_s * lan_addr);*/
@@ -38,6 +48,9 @@ ProcessSSDPRequest(int s, unsigned short port);
 
 int
 SendSSDPGoodbye(int * sockets, int n);
+
+void *
+start_notify(void * arg);
 
 #endif
 
