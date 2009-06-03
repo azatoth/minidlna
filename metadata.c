@@ -27,6 +27,7 @@
 #include <fcntl.h>
 
 #include <libexif/exif-loader.h>
+#include "image_utils.h"
 #include <jpeglib.h>
 #include <setjmp.h>
 #include <avutil.h>
@@ -345,6 +346,7 @@ GetImageMetadata(const char * path, char * name)
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
+	image * imsrc;
 	metadata_t m;
 	memset(&m, '\0', sizeof(metadata_t));
 
@@ -410,9 +412,25 @@ GetImageMetadata(const char * path, char * name)
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * model: %s\n", model);
 
 	if( ed->size )
-		thumb = 1;
-	else
-		thumb = 0;
+	{
+		/* We might need to verify that the thumbnail is 160x160 or smaller */
+		if( ed->size > 12000 )
+		{
+			imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size);
+			if( imsrc )
+			{
+ 				if( (imsrc->width <= 160) && (imsrc->height <= 160) )
+				{
+					thumb = 1;
+				}
+				image_free(imsrc);
+			}
+		}
+		else
+		{
+			thumb = 1;
+		}
+	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * thumbnail: %d\n", thumb);
 
 	exif_data_unref(ed);
