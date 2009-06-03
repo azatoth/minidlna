@@ -82,6 +82,8 @@ struct upnphttp {
 #define FLAG_XFERBACKGROUND     0x00004000
 
 #define FLAG_DLNA               0x00100000
+#define FLAG_MIME_AVI_DIVX      0x00200000
+#define FLAG_MIME_AVI_AVI       0x00400000
 
 /* New_upnphttp() */
 struct upnphttp *

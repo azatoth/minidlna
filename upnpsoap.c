@@ -516,25 +516,22 @@ callback(void *args, int argc, char **argv, char **azColName)
 		/* We may need special handling for certain MIME types */
 		if( *mime == 'v' )
 		{
-			switch( passed_args->client )
+			if( passed_args->flags & FLAG_MIME_AVI_DIVX )
 			{
-				case EPS3:
-					if( strcmp(mime, "video/x-msvideo") == 0 )
-					{
-						if( creator )
-							strcpy(mime+6, "divx");
-						else
-							strcpy(mime+6, "avi");
-					}
-					break;
-				case EXbox:
-					if( strcmp(mime, "video/x-msvideo") == 0 )
-					{
+				if( strcmp(mime, "video/x-msvideo") == 0 )
+				{
+					if( creator )
+						strcpy(mime+6, "divx");
+					else
 						strcpy(mime+6, "avi");
-					}
-					break;
-				default:
-					break;
+				}
+			}
+			else if( passed_args->flags & FLAG_MIME_AVI_AVI )
+			{
+				if( strcmp(mime, "video/x-msvideo") == 0 )
+				{
+					strcpy(mime+6, "avi");
+				}
 			}
 			if( !(passed_args->flags & FLAG_DLNA) )
 			{
