@@ -32,6 +32,7 @@ enum client_types {
 	EXbox = 1,
 	EPS3,
 	ESamsungTV,
+	EDenonReceiver,
 	EFreeBox,
 	EStandardDLNA150 = 100
 };

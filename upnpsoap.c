@@ -543,9 +543,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 		}
 		else if( strncmp(mime+6, "L16", 3) == 0 )
 		{
-			if( !(passed_args->flags & FLAG_DLNA) || (passed_args->client == EPS3) )
+			if( !(passed_args->flags & FLAG_DLNA) || (passed_args->flags & FLAG_MIME_WAV_WAV) )
 			{
 				strcpy(mime+6, "x-wav");
+			}
+			if( !(passed_args->flags & FLAG_DLNA) || (passed_args->flags & FLAG_WAV_NO_DLNA) )
+			{
+				strcpy(dlna_buf, "*");
 			}
 		}
 
