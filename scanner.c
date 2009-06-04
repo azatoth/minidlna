@@ -710,6 +710,7 @@ filter_audio(const struct dirent *d)
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
 	          (d->d_type == DT_LNK) ||
+	          (d->d_type == DT_UNKNOWN) ||
 		  ((d->d_type == DT_REG) &&
 		   is_audio(d->d_name) )
 	       ) );
@@ -721,6 +722,7 @@ filter_video(const struct dirent *d)
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
 	          (d->d_type == DT_LNK) ||
+	          (d->d_type == DT_UNKNOWN) ||
 		  ((d->d_type == DT_REG) &&
 		   is_video(d->d_name) )
 	       ) );
@@ -732,6 +734,7 @@ filter_images(const struct dirent *d)
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
 	          (d->d_type == DT_LNK) ||
+	          (d->d_type == DT_UNKNOWN) ||
 		  ((d->d_type == DT_REG) &&
 		   is_image(d->d_name) )
 	       ) );
@@ -743,6 +746,7 @@ filter_media(const struct dirent *d)
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
 	          (d->d_type == DT_LNK) ||
+	          (d->d_type == DT_UNKNOWN) ||
 	          ((d->d_type == DT_REG) &&
 	           (is_image(d->d_name) ||
 	            is_audio(d->d_name) ||
@@ -755,7 +759,7 @@ filter_media(const struct dirent *d)
 #define TYPE_DIR    1
 #define TYPE_FILE   2
 unsigned char
-resolve_link(const char * path, enum media_types dir_type)
+resolve_unknown_type(const char * path, enum media_types dir_type)
 {
 	struct stat entry;
 	unsigned char type = TYPE_OTHER;
@@ -855,7 +859,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 		}
 		else
 		{
-			type = resolve_link(full_path, dir_type);
+			type = resolve_unknown_type(full_path, dir_type);
 		}
 		if( type == TYPE_DIR )
 		{
