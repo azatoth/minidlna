@@ -28,4 +28,16 @@ strip_ext(char * name);
 int
 make_dir(char * path, mode_t mode);
 
+int
+is_video(const char * file);
+
+int
+is_audio(const char * file);
+
+int
+is_image(const char * file);
+
+int
+resolve_unknown_type(const char * path, enum media_types dir_type);
+
 #endif

@@ -25,7 +25,14 @@ enum media_types {
 	ALL_MEDIA,
 	AUDIO_ONLY,
 	VIDEO_ONLY,
-	IMAGES_ONLY
+	IMAGES_ONLY,
+	NO_MEDIA
+};
+
+enum file_types {
+	TYPE_UNKNOWN,
+	TYPE_DIR,
+	TYPE_FILE
 };
 
 enum client_types {

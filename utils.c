@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "minidlnatypes.h"
+
 int
 ends_with(const char * haystack, const char * needle)
 {
@@ -161,3 +163,79 @@ make_dir(char * path, mode_t mode)
 	printf("make_dir: cannot create directory '%s'", path);
 	return -1;
 }
+
+int
+is_video(const char * file)
+{
+	return (ends_with(file, ".mpg") || ends_with(file, ".mpeg")  ||
+		ends_with(file, ".avi") || ends_with(file, ".divx")  ||
+		ends_with(file, ".asf") || ends_with(file, ".wmv")   ||
+		ends_with(file, ".mp4") || ends_with(file, ".m4v")   ||
+		ends_with(file, ".mts") || ends_with(file, ".m2ts")  ||
+		ends_with(file, ".m2t") || ends_with(file, ".mkv")   ||
+		ends_with(file, ".vob") || ends_with(file, ".ts")    ||
+		#ifdef TIVO_SUPPORT
+		ends_with(file, ".TiVo") ||
+		#endif
+		ends_with(file, ".flv") || ends_with(file, ".xvid"));
+}
+
+int
+is_audio(const char * file)
+{
+	return (ends_with(file, ".mp3") || ends_with(file, ".flac") ||
+		ends_with(file, ".wma") || ends_with(file, ".asf")  ||
+		ends_with(file, ".fla") || ends_with(file, ".flc")  ||
+		ends_with(file, ".m4a") || ends_with(file, ".aac")  ||
+		ends_with(file, ".mp4") || ends_with(file, ".m4p")  ||
+		ends_with(file, ".wav"));
+}
+
+int
+is_image(const char * file)
+{
+	return (ends_with(file, ".jpg") || ends_with(file, ".jpeg"));
+}
+
+int
+resolve_unknown_type(const char * path, enum media_types dir_type)
+{
+	struct stat entry;
+	unsigned char type = TYPE_UNKNOWN;
+
+	if( stat(path, &entry) == 0 )
+	{
+		if( S_ISDIR(entry.st_mode) )
+		{
+			type = TYPE_DIR;
+		}
+		else if( S_ISREG(entry.st_mode) )
+		{
+			switch( dir_type )
+			{
+				case ALL_MEDIA:
+					if( is_image(path) ||
+					    is_audio(path) ||
+					    is_video(path) )
+						type = TYPE_FILE;
+					break;
+				case AUDIO_ONLY:
+					if( is_audio(path) )
+						type = TYPE_FILE;
+					break;
+				case VIDEO_ONLY:
+					if( is_video(path) )
+						type = TYPE_FILE;
+					break;
+				case IMAGES_ONLY:
+					if( is_image(path) )
+						type = TYPE_FILE;
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	return type;
+}
+

@@ -234,7 +234,8 @@ int add_dir_watch(int fd, char * path, char * filename)
 			if( strcmp(e->d_name, ".") == 0 ||
 			    strcmp(e->d_name, "..") == 0 )
 				continue;
-			if( e->d_type == DT_DIR )
+			if( (e->d_type == DT_DIR) ||
+			    (e->d_type == DT_UNKNOWN && resolve_unknown_type(buf, NO_MEDIA) == TYPE_DIR) )
 				i += add_dir_watch(fd, buf, e->d_name);
 		}
 	}
@@ -383,6 +384,9 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	char *id=NULL, *path_buf, *parent_buf, *esc_name;
 	int wd;
 	int rows, i = 0;
+	enum file_types type = TYPE_UNKNOWN;
+	enum media_types dir_type = ALL_MEDIA;
+	struct media_dir_s * media_path;
 
  	parent_buf = dirname(strdup(path));
 	sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
@@ -406,6 +410,17 @@ inotify_insert_directory(int fd, char *name, const char * path)
 		DPRINTF(E_INFO, L_INOTIFY, "Added watch to %s [%d]\n", path, wd);
 	}
 
+	media_path = media_dirs;
+	while( media_path )
+	{
+		if( strncmp(path, media_path->path, strlen(media_path->path)) == 0 )
+		{
+			dir_type = media_path->type;
+			break;
+		}
+		media_path = media_path->next;
+	}
+
 	ds = opendir(path);
 	if( ds != NULL )
 	{
@@ -418,11 +433,21 @@ inotify_insert_directory(int fd, char *name, const char * path)
 			if( !esc_name )
 				esc_name = strdup(e->d_name);
 			asprintf(&path_buf, "%s/%s", path, e->d_name);
-			if( e->d_type == DT_DIR )
+			switch( e->d_type )
+			{
+				case DT_DIR:
+				case DT_REG:
+				case DT_LNK:
+				case DT_UNKNOWN:
+					type = resolve_unknown_type(path_buf, dir_type);
+				default:
+					break;
+			}
+			if( type == TYPE_DIR )
 			{
 				inotify_insert_directory(fd, esc_name, path_buf);
 			}
-			else if( e->d_type == DT_REG )
+			else if( type == TYPE_FILE )
 			{
 				inotify_insert_file(esc_name, path_buf);
 			}
