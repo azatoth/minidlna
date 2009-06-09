@@ -723,6 +723,10 @@ main(int argc, char * * argv)
 		notify.tivo_bcast.sin_addr.s_addr = htonl(getBcastAddress());
 		notify.tivo_bcast.sin_port = htons( 2190 );
 	}
+	else
+	{
+		notify.sbeacon = -1;
+	}
 	#endif
 
 	SendSSDPGoodbye(notify.snotify, n_lan_addr);
