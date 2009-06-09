@@ -161,7 +161,7 @@ ParseHttpHeaders(struct upnphttp * h)
 			else if(strncasecmp(line, "SID", 3)==0)
 			{
 				//zqiu: fix bug for test 4.0.5
-				//Skip the extra header like "SIDHEADER: xxxxxx xxx"
+				//Skip extra headers like "SIDHEADER: xxxxxx xxx"
 				for(p=line+3;p<colon;p++)
 				{
 					if(!isspace(*p))
@@ -842,6 +842,8 @@ Process_upnphttp(struct upnphttp * h)
 			h->req_buflen += n;
 			if((h->req_buflen - h->req_contentoff) >= h->req_contentlen)
 			{
+				/* Need the struct to point to the realloc'd memory locations */
+				ParseHttpHeaders(h);
 				if( h->state == 1 )
 					ProcessHTTPPOST_upnphttp(h);
 				else if( h->state == 2 )
