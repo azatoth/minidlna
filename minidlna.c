@@ -147,14 +147,14 @@ parselanaddr(struct lan_addr_s * lan_addr, const char * str)
 	}
 	if(n>15)
 	{
-		fprintf(stderr, "Error parsing address/mask : %s\n", str);
+		DPRINTF(E_OFF, L_GENERAL, "Error parsing address/mask: %s\n", str);
 		return -1;
 	}
 	memcpy(lan_addr->str, str, n);
 	lan_addr->str[n] = '\0';
 	if(!inet_aton(lan_addr->str, &lan_addr->addr))
 	{
-		fprintf(stderr, "Error parsing address/mask : %s\n", str);
+		DPRINTF(E_OFF, L_GENERAL, "Error parsing address/mask: %s\n", str);
 		return -1;
 	}
 	lan_addr->mask.s_addr = htonl(nbits ? (0xffffffff << (32 - nbits)) : 0);
@@ -210,6 +210,7 @@ init(int argc, char * * argv)
 	char * string, * word;
 	enum media_types type;
 	char * path;
+	char ext_ip_addr[INET_ADDRSTRLEN] = {'\0'};
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -226,7 +227,7 @@ init(int argc, char * * argv)
 	if( (getifhwaddr("eth0", mac_str, 64) < 0) &&
 	    (getifhwaddr("eth1", mac_str, 64) < 0) )
 	{
-		DPRINTF(E_WARN, L_GENERAL, "No MAC address found.  Falling back to generic UUID.\n");
+		DPRINTF(E_OFF, L_GENERAL, "No MAC address found.  Falling back to generic UUID.\n");
 		strcpy(mac_str, "554e4b4e4f57");
 	}
 	strcpy(uuidvalue+5, "4d696e69-444c-164e-9d41-");
@@ -235,16 +236,6 @@ init(int argc, char * * argv)
 
 	getfriendlyname(friendly_name, FRIENDLYNAME_MAX_LEN);
 	
-	char ext_ip_addr[INET_ADDRSTRLEN];
-	if( (getsysaddr(ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
-	    (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
-	    (getifaddr("eth1", ext_ip_addr, INET_ADDRSTRLEN) < 0) )
-	{
-		printf("No IP!\n");
-		return 1;
-	}
-	if( parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
-		n_lan_addr++;
 	runtime_vars.port = -1;
 	runtime_vars.notify_interval = 895;	/* seconds between SSDP announces */
 
@@ -469,10 +460,25 @@ init(int argc, char * * argv)
 			fprintf(stderr, "Unknown option: %s\n", argv[i]);
 		}
 	}
+	/* If no IP was specified, try to detect one */
+	if( n_lan_addr < 1 )
+	{
+		if( (getsysaddr(ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
+		    (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
+		    (getifaddr("eth1", ext_ip_addr, INET_ADDRSTRLEN) < 0) )
+		{
+			DPRINTF(E_OFF, L_GENERAL, "No IP address automatically detected!\n");
+		}
+		if( *ext_ip_addr && parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
+		{
+			n_lan_addr++;
+		}
+	}
+
 	if( (n_lan_addr==0) || (runtime_vars.port<=0) )
 	{
 		fprintf(stderr, "Usage:\n\t"
-		        "%s [-f config_file] [-i ext_ifname] [-o ext_ip]\n"
+		        "%s [-f config_file]\n"
 				"\t\t[-a listening_ip] [-p port] [-d]\n"
 				/*"[-l logfile] " not functionnal */
 				"\t\t[-s serial] [-m model_number] \n"
@@ -675,7 +681,7 @@ main(int argc, char * * argv)
 	                "messages. EXITING\n");
 	}
 
-	#ifdef TIVO_SUPPORT
+#ifdef TIVO_SUPPORT
 	if( GETFLAG(TIVOMASK) )
 	{
 		DPRINTF(E_WARN, L_GENERAL, "TiVo support is enabled.\n");
@@ -693,13 +699,13 @@ main(int argc, char * * argv)
 		}
 		tivo_bcast.sin_family = AF_INET;
 		tivo_bcast.sin_addr.s_addr = htonl(getBcastAddress());
-		tivo_bcast.sin_port = htons( 2190 );
+		tivo_bcast.sin_port = htons(2190);
 	}
 	else
 	{
 		sbeacon = -1;
 	}
-	#endif
+#endif
 
 	SendSSDPGoodbye(snotify, n_lan_addr);
 

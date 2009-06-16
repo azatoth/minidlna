@@ -98,31 +98,39 @@ OpenAndConfTivoBeaconSocket()
 /*
  * Returns the interface broadcast address to be used for beacons
  */
-uint32_t getBcastAddress( void )
+uint32_t
+getBcastAddress(void)
 {
-	struct ifreq        ifr;
-	struct sockaddr_in *sin;
-	int                 s, rval;
+	int i, rval;
+	int s = socket(PF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in sin;
+	struct sockaddr_in addr;
+	struct ifreq ifr;
 
-	s = socket( AF_INET, SOCK_DGRAM, 0 );
-	if ( s < 0 )
+	for (i=1; i > 0; i++)
 	{
-		return INADDR_BROADCAST;
+		ifr.ifr_ifindex = i;
+		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
+			break;
+		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
+			continue;
+		memcpy(&addr, &ifr.ifr_addr, sizeof(addr));
+		if(strcmp(inet_ntoa(addr.sin_addr), lan_addr[0].str) == 0)
+		{
+			rval = ioctl(s, SIOCGIFBRDADDR, &ifr);
+			if( rval < 0 )
+			{
+				close(s);
+				return INADDR_BROADCAST;
+			}
+			memcpy(&sin, &ifr.ifr_broadaddr, sizeof(sin));
+			close(s);
+			DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s \n", ifr.ifr_name, inet_ntoa(sin.sin_addr));
+			return ntohl((uint32_t)(sin.sin_addr.s_addr));
+		}
 	}
 
-	strcpy( ifr.ifr_name, "eth0" );
-	rval = ioctl( s, SIOCGIFBRDADDR, &ifr );
-	if ( rval < 0 )
-	{
-		close(s);
-		return INADDR_BROADCAST;
-	}
-
-	sin = (struct sockaddr_in *)&ifr.ifr_broadaddr;
-	close(s);
-	DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s \n", "eth0", inet_ntoa(sin->sin_addr) );
-
-	return ntohl((uint32_t)(sin->sin_addr.s_addr));
+	return INADDR_BROADCAST;
 }
 
 /*

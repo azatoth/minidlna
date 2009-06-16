@@ -62,30 +62,32 @@ getsysaddr(char * buf, int len)
 {
 	int i;
 	int s = socket(PF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in addr;
+	struct ifreq ifr;
+	int ret = -1;
 
 	for (i=1; i > 0; i++)
 	{
-		struct ifreq ifr;
-		struct sockaddr_in *addr = (struct sockaddr_in *) &ifr.ifr_addr;
-
 		ifr.ifr_ifindex = i;
 		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
 			break;
 		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
 			continue;
-		if(strncmp(inet_ntoa(addr->sin_addr), "127.", 4) == 0)
+		memcpy(&addr, &ifr.ifr_addr, sizeof(addr));
+		if(strncmp(inet_ntoa(addr.sin_addr), "127.", 4) == 0)
 			continue;
-		if(!inet_ntop(AF_INET, &addr->sin_addr, buf, len))
+		if(!inet_ntop(AF_INET, &addr.sin_addr, buf, len))
 		{
 			DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));
 			close(s);
-			return -1;
+			break;
 		}
+		ret = 0;
 		break;
 	}
 	close(s);
 
-	return 0;
+	return(ret);
 }
 
 int

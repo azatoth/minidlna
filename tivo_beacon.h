@@ -24,8 +24,8 @@ struct aBeacon
    struct aBeacon*      next;
 };
 
-
-uint32_t getBcastAddress( void );
+uint32_t
+getBcastAddress();
 
 int
 OpenAndConfTivoBeaconSocket();
