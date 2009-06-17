@@ -7,6 +7,7 @@
 #include <libgen.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #ifdef HAVE_INOTIFY_H
@@ -588,9 +589,10 @@ start_inotify()
 {
 	int fd;
 	char buffer[BUF_LEN];
+	char path_buf[PATH_MAX];
 	int length, i = 0;
 	char * esc_name = NULL;
-	char * path_buf = NULL;
+	struct stat st;
         
 	fd = inotify_init();
 
@@ -626,7 +628,7 @@ start_inotify()
 					continue;
 				}
 				esc_name = modifyString(strdup(event->name), "&", "&amp;amp;", 0);
-				asprintf(&path_buf, "%s/%s", get_path_from_wd(event->wd), event->name);
+				sprintf(path_buf, "%s/%s", get_path_from_wd(event->wd), event->name);
 				if ( (event->mask & IN_CREATE && event->mask & IN_ISDIR) ||
 				     (event->mask & IN_MOVED_TO && event->mask & IN_ISDIR) )
 				{
@@ -635,8 +637,11 @@ start_inotify()
 				}
 				else if ( event->mask & IN_CLOSE_WRITE || event->mask & IN_MOVED_TO )
 				{
-					DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
-					inotify_insert_file(esc_name, path_buf);
+					if( stat(path_buf, &st) == 0 && st.st_size > 0 )
+					{
+						DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
+						inotify_insert_file(esc_name, path_buf);
+					}
 				}
 				else if ( event->mask & IN_DELETE || event->mask & IN_MOVED_FROM )
 				{
@@ -652,7 +657,6 @@ start_inotify()
 					}
 				}
 				free(esc_name);
-				free(path_buf);
 			}
 			i += EVENT_SIZE + event->len;
 		}
