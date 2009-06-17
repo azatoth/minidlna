@@ -605,7 +605,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		if( album_art && atoi(album_art) )
 		{
 			/* Video and audio album art is handled differently */
-			if( *mime == 'v' && (passed_args->filter & FILTER_RES) ) {
+			if( *mime == 'v' && (passed_args->filter & FILTER_RES) && (passed_args->client != EXbox) ) {
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN\"&gt;"
 				                       "http://%s:%d/AlbumArt/%s-%s.jpg"
 				                       "&lt;/res&gt;",
