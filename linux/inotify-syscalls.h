@@ -15,6 +15,22 @@
 # define __NR_inotify_init	275
 # define __NR_inotify_add_watch	276
 # define __NR_inotify_rm_watch	277
+#elif defined (__mips__)
+# if _MIPS_SIM == _MIPS_SIM_ABI32
+#  define __NR_inotify_init (__NR_Linux + 284)
+#  define __NR_inotify_add_watch (__NR_Linux + 285)
+#  define __NR_inotify_rm_watch (__NR_Linux + 286)
+# endif
+# if _MIPS_SIM == _MIPS_SIM_ABI64
+#  define __NR_inotify_init (__NR_Linux + 243)
+#  define __NR_inotify_add_watch (__NR_Linux + 243)
+#  define __NR_inotify_rm_watch (__NR_Linux + 243)
+# endif
+# if _MIPS_SIM == _MIPS_SIM_NABI32
+#  define __NR_inotify_init (__NR_Linux + 247)
+#  define __NR_inotify_add_watch (__NR_Linux + 248)
+#  define __NR_inotify_rm_watch (__NR_Linux + 249)
+# endif
 #elif defined (__ia64__)
 # define __NR_inotify_init	1277
 # define __NR_inotify_add_watch	1278
@@ -32,9 +48,9 @@
 # define __NR_inotify_add_watch	152
 # define __NR_inotify_rm_watch	156
 #elif defined (__arm__)
-# define __NR_inotify_init	316
-# define __NR_inotify_add_watch	317
-# define __NR_inotify_rm_watch	318
+# define __NR_inotify_init (__NR_SYSCALL_BASE+316)
+# define __NR_inotify_add_watch (__NR_SYSCALL_BASE+317)
+# define __NR_inotify_rm_watch (__NR_SYSCALL_BASE+318)
 #elif defined (__sh__)
 # define __NR_inotify_init	290
 # define __NR_inotify_add_watch	291
