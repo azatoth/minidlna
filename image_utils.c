@@ -237,6 +237,7 @@ image_new(int32_t width, int32_t height)
 	if((vimage->buf = (pix *)malloc(width * height * sizeof(pix))) == NULL)
 	{
 		DPRINTF(E_WARN, L_METADATA, "malloc failed\n");
+		free(vimage);
 		return NULL;
 	}
 	return(vimage);
@@ -288,6 +289,20 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size)
 		jpeg_destroy_decompress(&cinfo);
 		if( is_file )
 			fclose(file);
+		return NULL;
+	}
+
+	if( setjmp(setjmp_buffer) )
+	{
+		jpeg_destroy_decompress(&cinfo);
+		if( is_file && file )
+			fclose(file);
+		if( vimage )
+		{
+			if( vimage->buf )
+				free(vimage->buf);
+			free(vimage);
+		}
 		return NULL;
 	}
 
