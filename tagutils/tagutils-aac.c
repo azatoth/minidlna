@@ -107,7 +107,7 @@ _get_aactags(char *file, struct song_metadata *psong)
 
 			current_size = ntohl(current_size);
 
-			if(current_size <= 7)  // something not right
+			if(current_size <= 7 || current_size > 1<<24)  // something not right
 				break;
 
 			if(fread(current_atom, 1, 4, fin) != 4)
