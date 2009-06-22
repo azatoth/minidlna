@@ -540,6 +540,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 					strcpy(mime+6, "mpeg");
 				}
 			}
+			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
+			if( passed_args->client == ESamsungTV )
+			{
+				if( strcmp(mime+6, "x-matroska") == 0 )
+				{
+					strcpy(mime+8, "mkv");
+				}
+			}
 		}
 		else if( strncmp(mime+6, "L16", 3) == 0 )
 		{
