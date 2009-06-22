@@ -365,6 +365,8 @@ GetImageMetadata(const char * path, char * name)
 	exif_loader_write_file(l, path);
 	ed = exif_loader_get_data(l);
 	exif_loader_unref(l);
+	if( !ed )
+		goto no_exifdata;
 
 	tag = EXIF_TAG_PIXEL_X_DIMENSION;
 	e = exif_content_get_entry(ed->ifd[EXIF_IFD_EXIF], tag);
@@ -435,6 +437,7 @@ GetImageMetadata(const char * path, char * name)
 
 	exif_data_unref(ed);
 
+no_exifdata:
 	/* If EXIF parsing fails, then fall through to reading the JPEG data with libjpeg to get the resolution */
 	if( !width || !height )
 	{
