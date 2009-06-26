@@ -22,7 +22,7 @@ INSTALL = install
 
 INSTALLPREFIX ?= $(PREFIX)/usr
 SBININSTALLDIR = $(INSTALLPREFIX)/sbin
-ETCINSTALLDIR = $(PREFIX)/etc/miniupnpd
+ETCINSTALLDIR = $(PREFIX)/etc
 
 BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            upnpreplyparse.o minixml.o \
