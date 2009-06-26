@@ -304,7 +304,7 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 	args.requested = 1;
 	asprintf(&sql, "SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
 	               " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
-	               " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH "
+	               " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH, d.TRACK "
 	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		       " where o.DETAIL_ID = %lld group by o.DETAIL_ID", item);
 	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
@@ -405,6 +405,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		}
 		else
 		{
+			short track_done = 0;
 			item = strtok_r(sortOrder, ",", &saveptr);
 			for( i=0; item != NULL; i++ )
 			{
@@ -421,8 +422,19 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 				}
 				else if( strcasecmp(item, "Title") == 0 )
 				{
-					strcat(order, "TITLE");
-					strcat(order2, "TITLE");
+					/* Explicitly sort music by track then title. */
+					if( !track_done && *objectID == '1' )
+					{
+						strcat(order, "TRACK");
+						strcat(order2, "TRACK");
+						track_done = 1;
+					}
+					else
+					{
+						strcat(order, "TITLE");
+						strcat(order2, "TITLE");
+						track_done = 0;
+					}
 				}
 				else if( strcasecmp(item, "CreationDate") == 0 ||
 				         strcasecmp(item, "CaptureDate") == 0 )
@@ -455,7 +467,8 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 				strcat(order, ", ");
 				strcat(order2, ", ");
 				unhandled_order:
-				item = strtok_r(NULL, ",", &saveptr);
+				if( !track_done )
+					item = strtok_r(NULL, ",", &saveptr);
 			}
 			strcat(order, "TITLE ASC, DETAIL_ID ASC");
 			if( itemCount >= 0 )
@@ -569,7 +582,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 
 	sql = sqlite3_mprintf("SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
 	                      " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
-	                      " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH "
+	                      " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH, d.TRACK "
 	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		              " where %s and (%s)"
 	                      " %s"
