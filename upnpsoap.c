@@ -222,21 +222,29 @@ mime_to_ext(const char * mime, char * buf)
 				strcpy(buf, "wma");
 			else if( strcmp(mime+6, "x-flac") == 0 )
 				strcpy(buf, "flac");
-			else if( strncmp(mime+6, "L16", 3) == 0 )
+			else if( strncmp(mime+6, "", 3) == 0 )
+				strcpy(buf, "wav");
+			else if( strncmp(mime+6, "x-wav", 3) == 0 )
 				strcpy(buf, "wav");
 			else
 				strcpy(buf, "dat");
 			break;
 		case 'v':
-			if( strcmp(mime+6, "mpeg") == 0 )
+			if( strcmp(mime+6, "avi") == 0 )
+				strcpy(buf, "avi");
+			else if( strcmp(mime+6, "divx") == 0 )
+				strcpy(buf, "avi");
+			else if( strcmp(mime+6, "x-msvideo") == 0 )
+				strcpy(buf, "avi");
+			else if( strcmp(mime+6, "mpeg") == 0 )
 				strcpy(buf, "mpg");
 			else if( strcmp(mime+6, "mp4") == 0 )
 				strcpy(buf, "mp4");
-			else if( strcmp(mime+6, "x-msvideo") == 0 )
-				strcpy(buf, "avi");
 			else if( strcmp(mime+6, "x-ms-wmv") == 0 )
 				strcpy(buf, "wmv");
 			else if( strcmp(mime+6, "x-matroska") == 0 )
+				strcpy(buf, "mkv");
+			else if( strcmp(mime+6, "x-mkv") == 0 )
 				strcpy(buf, "mkv");
 			else if( strcmp(mime+6, "x-flv") == 0 )
 				strcpy(buf, "flv");
