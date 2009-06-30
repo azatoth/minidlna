@@ -13,13 +13,12 @@
 /* enum of option available in the miniupnpd.conf */
 enum upnpconfigoptions {
 	UPNP_INVALID = 0,
-	UPNPEXT_IFNAME = 1,		/* ext_ifname */
-	UPNPEXT_IP,			/* ext_ip */
+	UPNPIFNAME = 1,			/* ext_ifname */
 	UPNPLISTENING_IP,		/* listening_ip */
-	UPNPPORT,			/* "port" */
+	UPNPPORT,			/* port */
 	UPNPPRESENTATIONURL,		/* presentation_url */
 	UPNPNOTIFY_INTERVAL,		/* notify_interval */
-	UPNPSYSTEM_UPTIME,		/* "system_uptime" */
+	UPNPSYSTEM_UPTIME,		/* system_uptime */
 	UPNPUUID,			/* uuid */
 	UPNPSERIAL,			/* serial */
 	UPNPMODEL_NUMBER,		/* model_number */

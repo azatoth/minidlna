@@ -20,8 +20,7 @@ static const struct {
 	enum upnpconfigoptions id;
 	const char * name;
 } optionids[] = {
-	{ UPNPEXT_IFNAME, "ext_ifname" },
-	{ UPNPEXT_IP,	"ext_ip" },
+	{ UPNPIFNAME, "network_interface" },
 	{ UPNPLISTENING_IP, "listening_ip" },
 	{ UPNPPORT, "port" },
 	{ UPNPPRESENTATIONURL, "presentation_url" },

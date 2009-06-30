@@ -253,6 +253,15 @@ init(int argc, char * * argv)
 		{
 			switch(ary_options[i].id)
 			{
+			case UPNPIFNAME:
+				if(getifaddr(ary_options[i].value, ext_ip_addr, INET_ADDRSTRLEN) >= 0)
+				{
+					if( *ext_ip_addr && parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
+						n_lan_addr++;
+				}
+				else
+					fprintf(stderr, "Interface %s not found, ignoring.\n", ary_options[i].value);
+				break;
 			case UPNPLISTENING_IP:
 				if(n_lan_addr < MAX_LAN_ADDR)
 				{
@@ -374,6 +383,11 @@ init(int argc, char * * argv)
 		{
 			fprintf(stderr, "Unknown option: %s\n", argv[i]);
 		}
+		else if(strcmp(argv[i], "--help")==0)
+		{
+			runtime_vars.port = 0;
+			break;
+		}
 		else switch(argv[i][1])
 		{
 		case 't':
@@ -449,8 +463,49 @@ init(int argc, char * * argv)
 			else
 				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
+		case 'i':
+			if(i+1 < argc)
+			{
+				int address_already_there = 0;
+				int j;
+				i++;
+				if( getifaddr(argv[i], ext_ip_addr, INET_ADDRSTRLEN) < 0 )
+				{
+					fprintf(stderr, "Network interface '%s' not found.\n",
+						argv[i]);
+					exit(-1);
+				}
+				for(j=0; j<n_lan_addr; j++)
+				{
+					struct lan_addr_s tmpaddr;
+					parselanaddr(&tmpaddr, ext_ip_addr);
+					if(0 == strcmp(lan_addr[j].str, tmpaddr.str))
+						address_already_there = 1;
+				}
+				if(address_already_there)
+					break;
+				if(n_lan_addr < MAX_LAN_ADDR)
+				{
+					if(parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0)
+						n_lan_addr++;
+				}
+				else
+				{
+					fprintf(stderr, "Too many listening ips (max: %d), ignoring %s\n",
+				    	    MAX_LAN_ADDR, argv[i]);
+				}
+			}
+			else
+				fprintf(stderr, "Option -%c takes one argument.\n", argv[i][1]);
+			break;
 		case 'f':
 			i++;	/* discarding, the config file is already read */
+			break;
+		case 'h':
+			runtime_vars.port = 0; // triggers help display
+			break;
+		case 'R':
+			system("rm -rf " DB_PATH); // triggers a full rescan
 			break;
 		case 'V':
 			printf("Version " MINIDLNA_VERSION "\n");
@@ -478,18 +533,20 @@ init(int argc, char * * argv)
 	if( (n_lan_addr==0) || (runtime_vars.port<=0) )
 	{
 		fprintf(stderr, "Usage:\n\t"
-		        "%s [-f config_file]\n"
-				"\t\t[-a listening_ip] [-p port] [-d]\n"
-				/*"[-l logfile] " not functionnal */
-				"\t\t[-s serial] [-m model_number] \n"
-				"\t\t[-t notify_interval] [-P pid_filename]\n"
-				"\t\t[-w url]\n"
+		        "%s [-d] [-f config_file]\n"
+			"\t\t[-a listening_ip] [-p port]\n"
+			/*"[-l logfile] " not functionnal */
+			"\t\t[-s serial] [-m model_number] \n"
+			"\t\t[-t notify_interval] [-P pid_filename]\n"
+			"\t\t[-w url] [-R] [-V] [-h]\n"
 		        "\nNotes:\n\tNotify interval is in seconds. Default is 895 seconds.\n"
-				"\tDefault pid file is %s.\n"
-				"\tWith -d minidlna will run in debug mode (not daemonize).\n"
-				"\t-w sets the presentation url. Default is http address on port 80\n"
-				"\t-V print the version number\n"
-		        "", argv[0], pidfilename);
+			"\tDefault pid file is %s.\n"
+			"\tWith -d minidlna will run in debug mode (not daemonize).\n"
+			"\t-w sets the presentation url. Default is http address on port 80\n"
+			"\t-h displays this text\n"
+			"\t-R forces a full rescan\n"
+			"\t-V print the version number\n",
+		        argv[0], pidfilename);
 		return 1;
 	}
 
