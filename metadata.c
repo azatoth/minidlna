@@ -650,7 +650,8 @@ GetVideoMetadata(const char * path, char * name)
 	{
 		DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, basename(path));
 		asprintf(&m.resolution, "%dx%d", ctx->streams[video_stream]->codec->width, ctx->streams[video_stream]->codec->height);
-		asprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
+		if( ctx->bit_rate > 8 )
+			asprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
 		if( ctx->duration > 0 ) {
 			duration = (int)(ctx->duration / AV_TIME_BASE);
 			hours = (int)(duration / 3600);
