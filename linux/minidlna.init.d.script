@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# chkconfig: 345 99 10
+# description: Startup/shutdown script for MiniDLNA daemon
+#
 # $Id$
 # MiniUPnP project
 # author: Thomas Bernard
