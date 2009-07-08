@@ -31,8 +31,15 @@
 int
 ends_with(const char * haystack, const char * needle)
 {
-	const char * end = strrchr(haystack, *needle);
-	return (strcasecmp(end?end:"", needle) ? 0 : 1);
+	const char * end;
+	int nlen = strlen(needle);
+	int hlen = strlen(haystack);
+
+	if( nlen > hlen )
+		return 0;
+ 	end = haystack + hlen - nlen;
+
+	return (strcasecmp(end, needle) ? 0 : 1);
 }
 
 char *

@@ -22,6 +22,7 @@
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
+#include "albumart.h"
 #include "log.h"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
@@ -267,6 +268,10 @@ inotify_insert_file(char * name, const char * path)
 	int depth = 1;
 	enum media_types type = ALL_MEDIA;
 	struct media_dir_s * media_path = media_dirs;
+
+	/* Is it cover art for another file? */
+	if( is_image(path) )
+		update_if_album_art(path);
 
 	/* Check if we're supposed to be scanning for this file type in this directory */
 	while( media_path )

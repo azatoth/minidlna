@@ -28,6 +28,7 @@
 #include <jpeglib.h>
 
 #include "upnpglobalvars.h"
+#include "albumart.h"
 #include "sql.h"
 #include "utils.h"
 #include "image_utils.h"
@@ -102,6 +103,80 @@ unsigned int DJBHash(const char * str, int len)
 }
 
 /* And our main album art functions */
+void
+update_if_album_art(const char * path)
+{
+	char * dir;
+	char * match = NULL;
+	char * file = NULL;
+	char * sql;
+	int ncmp = 0;
+	struct album_art_name_s * album_art_name;
+	DIR * dh;
+	struct dirent *dp;
+	enum file_types type = TYPE_UNKNOWN;
+	sqlite_int64 art_id = 0;
+
+	match = strdup(basename((char *)path));
+	/* Check if this file name matches a specific audio or video file */
+	if( ends_with(match, ".cover.jpg") )
+	{
+		ncmp = strlen(match)-10;
+	}
+	else
+	{
+		ncmp = strrchr(match, '.')-match;
+	}
+	/* Check if this file name matches one of the default album art names */
+	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
+	{
+		if( strcmp(album_art_name->name, match) == 0 )
+			break;
+	}
+
+	dir = dirname(strdup(path));
+	dh = opendir(dir);
+	if( !dh )
+		return;
+	while ((dp = readdir(dh)) != NULL)
+	{
+		switch( dp->d_type )
+		{
+			case DT_REG:
+				type = TYPE_FILE;
+				break;
+			case DT_LNK:
+			case DT_UNKNOWN:
+				asprintf(&file, "%s/%s", dir, dp->d_name);
+				type = resolve_unknown_type(file, ALL_MEDIA);
+				free(file);
+				break;
+			default:
+				type = TYPE_UNKNOWN;
+				break;
+		}
+		if( type != TYPE_FILE )
+			continue;
+		if( (*(dp->d_name) != '.') &&
+		    (is_video(dp->d_name) || is_audio(dp->d_name)) &&
+		    (album_art_name || strncmp(dp->d_name, match, ncmp) == 0) )
+		{
+			DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like cover art for %s\n", path, dp->d_name);
+			asprintf(&file, "%s/%s", dir, dp->d_name);
+			art_id = find_album_art(file, NULL, NULL, 0);
+			sql = sqlite3_mprintf("UPDATE DETAILS set ALBUM_ART = %lld where PATH = '%q'", art_id, file);
+			if( sql_exec(db, sql) != SQLITE_OK )
+				DPRINTF(E_WARN, L_METADATA, "Error setting %s as cover art for %s\n", match, dp->d_name);
+			sqlite3_free(sql);
+			free(file);
+		}
+	}
+	closedir(dh);
+	
+	free(dir);
+	free(match);
+}
+
 char *
 check_embedded_art(const char * path, const char * image_data, int image_size)
 {
@@ -268,7 +343,8 @@ find_album_art(const char * path, char * dlna_pn, const char * image_data, int i
 	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
 	    (album_art = check_for_album_file(dirname(mypath), path)) )
 	{
-		strcpy(dlna_pn, "JPEG_TN");
+		if( dlna_pn )
+			strcpy(dlna_pn, "JPEG_TN");
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
 		if( (sql_get_table(db, sql, &result, &rows, &cols) == SQLITE_OK) && rows )
 		{
