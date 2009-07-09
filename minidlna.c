@@ -652,7 +652,7 @@ main(int argc, char * * argv)
 	DPRINTF(E_WARN, L_GENERAL, "Starting ReadyDLNA version " MINIDLNA_VERSION ".\n");
 	unlink("/ramfs/.upnp-av_scan");
 #else
-	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA version " MINIDLNA_VERSION ".\n");
+	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA version " MINIDLNA_VERSION " [SQLite %s].\n", sqlite3_libversion());
 #endif
 	LIST_INIT(&upnphttphead);
 
