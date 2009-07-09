@@ -316,6 +316,8 @@ init(int argc, char * * argv)
 					myval = index(ary_options[i].value, '/');
 				case '/':
 					path = realpath(myval ? myval:ary_options[i].value, NULL);
+					if( !path )
+						path = strdup(myval ? myval:ary_options[i].value);
 					if( access(path, F_OK) != 0 )
 					{
 						fprintf(stderr, "Media directory not accessible! [%s]\n",
