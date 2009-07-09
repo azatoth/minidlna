@@ -25,6 +25,7 @@
 #include <sys/param.h>
 #include <errno.h>
 #include <pthread.h>
+#include <pwd.h>
 
 /* unix sockets */
 #include "config.h"
@@ -183,7 +184,16 @@ getfriendlyname(char * buf, int len)
 	#ifdef READYNAS
 	strncat(buf, "ReadyNAS", len-strlen(buf)-1);
 	#else
-	strncat(buf, getenv("LOGNAME"), len-strlen(buf)-1);
+	char * logname;
+	logname = getenv("LOGNAME");
+	if( !logname )
+	{
+		struct passwd * pwent;
+		pwent = getpwuid(getuid());
+		if( pwent )
+			logname = pwent->pw_name;
+	}
+	strncat(buf, logname?logname:"Unknown", len-strlen(buf)-1);
 	#endif
 }
 
