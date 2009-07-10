@@ -34,15 +34,13 @@
 #include "image_utils.h"
 #include "log.h"
 
-char *
-art_cache_path(const char * orig_path)
+int
+art_cache_exists(const char * orig_path, char ** cache_file)
 {
-	char * cache_file;
+	asprintf(cache_file, DB_PATH "/art_cache%s", orig_path);
+	strcpy(strchr(*cache_file, '\0')-4, ".jpg");
 
-	asprintf(&cache_file, DB_PATH "/art_cache%s", orig_path);
-	strcpy(strchr(cache_file, '\0')-4, ".jpg");
-
-	return cache_file;
+	return (!access(*cache_file, F_OK));
 }
 
 char *
@@ -56,8 +54,7 @@ save_resized_album_art(image * imsrc, const char * path)
 	if( !imsrc )
 		return NULL;
 
-	cache_file = art_cache_path(path);
-	if( access(cache_file, F_OK) == 0 )
+	if( art_cache_exists(path, &cache_file) )
 		return cache_file;
 
 	cache_dir = strdup(cache_file);
@@ -202,7 +199,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	{
 		if( !last_success )
 			return NULL;
-		art_path = art_cache_path(path);
+		art_cache_exists(path, &art_path);
 		if( link(last_path, art_path) == 0 )
 		{
 			return(art_path);
@@ -239,8 +236,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	}
 	else if( width > 0 && height > 0 )
 	{
-		art_path = art_cache_path(path);
-		if( access(art_path, F_OK) == 0 )
+		if( art_cache_exists(path, &art_path) )
 			goto end_art;
 		cache_dir = strdup(art_path);
 		make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
@@ -290,6 +286,9 @@ check_for_album_file(char * dir, const char * path)
 	sprintf(file, "%s.cover.jpg", path);
 	if( access(file, R_OK) == 0 )
 	{
+		if( art_cache_exists(file, &art_file) )
+			goto existing_file;
+		free(art_file);
 		imsrc = image_new_from_jpeg(file, 1, NULL, 0);
 		if( imsrc )
 			goto found_file;
@@ -299,6 +298,9 @@ check_for_album_file(char * dir, const char * path)
 	strcat(file, ".jpg");
 	if( access(file, R_OK) == 0 )
 	{
+		if( art_cache_exists(file, &art_file) )
+			goto existing_file;
+		free(art_file);
 		imsrc = image_new_from_jpeg(file, 1, NULL, 0);
 		if( imsrc )
 			goto found_file;
@@ -310,6 +312,13 @@ check_for_album_file(char * dir, const char * path)
 		sprintf(file, "%s/%s", dir, album_art_name->name);
 		if( access(file, R_OK) == 0 )
 		{
+			if( art_cache_exists(file, &art_file) )
+			{
+existing_file:
+				free(file);
+				return art_file;
+			}
+			free(art_file);
 			imsrc = image_new_from_jpeg(file, 1, NULL, 0);
 			if( !imsrc )
 				continue;
