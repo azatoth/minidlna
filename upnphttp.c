@@ -1454,11 +1454,23 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		last_file.id = id;
 		strncpy(last_file.path, result[3], sizeof(last_file.path)-1);
 		if( result[4] )
+		{
 			strncpy(last_file.mime, result[4], sizeof(last_file.mime)-1);
+			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
+			if( h->req_client == ESamsungTV )
+			{
+				if( strcmp(last_file.mime+6, "x-matroska") == 0 )
+					strcpy(last_file.mime+8, "mkv");
+			}
+		}
 		else
+		{
 			last_file.mime[0] = '\0';
+		}
 		if( result[5] )
 			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s", result[5]);
+		else if( h->reqflags & FLAG_DLNA )
+			strcpy(last_file.dlna, "DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 		else
 			last_file.dlna[0] = '\0';
 		sqlite3_free_table(result);
