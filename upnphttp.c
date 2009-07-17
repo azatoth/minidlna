@@ -1113,7 +1113,6 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 	if( dash )
 		*dash = '\0';
 	sprintf(sql_buf, "SELECT PATH from ALBUM_ART where ID = %s", object);
-printf("sql: %s\n", sql_buf);
 	sql_get_table(db, sql_buf, &result, &rows, NULL);
 	if( !rows )
 	{
@@ -1138,7 +1137,7 @@ printf("sql: %s\n", sql_buf);
 
 		sprintf(header, "HTTP/1.1 200 OK\r\n"
 				"Content-Type: image/jpeg\r\n"
-				"Content-Length: %lld\r\n"
+				"Content-Length: %jd\r\n"
 				"Connection: close\r\n"
 				"Date: %s\r\n"
 				"EXT:\r\n"
@@ -1547,16 +1546,16 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		if( h->req_RangeEnd < size )
 		{
 			total = h->req_RangeEnd - h->req_RangeStart + 1;
-			sprintf(hdr_buf, "Content-Length: %llu\r\n"
-					 "Content-Range: bytes %lld-%lld/%llu\r\n",
+			sprintf(hdr_buf, "Content-Length: %jd\r\n"
+					 "Content-Range: bytes %jd-%jd/%jd\r\n",
 					 total, h->req_RangeStart, h->req_RangeEnd, size);
 		}
 		else
 		{
 			h->req_RangeEnd = size;
 			total = size - h->req_RangeStart;
-			sprintf(hdr_buf, "Content-Length: %llu\r\n"
-					 "Content-Range: bytes %lld-%llu/%llu\r\n",
+			sprintf(hdr_buf, "Content-Length: %jd\r\n"
+					 "Content-Range: bytes %jd-%jd/%jd\r\n",
 					 total, h->req_RangeStart, size-1, size);
 		}
 	}
@@ -1564,7 +1563,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	{
 		h->req_RangeEnd = size;
 		total = size;
-		sprintf(hdr_buf, "Content-Length: %llu\r\n", total);
+		sprintf(hdr_buf, "Content-Length: %jd\r\n", total);
 	}
 	strcat(header, hdr_buf);
 

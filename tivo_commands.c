@@ -203,9 +203,10 @@ int callback(void *args, int argc, char **argv, char **azColName)
 			passed_args->size += ret;
 		}
 		if( resolution ) {
-			ret = sprintf(str_buf, "<SourceWidth>%.*s</SourceWidth>"
+			char *width = strsep(&resolution, "x");
+			ret = sprintf(str_buf, "<SourceWidth>%s</SourceWidth>"
 			                       "<SourceHeight>%s</SourceHeight>",
-			              (index(resolution, 'x')-resolution), resolution, (rindex(resolution, 'x')+1));
+			              width, resolution);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}

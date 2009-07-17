@@ -51,8 +51,8 @@ struct upnphttp {
 	int req_Timeout;
 	const char * req_SID;		/* For UNSUBSCRIBE */
 	int req_SIDLen;
-	long long int req_RangeStart;
-	long long int req_RangeEnd;
+	off_t req_RangeStart;
+	off_t req_RangeEnd;
 	long int req_chunklen;
 	u_int32_t reqflags;
 	int respflags;

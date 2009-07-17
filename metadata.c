@@ -356,7 +356,7 @@ GetImageMetadata(const char * path, char * name)
 	else
 		return 0;
 	strip_ext(name);
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", size);
 
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
 	asprintf(&m.mime, "image/jpeg");
@@ -474,7 +474,7 @@ no_exifdata:
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
-				" (%Q, '%q', %llu, %Q, %Q, %d, %Q, %Q, %Q);",
+				" (%Q, '%q', %jd, %Q, %Q, %d, %Q, %Q, %Q);",
 				path, name, size, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
@@ -529,7 +529,7 @@ GetVideoMetadata(const char * path, char * name)
 		size = file.st_size;
 	}
 	strip_ext(name);
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %d\n", size);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", size);
 
 	av_register_all();
 	if( av_open_input_file(&ctx, path, NULL, 0, NULL) != 0 )
@@ -908,7 +908,7 @@ GetVideoMetadata(const char * path, char * name)
 	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART, ART_DLNA_PN) "
 	                       "VALUES"
-	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld, %Q);",
+	                       " (%Q, %jd, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld, %Q);",
 	                       path, size, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,

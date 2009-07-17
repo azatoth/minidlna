@@ -534,7 +534,7 @@ static char *
 genXML(char * str, int * len, int * tmplen,
                    const struct XMLElt * p)
 {
-	unsigned short i, j, k;
+	u_int16_t i, j, k;
 	int top;
 	const char * eltname, *s;
 	char c;
@@ -602,8 +602,8 @@ genXML(char * str, int * len, int * tmplen,
 			k = i;
 			/*i = p[k].index; */
 			/*j = i + p[k].nchild; */
-			i = (unsigned)p[k].data & 0xffff;
-			j = i + ((unsigned)p[k].data >> 16);
+			i = (unsigned long)p[k].data & 0xffff;
+			j = i + ((unsigned long)p[k].data >> 16);
 			top++;
 			#ifdef DESC_DEBUG
 			printf("DBG: +pile[%d]\t%d %d\n", top, i, j); 
