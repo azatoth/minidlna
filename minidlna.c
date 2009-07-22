@@ -665,6 +665,15 @@ main(int argc, char * * argv)
 	unlink("/ramfs/.upnp-av_scan");
 #else
 	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA version " MINIDLNA_VERSION " [SQLite %s].\n", sqlite3_libversion());
+	if( !sqlite3_threadsafe() )
+	{
+		DPRINTF(E_ERROR, L_GENERAL, "SQLite library is not threadsafe!  "
+		                            "Scanning must be finished before file serving can begin.\n");
+	}
+	if( sqlite3_libversion_number() < 3005009 )
+	{
+		DPRINTF(E_WARN, L_GENERAL, "SQLite library is old.  Please use version 3.5.9 or newer.\n");
+	}
 #endif
 	LIST_INIT(&upnphttphead);
 
@@ -714,9 +723,16 @@ main(int argc, char * * argv)
 				}
 				scanning = 1;
 				#if USE_FORK
-				if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
+				if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005000 )
 				{
-					DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_scanner.\n");
+					if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
+					{
+						DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_scanner.\n");
+					}
+				}
+				else
+				{
+					start_scanner();
 				}
 				#else
 				start_scanner();
@@ -724,7 +740,8 @@ main(int argc, char * * argv)
 			}
 			sqlite3_free_table(result);
 		}
-		if( GETFLAG(INOTIFYMASK) && pthread_create(&thread[1], NULL, start_inotify, NULL) )
+		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005000 &&
+		    GETFLAG(INOTIFYMASK) && pthread_create(&thread[1], NULL, start_inotify, NULL) )
 		{
 			DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 		}
