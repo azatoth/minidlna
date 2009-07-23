@@ -52,10 +52,11 @@
 #include "tivo_utils.h"
 #endif
 
-/* MAX_LAN_ADDR : maximum number of interfaces
- * to listen to SSDP traffic */
-/*#define MAX_LAN_ADDR (4)*/
-
+#if SQLITE_VERSION_NUMBER < 3005001
+# warning "Your SQLite3 library appears to be too old!  Please use 3.5.1 or newer."
+# define sqlite3_threadsafe() 0
+#endif
+ 
 static volatile int quitting = 0;
 
 /* OpenAndConfHTTPSocket() :
@@ -668,11 +669,12 @@ main(int argc, char * * argv)
 	if( !sqlite3_threadsafe() )
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "SQLite library is not threadsafe!  "
-		                            "Scanning must be finished before file serving can begin.\n");
+		                            "Scanning must be finished before file serving can begin, "
+		                            "and inotify will be disabled.\n");
 	}
-	if( sqlite3_libversion_number() < 3005009 )
+	if( sqlite3_libversion_number() < 3005001 )
 	{
-		DPRINTF(E_WARN, L_GENERAL, "SQLite library is old.  Please use version 3.5.9 or newer.\n");
+		DPRINTF(E_WARN, L_GENERAL, "SQLite library is old.  Please use version 3.5.1 or newer.\n");
 	}
 #endif
 	LIST_INIT(&upnphttphead);
@@ -723,7 +725,7 @@ main(int argc, char * * argv)
 				}
 				scanning = 1;
 				#if USE_FORK
-				if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005000 )
+				if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 )
 				{
 					if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
 					{
@@ -740,7 +742,7 @@ main(int argc, char * * argv)
 			}
 			sqlite3_free_table(result);
 		}
-		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005000 &&
+		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
 		    GETFLAG(INOTIFYMASK) && pthread_create(&thread[1], NULL, start_inotify, NULL) )
 		{
 			DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
