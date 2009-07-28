@@ -78,7 +78,7 @@
 	"http-get:*:video/x-ms-wmv:*," \
 	"http-get:*:video/x-msvideo:*," \
 	"http-get:*:audio/mp4:*," \
-	"http-get:*:audio/wav:*," \
+	"http-get:*:audio/x-wav:*," \
 	"http-get:*:audio/x-flac:*," \
 	"http-get:*:application/ogg:*"
 

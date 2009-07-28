@@ -222,9 +222,9 @@ mime_to_ext(const char * mime, char * buf)
 				strcpy(buf, "wma");
 			else if( strcmp(mime+6, "x-flac") == 0 )
 				strcpy(buf, "flac");
-			else if( strncmp(mime+6, "", 3) == 0 )
-				strcpy(buf, "wav");
-			else if( strncmp(mime+6, "x-wav", 3) == 0 )
+			else if( strcmp(mime+6, "flac") == 0 )
+				strcpy(buf, "flac");
+			else if( strcmp(mime+6, "x-wav") == 0 )
 				strcpy(buf, "wav");
 			else
 				strcpy(buf, "dat");
@@ -559,15 +559,25 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 			}
 		}
-		else if( strncmp(mime+6, "L16", 3) == 0 )
+		else if( *mime == 'a' )
 		{
-			if( !(passed_args->flags & FLAG_DLNA) || (passed_args->flags & FLAG_MIME_WAV_WAV) )
+			if( strcmp(mime+6, "x-flac") == 0 )
 			{
-				strcpy(mime+6, "x-wav");
+				if( passed_args->flags & FLAG_MIME_FLAC_FLAC )
+				{
+					strcpy(mime+6, "flac");
+				}
 			}
-			if( !(passed_args->flags & FLAG_DLNA) || (passed_args->flags & FLAG_WAV_NO_DLNA) )
+			else if( strncmp(mime+6, "L16", 3) == 0 )
 			{
-				strcpy(dlna_buf, "*");
+				if( !(passed_args->flags & FLAG_DLNA) || (passed_args->flags & FLAG_MIME_WAV_WAV) )
+				{
+					strcpy(mime+6, "x-wav");
+				}
+				if( !(passed_args->flags & FLAG_DLNA) || (passed_args->flags & FLAG_WAV_NO_DLNA) )
+				{
+					strcpy(dlna_buf, "*");
+				}
 			}
 		}
 
@@ -809,7 +819,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	char *resp = malloc(1048576);
 	char str_buf[512];
 	char *zErrMsg = 0;
-	char *sql;
+	char *sql, *ptr;
 	char **result;
 	int ret;
 	struct Response args;
@@ -818,13 +828,19 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	*resp = '\0';
 
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
-	int RequestedCount = atoi( GetValueFromNameValueList(&data, "RequestedCount") );
-	int StartingIndex = atoi( GetValueFromNameValueList(&data, "StartingIndex") );
 	char * ObjectId = GetValueFromNameValueList(&data, "ObjectID");
 	char * Filter = GetValueFromNameValueList(&data, "Filter");
 	char * BrowseFlag = GetValueFromNameValueList(&data, "BrowseFlag");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
 	char * orderBy = NULL;
+	int RequestedCount = 0;
+	int StartingIndex = 0;
+	if( (ptr = GetValueFromNameValueList(&data, "RequestedCount")) )
+		RequestedCount = atoi(ptr);
+	if( !RequestedCount )
+		RequestedCount = -1;
+	if( (ptr = GetValueFromNameValueList(&data, "StartingIndex")) )
+		StartingIndex = atoi(ptr);
 	if( !BrowseFlag || (strcmp(BrowseFlag, "BrowseDirectChildren") && strcmp(BrowseFlag, "BrowseMetadata")) )
 	{
 		SoapError(h, 402, "Invalid Args");
@@ -843,9 +859,6 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		}
 	}
 	memset(&args, 0, sizeof(args));
-
-	if( !RequestedCount )
-		RequestedCount = -1;
 
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
@@ -976,7 +989,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 
 	char *resp = malloc(1048576);
 	char *zErrMsg = 0;
-	char *sql;
+	char *sql, *ptr;
 	char **result;
 	char str_buf[4096];
 	int ret;
@@ -986,8 +999,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 
 	struct NameValueParserData data;
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
-	int RequestedCount = atoi( GetValueFromNameValueList(&data, "RequestedCount") );
-	int StartingIndex = atoi( GetValueFromNameValueList(&data, "StartingIndex") );
 	char * ContainerID = GetValueFromNameValueList(&data, "ContainerID");
 	char * Filter = GetValueFromNameValueList(&data, "Filter");
 	char * SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
@@ -995,6 +1006,14 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char * newSearchCriteria = NULL;
 	char * orderBy = NULL;
 	char groupBy[] = "group by DETAIL_ID";
+	int RequestedCount = 0;
+	int StartingIndex = 0;
+	if( (ptr = GetValueFromNameValueList(&data, "RequestedCount")) )
+		RequestedCount = atoi(ptr);
+	if( !RequestedCount )
+		RequestedCount = -1;
+	if( (ptr = GetValueFromNameValueList(&data, "StartingIndex")) )
+		StartingIndex = atoi(ptr);
 	if( !ContainerID )
 	{
 		SoapError(h, 701, "No such object error");
@@ -1003,9 +1022,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		goto search_error;
 	}
 	memset(&args, 0, sizeof(args));
-
-	if( !RequestedCount )
-		RequestedCount = -1;
 
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);

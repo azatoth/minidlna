@@ -41,6 +41,7 @@ enum client_types {
 	ESamsungTV,
 	EDenonReceiver,
 	EFreeBox,
+	EPopcornHour,
 	EStandardDLNA150 = 100
 };
 

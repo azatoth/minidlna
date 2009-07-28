@@ -256,6 +256,11 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = EFreeBox;
 				}
+				else if(strncmp(p, "SMP8634", 7)==0)
+				{
+					h->req_client = EPopcornHour;
+					h->reqflags |= FLAG_MIME_FLAC_FLAC;
+				}
 			}
 			else if(strncasecmp(line, "X-AV-Client-Info", 16)==0)
 			{
@@ -338,6 +343,7 @@ next_header:
 				h->req_contentoff++;
 			}
 			h->req_contentoff += 2;
+			h->req_contentlen = h->req_buflen - h->req_contentoff;
 		}
 		else
 		{
@@ -817,6 +823,7 @@ Process_upnphttp(struct upnphttp * h)
 			if(endheaders)
 			{
 				h->req_contentoff = endheaders - h->req_buf + 4;
+				h->req_contentlen = h->req_buflen - h->req_contentoff;
 				ProcessHttpQuery_upnphttp(h);
 			}
 		}

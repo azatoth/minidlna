@@ -85,7 +85,8 @@ struct upnphttp {
 #define FLAG_MIME_AVI_DIVX      0x00200000
 #define FLAG_MIME_AVI_AVI       0x00400000
 #define FLAG_MIME_WAV_WAV       0x00800000
-#define FLAG_WAV_NO_DLNA        0x01000000
+#define FLAG_MIME_FLAC_FLAC     0x01000000
+#define FLAG_WAV_NO_DLNA        0x02000000
 
 /* New_upnphttp() */
 struct upnphttp *
