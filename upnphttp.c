@@ -30,9 +30,11 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/sendfile.h>
+#include <arpa/inet.h>
 
 #include "upnpglobalvars.h"
 #include "utils.h"
+#include "getifaddr.h"
 #include "image_utils.h"
 #include "log.h"
 #include "sql.h"
@@ -94,11 +96,22 @@ SearchClientCache(struct in_addr addr)
 	{
 		if( clients[i].addr.s_addr == addr.s_addr )
 		{
-			/* Invalidate this client cache if it's older than 2 hours */
-			if( (time(NULL) - clients[i].age) > 7200 )
+			/* Invalidate this client cache if it's older than 1 hour */
+			if( (time(NULL) - clients[i].age) > 3600 )
 			{
-				memset(&clients[i], 0, sizeof(struct client_cache_s));
-				return -1;
+				unsigned char mac[6];
+				if( get_remote_mac(addr, mac) == 0 &&
+				    memcmp(mac, clients[i].mac, 6) == 0 )
+				{
+					/* Same MAC as last time when we were able to identify the client,
+ 					 * so extend the timeout by another hour. */
+					clients[i].age = time(NULL);
+				}
+				else
+				{
+					memset(&clients[i], 0, sizeof(struct client_cache_s));
+					return -1;
+				}
 			}
 			DPRINTF(E_DEBUG, L_HTTP, "Client found in cache. [type %d/entry %d]\n", clients[i].type, i);
 			return i;
@@ -350,6 +363,9 @@ next_header:
 			h->req_chunklen = -1;
 		}
 	}
+	/* Don't bother checking client type until we have the whole request. */
+	if( (h->req_buflen - h->req_contentoff) < h->req_contentlen )
+		return;
 	/* If the client type wasn't found, search the cache.
 	 * This is done because a lot of clients like to send a
 	 * different User-Agent with different types of requests. */
@@ -363,15 +379,18 @@ next_header:
 			{
 				if( clients[n].addr.s_addr )
 					continue;
+				get_remote_mac(h->clientaddr, clients[n].mac);
 				clients[n].addr = h->clientaddr;
-				DPRINTF(E_DEBUG, L_HTTP, "Added client [%d/%X] to cache slot %d.\n",
-				                         h->req_client, clients[n].addr.s_addr, n);
+				DPRINTF(E_DEBUG, L_HTTP, "Added client [%d/%s/%02X:%02X:%02X:%02X:%02X:%02X] to cache slot %d.\n",
+				                         h->req_client, inet_ntoa(clients[n].addr),
+				                         clients[n].mac[0], clients[n].mac[1], clients[n].mac[2],
+				                         clients[n].mac[3], clients[n].mac[4], clients[n].mac[5], n);
 				break;
 			}
 		}
 		else if( (n < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
 		{
-			/* If we know the client, but our new detection is generic, use our cached info */
+			/* If we know the client and our new detection is generic, use our cached info */
 			h->reqflags |= clients[n].flags;
 			h->req_client = clients[n].type;
 			return;

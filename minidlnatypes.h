@@ -58,6 +58,7 @@ struct album_art_name_s {
 
 struct client_cache_s {
 	struct in_addr addr;
+	unsigned char mac[6];
 	enum client_types type;
 	u_int32_t flags;
 	time_t age;

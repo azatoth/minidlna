@@ -6,6 +6,7 @@
 
 #ifndef __GETIFADDR_H__
 #define __GETIFADDR_H__
+#include <arpa/inet.h>
 
 /* getifaddr()
  * take a network interface name and write the
@@ -19,6 +20,9 @@ getsysaddr(char * buf, int len);
 
 int
 getifhwaddr(const char * ifname, char * buf, int len);
+
+int
+get_remote_mac(struct in_addr ip_addr, unsigned char * mac);
 
 #endif
 
