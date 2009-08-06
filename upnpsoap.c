@@ -658,7 +658,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		}
 		if( passed_args->filter & FILTER_RES ) {
 			mime_to_ext(mime, ext);
-			if( tn && atoi(tn) && (passed_args->client == EFreeBox) && dlna_pn ) {
+			if( (passed_args->client == EFreeBox) && tn && atoi(tn) && dlna_pn ) {
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
 				                       "http://%s:%d/Thumbnails/%s.jpg"
 				                       "&lt;/res&gt;",
@@ -706,15 +706,25 @@ callback(void *args, int argc, char **argv, char **azColName)
 			                       "http://%s:%d/MediaItems/%s.%s"
 			                       "&lt;/res&gt;",
 			                       mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID, ext);
-			#if 0 //JPEG_RESIZE
-			if( dlna_pn && (strncmp(dlna_pn, "JPEG_LRG", 8) == 0) ) {
+			#if 1 //JPEG_RESIZE
+			if( dlna_pn && (!strncmp(dlna_pn, "JPEG_L", 6) || !strncmp(dlna_pn, "JPEG_M", 6)) ) {
+				int srcw = atoi(strsep(&resolution, "x"));
+				int srch = atoi(resolution);
+				int dstw = 640;
+				int dsth = ((((640<<10)/srcw)*srch)>>10);
+				if( dsth > 480 ) {
+					dsth = 480;
+					dstw = (((480<<10)/srch) * srcw>>10);
+				}
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
-				ret = sprintf(str_buf, "&lt;res "
-						 "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-							"http://%s:%d/Resized/%s"
-						 "&lt;/res&gt;",
-						 mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port, id);
+				ret = sprintf(str_buf, "&lt;res resolution=\"%dx%d\" "
+				                       "protocolInfo=\"http-get:*:%s:%s\"&gt;"
+				                       "http://%s:%d/Resized/%s.jpg?width=%d&height=%d"
+				                       "&lt;/res&gt;",
+				                       dstw, dsth,
+				                       mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port,
+				                       detailID, dstw, dsth);
 			}
 			#endif
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
