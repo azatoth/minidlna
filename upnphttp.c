@@ -1321,7 +1321,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	path = strdup(object);
 	if( strtok_r(path, "?", &saveptr) )
 	{
-		item = strtok_r(NULL, "&", &saveptr);
+		item = strtok_r(NULL, "&,", &saveptr);
 	}
 	while( item != NULL )
 	{
@@ -1347,7 +1347,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		{
 			pixelshape = val;
 		}
-		item = strtok_r(NULL, "&", &saveptr);
+		item = strtok_r(NULL, "&,", &saveptr);
 	}
 	free(path);
 

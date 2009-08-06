@@ -503,7 +503,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	char str_buf[512];
 	char **result;
 	int children, ret = 0;
-	static int warned = 0;
+	static short int warned = 0;
 
 	/* Make sure we have at least 4KB left of allocated memory to finish the response. */
 	if( passed_args->size > 1044480 && !warned )
@@ -720,7 +720,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				passed_args->size += ret;
 				ret = sprintf(str_buf, "&lt;res resolution=\"%dx%d\" "
 				                       "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-				                       "http://%s:%d/Resized/%s.jpg?width=%d&height=%d"
+				                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
 				                       "&lt;/res&gt;",
 				                       dstw, dsth,
 				                       mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port,
