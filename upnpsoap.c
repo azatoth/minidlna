@@ -503,14 +503,33 @@ callback(void *args, int argc, char **argv, char **azColName)
 	char str_buf[512];
 	char **result;
 	int children, ret = 0;
-	static short int warned = 0;
 
 	/* Make sure we have at least 4KB left of allocated memory to finish the response. */
-	if( passed_args->size > 1044480 && !warned )
+	if( passed_args->size > (passed_args->alloced - 4096) )
 	{
-		DPRINTF(E_ERROR, L_HTTP, "UPnP SOAP response is getting too big! [%d returned]\n", passed_args->returned);
-		warned = 1;
-		return 0;
+#if MAX_RESPONSE_SIZE > 0
+		if( (passed_args->alloced+1048576) <= MAX_RESPONSE_SIZE )
+		{
+#endif
+			passed_args->resp = realloc(passed_args->resp, (passed_args->alloced+1048576));
+			if( passed_args->resp )
+			{
+				passed_args->alloced += 1048576;
+				DPRINTF(E_DEBUG, L_HTTP, "HUGE RESPONSE ALERT: UPnP SOAP response had to be enlarged to %d. [%d results so far]\n", passed_args->alloced, passed_args->returned);
+			}
+			else
+			{
+				DPRINTF(E_ERROR, L_HTTP, "UPnP SOAP response was too big, and realloc failed!\n");
+				return -1;
+			}
+#if MAX_RESPONSE_SIZE > 0
+		}
+		else
+		{
+			DPRINTF(E_ERROR, L_HTTP, "UPnP SOAP response cut short, to not exceed the max response size [%lld]!\n", (long long int)MAX_RESPONSE_SIZE);
+			return -1;
+		}
+#endif
 	}
 	passed_args->returned++;
 
@@ -870,6 +889,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	}
 	memset(&args, 0, sizeof(args));
 
+	args.alloced = 1048576;
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
@@ -945,7 +965,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
 	sqlite3_free(sql);
-	if( ret != SQLITE_OK )
+	if( (ret != SQLITE_OK) && (zErrMsg != NULL) )
 	{
 		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
@@ -1033,6 +1053,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	}
 	memset(&args, 0, sizeof(args));
 
+	args.alloced = 1048576;
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
