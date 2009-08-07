@@ -185,6 +185,11 @@ GetAudioMetadata(const char * path, char * name)
 		strcpy(type, "wav");
 		strcpy(mime, "audio/x-wav");
 	}
+	else if( ends_with(path, ".ogg") )
+	{
+		strcpy(type, "ogg");
+		strcpy(mime, "application/ogg");
+	}
 	else
 	{
 		DPRINTF(E_WARN, L_GENERAL, "Unhandled file extension on %s\n", path);
