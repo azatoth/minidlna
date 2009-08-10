@@ -164,8 +164,9 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 	//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Song length: %d\n", psong->song_length);
 	//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Bit rate: %d\n", psong->bitrate);
 
-	// PS3 doesn't like this; it wants audio/x-wav.  I wonder why?
+	/* Upon further review, WAV files should be little-endian, and DLNA requires the LPCM profile to be big-endian.
 	asprintf(&(psong->mime), "audio/L16;rate=%d;channels=%d", psong->samplerate, psong->channels);
+	*/
 
 	return 0;
 }
@@ -174,7 +175,9 @@ static int
 _get_wavfileinfo(char *filename, struct song_metadata *psong)
 {
 	psong->lossless = 1;
+	/* Upon further review, WAV files should be little-endian, and DLNA requires the LPCM profile to be big-endian.
 	asprintf(&(psong->dlna_pn), "LPCM");
+	*/
 
 	return 0;
 }

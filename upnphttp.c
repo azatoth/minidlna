@@ -246,7 +246,6 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EPS3;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
-					h->reqflags |= FLAG_MIME_WAV_WAV;
 				}
 				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)
 				{
@@ -257,8 +256,7 @@ intervening space) by either an integer or the keyword "infinite". */
 				else if(strstr(p, "bridgeCo-DMP/3"))
 				{
 					h->req_client = EDenonReceiver;
-					h->reqflags |= FLAG_MIME_WAV_WAV;
-					h->reqflags |= FLAG_WAV_NO_DLNA;
+					h->reqflags |= FLAG_DLNA;
 				}
 				else if(strcasestr(p, "DLNADOC/1.50"))
 				{
@@ -288,7 +286,6 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EPS3;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
-					h->reqflags |= FLAG_MIME_WAV_WAV;
 				}
 			}
 			else if(strncasecmp(line, "Transfer-Encoding", 17)==0)
