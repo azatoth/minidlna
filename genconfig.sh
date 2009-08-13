@@ -17,6 +17,7 @@ DB_PATH="/tmp/minidlna"
 OS_NAME=`uname -s`
 OS_VERSION=`uname -r`
 TIVO="/*#define TIVO_SUPPORT*/"
+NETGEAR="/*#define NETGEAR*/"
 READYNAS="/*#define READYNAS*/"
 
 ${RM} ${CONFIGFILE}
@@ -109,6 +110,7 @@ case $OS_NAME in
 			OS_URL="http://www.readynas.com/"
 			DB_PATH="/var/cache/minidlna"
 			TIVO="#define TIVO_SUPPORT"
+			NETGEAR="#define NETGEAR"
 			READYNAS="#define READYNAS"
 		# Debian GNU/Linux special case
 		elif [ -f /etc/debian_version ]; then
@@ -158,7 +160,9 @@ echo "/*#define HAVE_INOTIFY_H*/" >> ${CONFIGFILE}
 fi
 echo "" >> ${CONFIGFILE}
 
-echo "/* Enable NETGEAR ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
+echo "/* Enable NETGEAR-specific tweaks. */" >> ${CONFIGFILE}
+echo "${NETGEAR}" >> ${CONFIGFILE}
+echo "/* Enable ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
 echo "${READYNAS}" >> ${CONFIGFILE}
 echo "/* Compile in TiVo support. */" >> ${CONFIGFILE}
 echo "${TIVO}" >> ${CONFIGFILE}

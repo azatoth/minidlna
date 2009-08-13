@@ -79,7 +79,7 @@ minidlna.o: upnphttp.h upnpdescgen.h minidlnapath.h getifaddr.h upnpsoap.h
 minidlna.o: options.h minissdp.h daemonize.h upnpevents.h
 minidlna.o: commonrdr.h log.h
 upnphttp.o: config.h upnphttp.h upnpdescgen.h minidlnapath.h upnpsoap.h
-upnphttp.o: upnpevents.h image_utils.h sql.h log.h
+upnphttp.o: upnpevents.h image_utils.h sql.h log.h icons.c
 upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
 upnpdescgen.o: minidlnatypes.h upnpdescstrings.h log.h
 upnpsoap.o: config.h upnpglobalvars.h minidlnatypes.h log.h utils.h sql.h
