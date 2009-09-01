@@ -45,7 +45,6 @@
 #include "upnpevents.h"
 #include "scanner.h"
 #include "inotify.h"
-#include "commonrdr.h"
 #include "log.h"
 #ifdef TIVO_SUPPORT
 #include "tivo_beacon.h"

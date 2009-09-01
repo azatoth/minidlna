@@ -1,14 +1,14 @@
 # $Id$
-# MiniUPnP project
-# http://miniupnp.free.fr/
-# Author : Thomas Bernard
+# MiniDLNA project
+# http://sourceforge.net/projects/minidlna/
+# (c) 2008-2009 Justin Maggard
 # for use with GNU Make
 # To install use :
-# $ PREFIX=/dummyinstalldir make -f Makefile.linux install
+# $ PREFIX=/dummyinstalldir make install
 # or :
-# $ INSTALLPREFIX=/usr/local make -f Makefile.linux install
+# $ INSTALLPREFIX=/usr/local make install
 # or :
-# $ make -f Makefile.linux install
+# $ make install
 #
 #CFLAGS = -Wall -O -D_GNU_SOURCE -g -DDEBUG
 #CFLAGS = -Wall -g -Os -D_GNU_SOURCE
@@ -27,7 +27,7 @@ ETCINSTALLDIR = $(PREFIX)/etc
 BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            upnpreplyparse.o minixml.o \
            getifaddr.o daemonize.o upnpglobalvars.o \
-           options.o minissdp.o upnpevents.o \
+           options.o minissdp.o uuid.o upnpevents.o \
            sql.o utils.o metadata.o scanner.o inotify.o \
            tivo_utils.o tivo_beacon.o tivo_commands.o \
            tagutils/textutils.o tagutils/misc.o tagutils/tagutils.o \
@@ -76,8 +76,7 @@ depend:	config.h
 
 minidlna.o: config.h upnpglobalvars.h minidlnatypes.h
 minidlna.o: upnphttp.h upnpdescgen.h minidlnapath.h getifaddr.h upnpsoap.h
-minidlna.o: options.h minissdp.h daemonize.h upnpevents.h
-minidlna.o: commonrdr.h log.h
+minidlna.o: options.h minissdp.h daemonize.h upnpevents.h log.h
 upnphttp.o: config.h upnphttp.h upnpdescgen.h minidlnapath.h upnpsoap.h
 upnphttp.o: upnpevents.h image_utils.h sql.h log.h icons.c
 upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
@@ -95,7 +94,8 @@ options.o: minidlnatypes.h
 minissdp.o: config.h upnpdescstrings.h minidlnapath.h upnphttp.h
 minissdp.o: upnpglobalvars.h minidlnatypes.h minissdp.h log.h
 upnpevents.o: config.h upnpevents.h minidlnapath.h upnpglobalvars.h
-upnpevents.o: minidlnatypes.h upnpdescgen.h log.h
+upnpevents.o: minidlnatypes.h upnpdescgen.h log.h uuid.h
+uuid.o: uuid.h
 testupnpdescgen.o: config.h upnpdescgen.h
 upnpdescgen.o: config.h upnpdescgen.h minidlnapath.h upnpglobalvars.h
 upnpdescgen.o: minidlnatypes.h upnpdescstrings.h

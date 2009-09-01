@@ -1,8 +1,8 @@
 #! /bin/sh
 # $Id$
-# miniupnp daemon
-# http://miniupnp.free.fr or http://miniupnp.tuxfamily.org/
-# (c) 2006-2007 Thomas Bernard
+# MiniDLNA project
+# http://sourceforge.net/projects/minidlna/
+# (c) 2008-2009 Justin Maggard
 # This software is subject to the conditions detailed in the
 # LICENCE file provided within the distribution
 
@@ -25,7 +25,6 @@ ${RM} ${CONFIGFILE}
 # Detect if there are missing headers
 # NOTE: This check only works with a normal distro
 [ ! -e "/usr/include/sqlite3.h" ] && MISSING="libsqlite3 $MISSING"
-[ ! -e "/usr/include/uuid/uuid.h" ] && MISSING="libuuid $MISSING"
 [ ! -e "/usr/include/jpeglib.h" ] && MISSING="libjpeg $MISSING"
 [ ! -e "/usr/include/libexif/exif-loader.h" ] && MISSING="libexif $MISSING"
 [ ! -e "/usr/include/id3tag.h" ] && MISSING="libid3tag $MISSING"

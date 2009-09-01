@@ -1,10 +1,15 @@
-/* $Id$ */
-/* MiniUPnP project
- * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
- * (c) 2008 Thomas Bernard
+/* MiniDLNA project
+ * http://minidlna.sourceforge.net/
+ * (c) 2008-2009 Justin Maggard
+ *
  * This software is subject to the conditions detailed
- * in the LICENCE file provided within the distribution */
-
+ * in the LICENCE file provided within the distribution 
+ *
+ * Portions of the code from the MiniUPnP Project
+ * (c) Thomas Bernard licensed under BSD revised license
+ * detailed in the LICENSE.miniupnpd file provided within
+ * the distribution.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -24,13 +29,8 @@
 #include "minidlnapath.h"
 #include "upnpglobalvars.h"
 #include "upnpdescgen.h"
+#include "uuid.h"
 #include "log.h"
-
-#define HAVE_UUID 1
-
-#ifdef HAVE_UUID
-#include <uuid/uuid.h>
-#endif
 
 /* stuctures definitions */
 struct subscriber {
@@ -95,14 +95,12 @@ newSubscriber(const char * eventurl, const char * callback, int callbacklen)
 	tmp->callback[callbacklen] = '\0';
 	/* make a dummy uuid */
 	strncpy(tmp->uuid, uuidvalue, sizeof(tmp->uuid));
-#ifdef HAVE_UUID
-	uuid_t uuid;
-	uuid_generate_time(uuid);  
-	uuid_unparse_lower(uuid, tmp->uuid+5);
-#else
-	tmp->uuid[sizeof(tmp->uuid)-1] = '\0';
-	snprintf(tmp->uuid+37, 5, "%04lx", random() & 0xffff);
-#endif
+	if( get_uuid_string(tmp->uuid+5) != 0 )
+	{
+		tmp->uuid[sizeof(tmp->uuid)-1] = '\0';
+		snprintf(tmp->uuid+37, 5, "%04lx", random() & 0xffff);
+	}
+
 	return tmp;
 }
 
