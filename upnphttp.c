@@ -1274,6 +1274,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char sql_buf[256];
 	char **result;
 	char date[30];
+	char dlna_pn[4];
 	time_t curtime = time(NULL);
 	int width=640, height=480, dstw, dsth, rotation, size;
 	unsigned char * data;
@@ -1399,17 +1400,24 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	imdst = image_resize(imsrc, dstw, dsth);
 	data = image_save_to_jpeg_buf(imdst, &size);
 
-	DPRINTF(E_INFO, L_HTTP, "size: %d\n", size);
+	if( dstw <= 640 && dsth <= 480 )
+		strcpy(dlna_pn, "SM");
+	else if( dstw <= 1024 && dsth <= 768 )
+		strcpy(dlna_pn, "MED");
+	else
+		strcpy(dlna_pn, "LRG");
+
+	//DPRINTF(E_INFO, L_HTTP, "size: %d\n", size);
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-	snprintf(header, sizeof(header)-50, "%s 200 OK\r\n"
+	snprintf(header, sizeof(header)-50, "HTTP/1.1 200 OK\r\n"
 	                                    "Content-Type: image/jpeg\r\n"
 	                                    "Content-Length: %d\r\n"
 	                                    "Connection: close\r\n"
 	                                    "Date: %s\r\n"
 	                                    "EXT:\r\n"
-	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
+	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s\r\n"
 	                                    "Server: " MINIDLNA_SERVER_STRING "\r\n",
-	                                    h->HttpVer, size, date);
+	                                    size, date, dlna_pn);
 
 	if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
