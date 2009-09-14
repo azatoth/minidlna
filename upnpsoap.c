@@ -726,11 +726,17 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
-				ret = sprintf(str_buf, "&lt;res resolution=\"%dx%d\" "
-				                       "protocolInfo=\"http-get:*:%s:%s\"&gt;"
+				ret = sprintf(str_buf, "&lt;res ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				if( passed_args->filter & FILTER_RES_RESOLUTION ) {
+					ret = sprintf(str_buf, "resolution=\"%dx%d\" ", dstw, dsth);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+				ret = sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
 				                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
 				                       "&lt;/res&gt;",
-				                       dstw, dsth,
 				                       mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port,
 				                       detailID, dstw, dsth);
 			}
@@ -956,7 +962,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	sqlite3_free(sql);
 	if( (ret != SQLITE_OK) && (zErrMsg != NULL) )
 	{
-		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
+		DPRINTF(E_WARN, L_HTTP, "SQL error: %s\nBAD SQL: %s\n", zErrMsg, sql);
 		sqlite3_free(zErrMsg);
 	}
 	/* Does the object even exist? */
@@ -1202,7 +1208,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	                      orderBy, StartingIndex, RequestedCount);
 	DPRINTF(E_DEBUG, L_HTTP, "Search SQL: %s\n", sql);
 	ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
-	if( ret != SQLITE_OK )
+	if( (ret != SQLITE_OK) && (zErrMsg != NULL) )
 	{
 		DPRINTF(E_WARN, L_HTTP, "SQL error: %s\nBAD SQL: %s\n", zErrMsg, sql);
 		sqlite3_free(zErrMsg);
