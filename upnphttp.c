@@ -251,16 +251,11 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = ESamsungTV;
 					h->reqflags |= FLAG_DLNA;
-					h->reqflags |= FLAG_MIME_AVI_DIVX;
+					//h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
 				else if(strstr(p, "bridgeCo-DMP/3"))
 				{
 					h->req_client = EDenonReceiver;
-					h->reqflags |= FLAG_DLNA;
-				}
-				else if(strcasestr(p, "DLNADOC/1.50"))
-				{
-					h->req_client = EStandardDLNA150;
 					h->reqflags |= FLAG_DLNA;
 				}
 				else if(strstr(p, "fbxupnpav/"))
@@ -271,6 +266,12 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = EPopcornHour;
 					h->reqflags |= FLAG_MIME_FLAC_FLAC;
+				}
+				else if(strcasestr(p, "DLNADOC/1.50"))
+				{
+					h->req_client = EStandardDLNA150;
+					h->reqflags |= FLAG_DLNA;
+					h->reqflags |= FLAG_MIME_AVI_AVI;
 				}
 			}
 			else if(strncasecmp(line, "X-AV-Client-Info", 16)==0)
