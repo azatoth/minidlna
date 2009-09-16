@@ -220,6 +220,7 @@ init(int argc, char * * argv)
 	char * string, * word;
 	enum media_types type;
 	char * path;
+	char real_path[PATH_MAX];
 	char ext_ip_addr[INET_ADDRSTRLEN] = {'\0'};
 
 	/* first check if "-f" option is used */
@@ -325,18 +326,17 @@ init(int argc, char * * argv)
 						type = IMAGES_ONLY;
 					myval = index(ary_options[i].value, '/');
 				case '/':
-					path = realpath(myval ? myval:ary_options[i].value, NULL);
+					path = realpath(myval ? myval:ary_options[i].value, real_path);
 					if( !path )
-						path = strdup(myval ? myval:ary_options[i].value);
+						path = (myval ? myval:ary_options[i].value);
 					if( access(path, F_OK) != 0 )
 					{
 						fprintf(stderr, "Media directory not accessible! [%s]\n",
 						        path);
-						free(path);
 						break;
 					}
 					struct media_dir_s * this_dir = calloc(1, sizeof(struct media_dir_s));
-					this_dir->path = path;
+					this_dir->path = strdup(path);
 					this_dir->type = type;
 					if( !media_dirs )
 					{
