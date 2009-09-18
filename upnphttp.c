@@ -720,7 +720,17 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		}
 		if(strcmp(ROOTDESC_PATH, HttpUrl) == 0)
 		{
-			sendXMLdesc(h, genRootDesc);
+			/* If it's a Xbox360, we might need a special friendly_name to be recognized */
+			if( (h->req_client == EXbox) && !strchr(friendly_name, ':') )
+			{
+				strncat(friendly_name, ": 1", FRIENDLYNAME_MAX_LEN-4);
+				sendXMLdesc(h, genRootDesc);
+				friendly_name[strlen(friendly_name)-3] = '\0';
+			}
+			else
+			{
+				sendXMLdesc(h, genRootDesc);
+			}
 		}
 		else if(strcmp(CONTENTDIRECTORY_PATH, HttpUrl) == 0)
 		{
