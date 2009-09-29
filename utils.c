@@ -181,10 +181,11 @@ is_video(const char * file)
 		ends_with(file, ".mts") || ends_with(file, ".m2ts")  ||
 		ends_with(file, ".m2t") || ends_with(file, ".mkv")   ||
 		ends_with(file, ".vob") || ends_with(file, ".ts")    ||
-		#ifdef TIVO_SUPPORT
+		ends_with(file, ".flv") || ends_with(file, ".xvid")  ||
+#ifdef TIVO_SUPPORT
 		ends_with(file, ".TiVo") ||
-		#endif
-		ends_with(file, ".flv") || ends_with(file, ".xvid"));
+#endif
+		ends_with(file, ".mov"));
 }
 
 int
