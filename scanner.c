@@ -809,7 +809,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 	}
 }
 
-void *
+void
 start_scanner()
 {
 	struct media_dir_s * media_path = media_dirs;
@@ -822,7 +822,6 @@ start_scanner()
 	if( flag )
 		fclose(flag);
 #endif
-	scanning = 1;
 	freopen("/dev/null", "a", stderr);
 	while( media_path )
 	{
@@ -830,7 +829,6 @@ start_scanner()
 		media_path = media_path->next;
 	}
 	freopen("/proc/self/fd/2", "a", stderr);
-	scanning = 0;
 #ifdef READYNAS
 	if( access("/ramfs/.rescan_done", F_OK) == 0 )
 		system("/bin/sh /ramfs/.rescan_done");
@@ -840,6 +838,4 @@ start_scanner()
 	 * This index is very useful for large libraries used with an XBox360 (or any
 	 * client that uses UPnPSearch on large containers). */
 	sql_exec(db, "create INDEX IDX_SEARCH_OPT ON OBJECTS(OBJECT_ID, CLASS, DETAIL_ID);");
-
-	return 0;
 }

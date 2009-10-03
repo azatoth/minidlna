@@ -220,7 +220,7 @@ _make_composite_tags(struct song_metadata *psong)
 		}
 	}
 
-
+#if 0 // already taken care of by scanner.c
 	if(!psong->title)
 	{
 		char *suffix;
@@ -228,6 +228,7 @@ _make_composite_tags(struct song_metadata *psong)
 		suffix = strrchr(psong->title, '.');
 		if(suffix) *suffix = '\0';
 	}
+#endif
 }
 
 

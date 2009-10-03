@@ -111,6 +111,7 @@ extern struct media_dir_s * media_dirs;
 extern struct album_art_name_s * album_art_names;
 extern struct client_cache_s clients[CLIENT_CACHE_SLOTS];
 extern short int scanning;
+extern volatile short int quitting;
 extern volatile __u32 updateID;
 
 #endif

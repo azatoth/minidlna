@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <poll.h>
 #ifdef HAVE_INOTIFY_H
 #include <sys/inotify.h>
 #else
@@ -194,13 +195,18 @@ int
 inotify_remove_watches(int fd)
 {
 	struct watch *w = watches;
+	struct watch *last_w;
 	int rm_watches = 0;
 
 	while( w )
 	{
+		last_w = w;
 		inotify_rm_watch(fd, w->wd);
+		if( w->path )
+			free(w->path);
 		rm_watches++;
 		w = w->next;
+		free(last_w);
 	}
 
 	return rm_watches;
@@ -593,34 +599,49 @@ inotify_remove_directory(int fd, const char * path)
 void *
 start_inotify()
 {
-	int fd;
+	struct pollfd pollfds[1];
+	int timeout = 1000;
 	char buffer[BUF_LEN];
 	char path_buf[PATH_MAX];
 	int length, i = 0;
 	char * esc_name = NULL;
 	struct stat st;
         
-	fd = inotify_init();
+	pollfds[0].fd = inotify_init();
+	pollfds[0].events = POLLIN;
 
-	if ( fd < 0 ) {
+	if ( pollfds[0].fd < 0 ) {
 		DPRINTF(E_ERROR, L_INOTIFY, "inotify_init() failed!\n");
 	}
 
 	while( scanning )
 	{
+		if( quitting )
+			goto quitting;
 		sleep(1);
 	}
-	inotify_create_watches(fd);
+	inotify_create_watches(pollfds[0].fd);
 	if (setpriority(PRIO_PROCESS, 0, 19) == -1)
 		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce inotify thread priority\n");
         
-	while( 1 )
+	while( !quitting )
 	{
-		length = read(fd, buffer, BUF_LEN);  
-
-		if ( length < 0 ) {
-			DPRINTF(E_ERROR, L_INOTIFY, "read failed!\n");
-		}  
+                length = poll(pollfds, 1, timeout);
+		if( !length )
+		{
+			continue;
+		}
+		else if( length < 0 )
+		{
+                        if( (errno == EINTR) || (errno == EAGAIN) )
+                                continue;
+                        else
+				DPRINTF(E_ERROR, L_INOTIFY, "read failed!\n");
+		}
+		else
+		{
+			length = read(pollfds[0].fd, buffer, BUF_LEN);  
+		}
 
 		i = 0;
 		while( i < length )
@@ -639,7 +660,7 @@ start_inotify()
 				     (event->mask & IN_MOVED_TO && event->mask & IN_ISDIR) )
 				{
 					DPRINTF(E_DEBUG, L_INOTIFY,  "The directory %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
-					inotify_insert_directory(fd, esc_name, path_buf);
+					inotify_insert_directory(pollfds[0].fd, esc_name, path_buf);
 				}
 				else if ( event->mask & IN_CLOSE_WRITE || event->mask & IN_MOVED_TO )
 				{
@@ -654,7 +675,7 @@ start_inotify()
 					if ( event->mask & IN_ISDIR )
 					{
 						DPRINTF(E_DEBUG, L_INOTIFY, "The directory %s was %s.\n", path_buf, (event->mask & IN_MOVED_FROM ? "moved away" : "deleted"));
-						inotify_remove_directory(fd, path_buf);
+						inotify_remove_directory(pollfds[0].fd, path_buf);
 					}
 					else
 					{
@@ -667,8 +688,9 @@ start_inotify()
 			i += EVENT_SIZE + event->len;
 		}
 	}
-	inotify_remove_watches(fd);
-	close(fd);
+	inotify_remove_watches(pollfds[0].fd);
+quitting:
+	close(pollfds[0].fd);
 
-	return NULL;
+	return 0;
 }

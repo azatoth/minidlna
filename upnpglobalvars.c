@@ -46,4 +46,5 @@ struct media_dir_s * media_dirs = NULL;
 struct album_art_name_s * album_art_names = NULL;
 struct client_cache_s clients[CLIENT_CACHE_SLOTS];
 short int scanning = 0;
+volatile short int quitting = 0;
 volatile __u32 updateID = 0;

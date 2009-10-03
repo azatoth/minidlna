@@ -38,7 +38,7 @@ insert_file(char * name, const char * path, const char * parentID, int object);
 int
 CreateDatabase(void);
 
-void *
+void
 start_scanner();
 
 #endif

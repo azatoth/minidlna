@@ -56,8 +56,6 @@
 # define sqlite3_threadsafe() 0
 #endif
  
-static volatile int quitting = 0;
-
 /* OpenAndConfHTTPSocket() :
  * setup the socket used to handle incoming HTTP connections. */
 static int
@@ -649,7 +647,8 @@ main(int argc, char * * argv)
 	int last_changecnt = 0;
 	char * sql;
 	short int new_db = 0;
-	pthread_t thread[2];
+	pid_t scanner_pid = 0;
+	pthread_t inotify_thread = 0;
 #ifdef TIVO_SUPPORT
 	unsigned short int beacon_interval = 5;
 	int sbeacon = -1;
@@ -704,7 +703,8 @@ main(int argc, char * * argv)
 		}
 		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
 		{
-			if( atoi(result[1]) != DB_VERSION ) {
+			if( atoi(result[1]) != DB_VERSION )
+			{
 				if( new_db )
 				{
 					DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
@@ -722,27 +722,26 @@ main(int argc, char * * argv)
 				{
 					DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
 				}
+#if USE_FORK
 				scanning = 1;
-				#if USE_FORK
-				if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 )
-				{
-					if( pthread_create(&thread[0], NULL, start_scanner, NULL) )
-					{
-						DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_scanner.\n");
-					}
-				}
-				else
+				sqlite3_close(db);
+				scanner_pid = fork();
+				sqlite3_open(DB_PATH "/files.db", &db);
+				sqlite3_busy_timeout(db, 5000);
+				if( !scanner_pid ) // child (scanner) process
 				{
 					start_scanner();
+					sqlite3_close(db);
+					exit(EXIT_SUCCESS);
 				}
-				#else
+#else
 				start_scanner();
-				#endif
+#endif
 			}
 			sqlite3_free_table(result);
 		}
 		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
-		    GETFLAG(INOTIFYMASK) && pthread_create(&thread[1], NULL, start_inotify, NULL) )
+		    GETFLAG(INOTIFYMASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
 		{
 			DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 		}
@@ -859,6 +858,12 @@ main(int argc, char * * argv)
 				}
 			}
 #endif
+		}
+
+		if( scanning )
+		{
+			if( !scanner_pid || kill(scanner_pid, 0) )
+				scanning = 0;
 		}
 
 		/* select open sockets (SSDP, HTTP listen, and all HTTP soap sockets) */
@@ -981,6 +986,11 @@ main(int argc, char * * argv)
 	}
 
 shutdown:
+	/* kill the scanner */
+	if( scanning && scanner_pid )
+	{
+		kill(scanner_pid, 9);
+	}
 	/* close out open sockets */
 	while(upnphttphead.lh_first != NULL)
 	{
@@ -1002,22 +1012,31 @@ shutdown:
 	for(i=0; i<n_lan_addr; i++)
 		close(snotify[i]);
 
+	if( inotify_thread )
+		pthread_join(inotify_thread, NULL);
+
 	asprintf(&sql, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
 	sql_exec(db, sql);
 	free(sql);
 	sqlite3_close(db);
 
 	struct media_dir_s * media_path = media_dirs;
+	struct media_dir_s * last_path;
 	while( media_path )
 	{
 		free(media_path->path);
+		last_path = media_path;
 		media_path = media_path->next;
+		free(last_path);
 	}
 	struct album_art_name_s * art_names = album_art_names;
+	struct album_art_name_s * last_name;
 	while( art_names )
 	{
 		free(art_names->name);
+		last_name = art_names;
 		art_names = art_names->next;
+		free(last_name);
 	}
 
 	if(unlink(pidfilename) < 0)
@@ -1026,7 +1045,7 @@ shutdown:
 	}
 
 	freeoptions();
-	
-	return 0;
+
+	exit(EXIT_SUCCESS);
 }
 
