@@ -774,7 +774,8 @@ GetVideoMetadata(const char * path, char * name)
 					/* AVC wrapped in MP4 only has SD profiles - 10 Mbps max */
 					if( ctx->streams[video_stream]->codec->width  <= 720 &&
 					    ctx->streams[video_stream]->codec->height <= 576 &&
-					    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
+					    ctx->streams[video_stream]->codec->bit_rate <= 10000000 &&
+					    !ends_with(path, ".mov") )
 					{
 						switch( audio_profile )
 						{
@@ -891,7 +892,10 @@ GetVideoMetadata(const char * path, char * name)
 		else if( strcmp(ctx->iformat->name, "asf") == 0 )
 			asprintf(&m.mime, "video/x-ms-wmv");
 		else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
-			asprintf(&m.mime, "video/mp4");
+			if( ends_with(path, ".mov") )
+				asprintf(&m.mime, "video/quicktime");
+			else
+				asprintf(&m.mime, "video/mp4");
 		else if( strcmp(ctx->iformat->name, "matroska") == 0 )
 			asprintf(&m.mime, "video/x-matroska");
 		else if( strcmp(ctx->iformat->name, "flv") == 0 )
