@@ -106,6 +106,7 @@ char *winamp_genre[] = {
 #include "tagutils-flc.h"
 #include "tagutils-asf.h"
 #include "tagutils-wav.h"
+#include "tagutils-pcm.h"
 
 static int _get_tags(char *file, struct song_metadata *psong);
 static int _get_fileinfo(char *file, struct song_metadata *psong);
@@ -128,6 +129,7 @@ static taghandler taghandlers[] = {
 	{ "ogg", 0,            _get_oggfileinfo                                  },
 	{ "asf", 0,            _get_asffileinfo                                  },
 	{ "wav", _get_wavtags, _get_wavfileinfo                                  },
+	{ "pcm", 0,            _get_pcmfileinfo                                  },
 	{ NULL,  0 }
 };
 
@@ -141,6 +143,7 @@ static taghandler taghandlers[] = {
 #include "tagutils-flc.c"
 #include "tagutils-asf.c"
 #include "tagutils-wav.c"
+#include "tagutils-pcm.c"
 
 //*********************************************************************************
 // freetags()

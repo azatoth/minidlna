@@ -190,6 +190,11 @@ GetAudioMetadata(const char * path, char * name)
 		strcpy(type, "ogg");
 		strcpy(mime, "application/ogg");
 	}
+	else if( ends_with(path, ".pcm") )
+	{
+		strcpy(type, "pcm");
+		strcpy(mime, "audio/L16");
+	}
 	else
 	{
 		DPRINTF(E_WARN, L_GENERAL, "Unhandled file extension on %s\n", path);
