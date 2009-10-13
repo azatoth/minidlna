@@ -378,17 +378,6 @@ GetImageMetadata(const char * path, char * name)
 	if( !ed )
 		goto no_exifdata;
 
-	tag = EXIF_TAG_PIXEL_X_DIMENSION;
-	e = exif_content_get_entry(ed->ifd[EXIF_IFD_EXIF], tag);
-	if( e )
-		width = atoi( exif_entry_get_value(e, b, sizeof(b)) );
-
-	tag = EXIF_TAG_PIXEL_Y_DIMENSION;
-	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
-	if( e )
-		height = atoi( exif_entry_get_value(e, b, sizeof(b)) );
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * resolution: %dx%d\n", width, height);
-
 	tag = EXIF_TAG_DATE_TIME_ORIGINAL;
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
 	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_DATE_TIME)) ) {
@@ -448,8 +437,8 @@ GetImageMetadata(const char * path, char * name)
 	exif_data_unref(ed);
 
 no_exifdata:
-	/* If EXIF parsing fails, then fall through to reading the JPEG data with libjpeg to get the resolution */
-	if( !width || !height )
+	/* If SOF parsing fails, then fall through to reading the JPEG data with libjpeg to get the resolution */
+	if( image_get_jpeg_resolution(path, &width, &height) != 0 || !width || !height )
 	{
 		infile = fopen(path, "r");
 		cinfo.err = jpeg_std_error(&jerr);
@@ -466,6 +455,7 @@ no_exifdata:
 		jpeg_destroy_decompress(&cinfo);
 		fclose(infile);
 	}
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * resolution: %dx%d\n", width, height);
 
 	if( !width || !height )
 	{

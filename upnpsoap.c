@@ -715,30 +715,41 @@ callback(void *args, int argc, char **argv, char **azColName)
 			                       "&lt;/res&gt;",
 			                       mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID, ext);
 			#if 1 //JPEG_RESIZE
-			if( dlna_pn && (!strncmp(dlna_pn, "JPEG_L", 6) || !strncmp(dlna_pn, "JPEG_M", 6)) ) {
-				int srcw = atoi(strsep(&resolution, "x"));
-				int srch = atoi(resolution);
-				int dstw = 640;
-				int dsth = ((((640<<10)/srcw)*srch)>>10);
-				if( dsth > 480 ) {
-					dsth = 480;
-					dstw = (((480<<10)/srch) * srcw>>10);
+			if( *mime == 'i' ) {
+				int reqw = 0, reqh = 0;
+				if( dlna_pn && (!strncmp(dlna_pn, "JPEG_L", 6) || !strncmp(dlna_pn, "JPEG_M", 6)) ) {
+					reqw = 640;
+					reqh = 480;
 				}
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
-				ret = sprintf(str_buf, "&lt;res ");
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
-				if( passed_args->filter & FILTER_RES_RESOLUTION ) {
-					ret = sprintf(str_buf, "resolution=\"%dx%d\" ", dstw, dsth);
+				else if( !dlna_pn ) {
+					reqw = 4096;
+					reqh = 4096;
+				}
+				if( reqw ) {
+					int srcw = atoi(strsep(&resolution, "x"));
+					int srch = atoi(resolution);
+					int dstw = reqw;
+					int dsth = ((((reqw<<10)/srcw)*srch)>>10);
+					if( dsth > reqh ) {
+						dsth = reqh;
+						dstw = (((reqh<<10)/srch) * srcw>>10);
+					}
 					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 					passed_args->size += ret;
+					ret = sprintf(str_buf, "&lt;res ");
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+					if( passed_args->filter & FILTER_RES_RESOLUTION ) {
+						ret = sprintf(str_buf, "resolution=\"%dx%d\" ", dstw, dsth);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					ret = sprintf(str_buf, "protocolInfo=\"http-get:*:%s:DLNA.ORG_PN=JPEG_%s\"&gt;"
+					                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
+					                       "&lt;/res&gt;",
+					                       mime, (reqw==640)?"SM":"LRG", lan_addr[0].str, runtime_vars.port,
+					                       detailID, dstw, dsth);
 				}
-				ret = sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
-				                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
-				                       "&lt;/res&gt;",
-				                       mime, "DLNA.ORG_PN=JPEG_SM", lan_addr[0].str, runtime_vars.port,
-				                       detailID, dstw, dsth);
 			}
 			#endif
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);

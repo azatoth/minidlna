@@ -20,6 +20,9 @@ typedef struct {
 void
 image_free(image *pimage);
 
+int
+image_get_jpeg_resolution(const char * path, int * width, int * height);
+
 image *
 image_new_from_jpeg(const char * path, int is_file, const char * ptr, int size);
 

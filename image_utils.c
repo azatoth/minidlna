@@ -33,9 +33,16 @@
 #include <sys/types.h>
 #include <setjmp.h>
 #include <jpeglib.h>
+#include <endian.h>
 
 #include "image_utils.h"
 #include "log.h"
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+# define SWAP16(w) ( (((w) >> 8) & 0x00ff) | (((w) << 8) & 0xff00) )
+#else
+# define SWAP16(w) (w)
+#endif
 
 #define JPEG_QUALITY  96
 
@@ -220,6 +227,59 @@ put_pix_alpha_replace(image *pimage, int32_t x, int32_t y, pix col)
 {
 	if((x >= 0) && (y >= 0) && (x < pimage->width) && (y < pimage->height))
 		pimage->buf[(y * pimage->width) + x] = col;
+}
+
+int
+image_get_jpeg_resolution(const char * path, int * width, int * height)
+{
+	FILE *img;
+	unsigned char buf[8];
+	u_int16_t offset;
+	int ret = 1;
+
+	img = fopen(path, "r");
+	if( !img )
+		return(-1);
+
+	fread(&buf, 2, 1, img);
+	if( (buf[0] != 0xFF) || (buf[1] != 0xD8) )
+	{
+		fclose(img);
+		return(-1);
+	}
+	memset(&buf, 0, sizeof(buf));
+
+	while( !feof(img) )
+	{
+		while( buf[0] != 0xFF && !feof(img) )
+			fread(&buf, 1, 1, img);
+
+		while( buf[0] == 0xFF && !feof(img) )
+			fread(&buf, 1, 1, img);
+
+		if( (buf[0] >= 0xc0) && (buf[0] <= 0xc3) )
+		{
+			fread(&buf, 7, 1, img);
+			*width = 0;
+			*height = 0;
+			memcpy(height, buf+3, 2);
+			*height = SWAP16(*height);
+			memcpy(width, buf+5, 2);
+			*width = SWAP16(*width);
+			ret = 0;
+			break;
+		}
+		else
+		{
+			offset = 0;
+			fread(&buf, 2, 1, img);
+			memcpy(&offset, buf, 2);
+			offset = SWAP16(offset) - 2;
+			fseek(img, offset, SEEK_CUR);
+		}
+	}
+	fclose(img);
+	return ret;
 }
 
 image *

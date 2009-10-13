@@ -1,9 +1,9 @@
 MiniDLNA project
 (c) 2009 Justin Maggard
-Parts (c) 2006-2007 Thomas Bernard
+Portions (c) 2006-2007 Thomas Bernard
 webpage: http://sourceforge.net/projects/minidlna/
 
-This directory contain the MiniDLNA daemon software.
+This directory contains the MiniDLNA daemon software.
 This software is subject to the conditions detailed in
 the LICENCE file provided with this distribution.
 
