@@ -485,6 +485,37 @@ parse_sort_criteria(char * sortCriteria, int * error)
 	return order;
 }
 
+static void add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_pn, char *detailID, struct Response *passed_args)
+{
+	int ret;
+	int dstw = reqw;
+	int dsth = reqh;
+	char str_buf[256];
+
+	ret = sprintf(str_buf, "&lt;res ");
+	memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+	passed_args->size += ret;
+	if( passed_args->filter & FILTER_RES_RESOLUTION )
+	{
+		dstw = reqw;
+		dsth = ((((reqw<<10)/srcw)*srch)>>10);
+		if( dsth > reqh ) {
+			dsth = reqh;
+			dstw = (((reqh<<10)/srch) * srcw>>10);
+		}
+		ret = sprintf(str_buf, "resolution=\"%dx%d\" ", dstw, dsth);
+		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+		passed_args->size += ret;
+	}
+	ret = sprintf(str_buf, "protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=%s\"&gt;"
+	                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
+	                       "&lt;/res&gt;",
+	                       dlna_pn, lan_addr[0].str, runtime_vars.port,
+	                       detailID, dstw, dsth);
+	memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+	passed_args->size += ret;
+}
+
 #define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.PARENT_ID, o.REF_ID, o.DETAIL_ID, o.CLASS," \
                        " d.SIZE, d.TITLE, d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST," \
                        " d.ALBUM, d.GENRE, d.COMMENT, d.CHANNELS, d.TRACK, d.DATE, d.RESOLUTION," \
@@ -666,7 +697,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		}
 		if( passed_args->filter & FILTER_RES ) {
 			mime_to_ext(mime, ext);
-			if( (passed_args->client == EFreeBox) && tn && atoi(tn) && dlna_pn ) {
+			if( (passed_args->client == EFreeBox) && tn && atoi(tn) ) {
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
 				                       "http://%s:%d/Thumbnails/%s.jpg"
 				                       "&lt;/res&gt;",
@@ -714,53 +745,27 @@ callback(void *args, int argc, char **argv, char **azColName)
 			                       "http://%s:%d/MediaItems/%s.%s"
 			                       "&lt;/res&gt;",
 			                       mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID, ext);
-			#if 1 //JPEG_RESIZE
-			if( *mime == 'i' ) {
-				int reqw = 0, reqh = 0;
-				if( dlna_pn && (!strncmp(dlna_pn, "JPEG_L", 6) || !strncmp(dlna_pn, "JPEG_M", 6)) ) {
-					reqw = 640;
-					reqh = 480;
-				}
-				else if( !dlna_pn ) {
-					reqw = 4096;
-					reqh = 4096;
-				}
-				if( reqw ) {
-					int srcw = atoi(strsep(&resolution, "x"));
-					int srch = atoi(resolution);
-					int dstw = reqw;
-					int dsth = ((((reqw<<10)/srcw)*srch)>>10);
-					if( dsth > reqh ) {
-						dsth = reqh;
-						dstw = (((reqh<<10)/srch) * srcw>>10);
-					}
-					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-					passed_args->size += ret;
-					ret = sprintf(str_buf, "&lt;res ");
-					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-					passed_args->size += ret;
-					if( passed_args->filter & FILTER_RES_RESOLUTION ) {
-						ret = sprintf(str_buf, "resolution=\"%dx%d\" ", dstw, dsth);
-						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-						passed_args->size += ret;
-					}
-					ret = sprintf(str_buf, "protocolInfo=\"http-get:*:%s:DLNA.ORG_PN=JPEG_%s\"&gt;"
-					                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
-					                       "&lt;/res&gt;",
-					                       mime, (reqw==640)?"SM":"LRG", lan_addr[0].str, runtime_vars.port,
-					                       detailID, dstw, dsth);
-				}
-			}
-			#endif
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
-			if( tn && atoi(tn) && (passed_args->client != EFreeBox) && dlna_pn ) {
-				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
-				                       "http://%s:%d/Thumbnails/%s.jpg"
-				                       "&lt;/res&gt;",
-				                       mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
+			if( (*mime == 'i') && (passed_args->client != EFreeBox) ) {
+#if 1 //JPEG_RESIZE
+				int srcw = atoi(strsep(&resolution, "x"));
+				int srch = atoi(resolution);
+				if( !dlna_pn ) {
+					add_resized_res(srcw, srch, 4096, 4096, "JPEG_LRG", detailID, passed_args);
+				}
+				if( !dlna_pn || !strncmp(dlna_pn, "JPEG_L", 6) || !strncmp(dlna_pn, "JPEG_M", 6) ) {
+					add_resized_res(srcw, srch, 640, 480, "JPEG_SM", detailID, passed_args);
+				}
+#endif
+				if( tn && atoi(tn) ) {
+					ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
+					                       "http://%s:%d/Thumbnails/%s.jpg"
+					                       "&lt;/res&gt;",
+					                       mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str, runtime_vars.port, detailID);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
 			}
 		}
 		ret = sprintf(str_buf, "&lt;/item&gt;");
