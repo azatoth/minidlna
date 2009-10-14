@@ -47,6 +47,7 @@
 #define FLAG_ALBUM	0x00000004
 #define FLAG_GENRE	0x00000008
 #define FLAG_COMMENT	0x00000010
+#define FLAG_BAND	0x00000020
 
 /* Audio profile flags */
 #define MP3		0x00000001
@@ -126,7 +127,7 @@ GetFolderMetadata(const char * name, const char * path, const char * artist, con
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
                                " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART) "
                                "VALUES"
-                               " ('%q', %Q, %Q, %Q, %Q, %lld, %Q);",
+                               " ('%q', %Q, %Q, %Q, %Q, %lld);",
                                name, path, artist, artist, genre,
                                album_art ? strtoll(album_art, NULL, 10) : 0);
 	if( sql_exec(db, sql) != SQLITE_OK )
@@ -146,7 +147,7 @@ GetAudioMetadata(const char * path, char * name)
 	struct stat file;
 	sqlite_int64 ret;
 	char *sql;
-	char *title, *artist = NULL, *album = NULL, *genre = NULL, *comment = NULL, *date = NULL;
+	char *title, *artist = NULL, *album = NULL, *band = NULL, *genre = NULL, *comment = NULL, *date = NULL;
 	char *esc_tag;
 	int i, free_flags = 0;
 	sqlite_int64 album_art = 0;
@@ -243,12 +244,33 @@ GetAudioMetadata(const char * path, char * name)
 		if( song.contributor[i] && *song.contributor[i] )
 		{
 			artist = trim(song.contributor[i]);
-			if( (esc_tag = escape_tag(artist)) )
+			if( strlen(artist) > 48 )
+			{
+				free_flags |= FLAG_ARTIST;
+				artist = strdup("Various Artists");
+			}
+			else if( (esc_tag = escape_tag(artist)) )
 			{
 				free_flags |= FLAG_ARTIST;
 				artist = esc_tag;
 			}
+			band = artist;
 			break;
+		}
+	}
+	/* If there is a band associated with the album, use it for virtual containers. */
+	if( (i != ROLE_BAND) && song.contributor[ROLE_BAND] && *song.contributor[ROLE_BAND] )
+	{
+		band = trim(song.contributor[ROLE_BAND]);
+		if( strlen(band) > 48 )
+		{
+			free_flags |= FLAG_BAND;
+			band = strdup("Various Artists");
+		}
+		else if( (esc_tag = escape_tag(band)) )
+		{
+			free_flags |= FLAG_BAND;
+			band = esc_tag;
 		}
 	}
 	if( song.album && *song.album )
@@ -285,9 +307,9 @@ GetAudioMetadata(const char * path, char * name)
 				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
 				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 				"VALUES"
-				" (%Q, %d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld, %Q);",
+				" (%Q, %d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
 				path, song.file_size, duration, song.channels, song.bitrate, song.samplerate, date,
-				title, artist, artist, album, genre, comment, song.disc, song.track,
+				title, band, artist, album, genre, comment, song.disc, song.track,
 				dlna_pn, song.mime?song.mime:mime, album_art);
         freetags(&song);
 	if( dlna_pn )
@@ -300,6 +322,8 @@ GetAudioMetadata(const char * path, char * name)
 		free(artist);
 	if( free_flags & FLAG_ALBUM )
 		free(album);
+	if( free_flags & FLAG_BAND )
+		free(band);
 	if( free_flags & FLAG_GENRE )
 		free(genre);
 	if( free_flags & FLAG_COMMENT )
@@ -903,7 +927,7 @@ GetVideoMetadata(const char * path, char * name)
 	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART) "
 	                       "VALUES"
-	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld, %Q);",
+	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld);",
 	                       path, size, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,

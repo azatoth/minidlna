@@ -230,7 +230,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		asprintf(&sql, "SELECT ARTIST, ALBUM, GENRE, ALBUM_ART from DETAILS where ID = %lu", detailID);
+		asprintf(&sql, "SELECT ALBUM, CREATOR, GENRE, ALBUM_ART from DETAILS where ID = %lu", detailID);
 		ret = sql_get_table(db, sql, &result, &row, &cols);
 		free(sql);
 		if( ret != SQLITE_OK )
@@ -240,8 +240,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			sqlite3_free_table(result);
 			return;
 		}
-		char *artist = result[5], *album = result[6], *genre = result[7];
-		char *album_art = result[8];
+		char *album = result[4], *artist = result[5], *genre = result[6];
+		char *album_art = result[7];
 		static struct virtual_item last_album;
 		static struct virtual_item last_artist;
 		static struct virtual_item last_artistAlbum;
