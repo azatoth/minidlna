@@ -118,18 +118,17 @@ get_fourcc(const char *s)
 }
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art, const char * art_dlna_pn)
+GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art)
 {
 	char * sql;
 	int ret;
 
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
-                               " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART, ART_DLNA_PN) "
+                               " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART) "
                                "VALUES"
                                " ('%q', %Q, %Q, %Q, %Q, %lld, %Q);",
                                name, path, artist, artist, genre,
-                               album_art ? strtoll(album_art, NULL, 10) : 0,
-                               art_dlna_pn);
+                               album_art ? strtoll(album_art, NULL, 10) : 0);
 	if( sql_exec(db, sql) != SQLITE_OK )
 		ret = 0;
 	else
@@ -151,7 +150,6 @@ GetAudioMetadata(const char * path, char * name)
 	char *esc_tag;
 	int i, free_flags = 0;
 	sqlite_int64 album_art = 0;
-	char art_dlna_pn[9];
 	struct song_metadata song;
 	char *dlna_pn = NULL;
 
@@ -281,22 +279,16 @@ GetAudioMetadata(const char * path, char * name)
 		}
 	}
 
-	album_art = find_album_art(path, art_dlna_pn, song.image, song.image_size);
+	album_art = find_album_art(path, song.image, song.image_size);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
 				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
-				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, TRACK, DLNA_PN, MIME, ALBUM_ART, ART_DLNA_PN) "
+				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 				"VALUES"
-				" (%Q, %d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %Q, '%s', %lld, %Q);",
+				" (%Q, %d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld, %Q);",
 				path, song.file_size, duration, song.channels, song.bitrate, song.samplerate, date,
-				title,
-				artist, artist,
-				album,
-				genre,
-				comment,
-				song.track,
-				dlna_pn, song.mime?song.mime:mime,
-				album_art, album_art?art_dlna_pn:NULL );
+				title, artist, artist, album, genre, comment, song.disc, song.track,
+				dlna_pn, song.mime?song.mime:mime, album_art);
         freetags(&song);
 	if( dlna_pn )
 		free(dlna_pn);
@@ -516,7 +508,6 @@ GetVideoMetadata(const char * path, char * name)
 	int duration, hours, min, sec, ms;
 	aac_object_type_t aac_type = AAC_INVALID;
 	sqlite_int64 album_art = 0;
-	char art_dlna_pn[9];
 	metadata_t m;
 	memset(&m, '\0', sizeof(m));
 	date[0] = '\0';
@@ -906,18 +897,18 @@ GetVideoMetadata(const char * path, char * name)
 		asprintf(&m.mime, "video/x-tivo-mpeg");
 	}
 #endif
-	album_art = find_album_art(path, art_dlna_pn, NULL, 0);
+	album_art = find_album_art(path, NULL, 0);
 
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
 	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
-	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART, ART_DLNA_PN) "
+	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART) "
 	                       "VALUES"
 	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld, %Q);",
 	                       path, size, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,
 	                       m.artist, name, m.dlna_pn, m.mime,
-	                       album_art, album_art?art_dlna_pn:NULL );
+	                       album_art);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{

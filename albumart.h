@@ -14,6 +14,6 @@ void
 update_if_album_art(const char * path);
 
 sqlite_int64
-find_album_art(const char * path, char * dlna_pn, const char * image_data, int image_size);
+find_album_art(const char * path, const char * image_data, int image_size);
 
 #endif

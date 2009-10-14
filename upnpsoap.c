@@ -453,7 +453,7 @@ parse_sort_criteria(char * sortCriteria, int * error)
 		}
 		else if( strcasecmp(item, "upnp:originalTrackNumber") == 0 )
 		{
-			strcat(order, "d.TRACK");
+			strcat(order, "d.DISC, d.TRACK");
 		}
 		else
 		{
@@ -519,7 +519,7 @@ static void add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_p
 #define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.PARENT_ID, o.REF_ID, o.DETAIL_ID, o.CLASS," \
                        " d.SIZE, d.TITLE, d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST," \
                        " d.ALBUM, d.GENRE, d.COMMENT, d.CHANNELS, d.TRACK, d.DATE, d.RESOLUTION," \
-                       " d.THUMBNAIL, d.CREATOR, d.DLNA_PN, d.MIME, d.ALBUM_ART "
+                       " d.THUMBNAIL, d.CREATOR, d.DLNA_PN, d.MIME, d.ALBUM_ART, d.DISC "
 
 static int
 callback(void *args, int argc, char **argv, char **azColName)

@@ -160,7 +160,7 @@ update_if_album_art(const char * path)
 		{
 			DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like cover art for %s\n", path, dp->d_name);
 			asprintf(&file, "%s/%s", dir, dp->d_name);
-			art_id = find_album_art(file, NULL, NULL, 0);
+			art_id = find_album_art(file, NULL, 0);
 			sql = sqlite3_mprintf("UPDATE DETAILS set ALBUM_ART = %lld where PATH = '%q'", art_id, file);
 			if( sql_exec(db, sql) != SQLITE_OK )
 				DPRINTF(E_WARN, L_METADATA, "Error setting %s as cover art for %s\n", match, dp->d_name);
@@ -340,7 +340,7 @@ found_file:
 }
 
 sqlite_int64
-find_album_art(const char * path, char * dlna_pn, const char * image_data, int image_size)
+find_album_art(const char * path, const char * image_data, int image_size)
 {
 	char * album_art = NULL;
 	char * sql;
@@ -352,8 +352,6 @@ find_album_art(const char * path, char * dlna_pn, const char * image_data, int i
 	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
 	    (album_art = check_for_album_file(dirname(mypath), path)) )
 	{
-		if( dlna_pn )
-			strcpy(dlna_pn, "JPEG_TN");
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
 		if( (sql_get_table(db, sql, &result, &rows, &cols) == SQLITE_OK) && rows )
 		{
