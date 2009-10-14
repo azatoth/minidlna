@@ -483,7 +483,7 @@ no_exifdata:
 		asprintf(&m.dlna_pn, "JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	else if( width <= 1024 && height <= 768 )
 		asprintf(&m.dlna_pn, "JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
-	else if( width <= 4096 && height <= 4096 )
+	else if( (width <= 4096 && height <= 4096) || !(GETFLAG(DLNA_STRICT_MASK)) )
 		asprintf(&m.dlna_pn, "JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
 	asprintf(&m.resolution, "%dx%d", width, height);
 

@@ -23,7 +23,7 @@
 time_t startup_time = 0;
 
 struct runtime_vars_s runtime_vars;
-int runtime_flags = INOTIFYMASK;
+int runtime_flags = INOTIFY_MASK;
 
 const char * pidfilename = "/var/run/minidlna.pid";
 

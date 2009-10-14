@@ -373,11 +373,15 @@ init(int argc, char * * argv)
 				break;
 			case UPNPINOTIFY:
 				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
-					CLEARFLAG(INOTIFYMASK);
+					CLEARFLAG(INOTIFY_MASK);
 				break;
 			case ENABLE_TIVO:
 				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
-					SETFLAG(TIVOMASK);
+					SETFLAG(TIVO_MASK);
+				break;
+			case ENABLE_DLNA_STRICT:
+				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
+					SETFLAG(DLNA_STRICT_MASK);
 				break;
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",
@@ -741,7 +745,7 @@ main(int argc, char * * argv)
 			sqlite3_free_table(result);
 		}
 		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
-		    GETFLAG(INOTIFYMASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
+		    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
 		{
 			DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 		}
@@ -768,7 +772,7 @@ main(int argc, char * * argv)
 	}
 
 #ifdef TIVO_SUPPORT
-	if( GETFLAG(TIVOMASK) )
+	if( GETFLAG(TIVO_MASK) )
 	{
 		DPRINTF(E_WARN, L_GENERAL, "TiVo support is enabled.\n");
 		/* Add TiVo-specific randomize function to sqlite */
@@ -834,7 +838,7 @@ main(int argc, char * * argv)
 				}
 			}
 #ifdef TIVO_SUPPORT
-			if( GETFLAG(TIVOMASK) )
+			if( GETFLAG(TIVO_MASK) )
 			{
 				if(timeofday.tv_sec >= (lastbeacontime.tv_sec + beacon_interval))
 				{

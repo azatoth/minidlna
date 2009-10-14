@@ -762,7 +762,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		#ifdef TIVO_SUPPORT
 		else if(strncmp(HttpUrl, "/TiVoConnect", 12) == 0)
 		{
-			if( GETFLAG(TIVOMASK) )
+			if( GETFLAG(TIVO_MASK) )
 			{
 				if( *(HttpUrl+12) == '?' )
 				{
@@ -1546,7 +1546,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Interactive without an image!\n");
 			/* Samsung TVs (well, at least the A950) do this for some reason,
 			 * and I don't see them fixing this bug any time soon. */
-			if( h->req_client != ESamsungTV )
+			if( h->req_client != ESamsungTV || GETFLAG(DLNA_STRICT_MASK) )
 			{
 				Send406(h);
 				goto error;

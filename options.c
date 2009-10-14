@@ -33,7 +33,8 @@ static const struct {
 	{ UPNPMEDIADIR, "media_dir"},
 	{ UPNPALBUMART_NAMES, "album_art_names"},
 	{ UPNPINOTIFY, "inotify" },
-	{ ENABLE_TIVO, "enable_tivo" }
+	{ ENABLE_TIVO, "enable_tivo" },
+	{ ENABLE_DLNA_STRICT, "strict_dlna" }
 };
 
 int
