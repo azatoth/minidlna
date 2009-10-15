@@ -638,6 +638,12 @@ CreateDatabase(void)
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
+	ret = sql_exec(db, "CREATE TABLE CAPTIONS ("
+					"ID INTEGER PRIMARY KEY, "
+					"PATH TEXT NOT NULL"
+					")");
+	if( ret != SQLITE_OK )
+		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE SETTINGS ("
 					"UPDATE_ID INTEGER PRIMARY KEY DEFAULT 0"
 					")");

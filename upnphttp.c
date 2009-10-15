@@ -337,6 +337,10 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_XFERBACKGROUND;
 				}
 			}
+			else if(strncasecmp(line, "getCaptionInfo.sec", 18)==0)
+			{
+				h->reqflags |= FLAG_CAPTION;
+			}
 		}
 next_header:
 		while(!(line[0] == '\r' && line[1] == '\n'))
@@ -791,6 +795,11 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			SendResp_icon(h, HttpUrl+7);
 			CloseSocket_upnphttp(h);
 		}
+		else if(strncmp(HttpUrl, "/Captions/", 10) == 0)
+		{
+			SendResp_caption(h, HttpUrl+10);
+			CloseSocket_upnphttp(h);
+		}
 		else
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", HttpUrl);
@@ -1119,7 +1128,6 @@ SendResp_icon(struct upnphttp * h, char * icon)
 	free(header);
 }
 
-
 void
 SendResp_albumArt(struct upnphttp * h, char * object)
 {
@@ -1195,6 +1203,64 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 		}
 		close(sendfh);
 	}
+	error:
+	sqlite3_free_table(result);
+}
+
+void
+SendResp_caption(struct upnphttp * h, char * object)
+{
+	char header[1500];
+	char sql_buf[256];
+	char **result;
+	int rows = 0;
+	char *path;
+	char date[30];
+	time_t curtime = time(NULL);
+	off_t offset = 0, size;
+	int sendfh;
+
+	memset(header, 0, 1500);
+
+	strip_ext(object);
+	sprintf(sql_buf, "SELECT PATH from CAPTIONS where ID = %s", object);
+	sql_get_table(db, sql_buf, &result, &rows, NULL);
+	if( !rows )
+	{
+		DPRINTF(E_WARN, L_HTTP, "CAPTION ID %s not found, responding ERROR 404\n", object);
+		Send404(h);
+		goto error;
+	}
+	path = result[1];
+	DPRINTF(E_INFO, L_HTTP, "Serving caption ID: %s [%s]\n", object, path);
+
+	if( access(path, F_OK) != 0 )
+		goto error;
+
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+	sendfh = open(path, O_RDONLY);
+	if( sendfh < 0 ) {
+		DPRINTF(E_ERROR, L_HTTP, "Error opening %s\n", path);
+		goto error;
+	}
+	size = lseek(sendfh, 0, SEEK_END);
+	lseek(sendfh, 0, SEEK_SET);
+
+	sprintf(header, "HTTP/1.1 200 OK\r\n"
+			"Content-Type: smi/caption\r\n"
+			"Content-Length: %jd\r\n"
+			"Connection: close\r\n"
+			"Date: %s\r\n"
+			"EXT:\r\n"
+			"Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
+			size, date);
+
+	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
+	{
+		send_file(h, sendfh, offset, size);
+	}
+	close(sendfh);
+
 	error:
 	sqlite3_free_table(result);
 }
@@ -1628,6 +1694,22 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		else
 		{
 			strcat(header, "transferMode.dlna.org: Interactive\r\n");
+		}
+	}
+
+	if( h->reqflags & FLAG_CAPTION )
+	{
+		sprintf(sql_buf, "SELECT 1 from CAPTIONS where ID = '%lld'", id);
+		ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
+		if( ret == SQLITE_OK )
+		{
+			if( rows )
+			{
+				sprintf(hdr_buf, "CaptionInfo.sec: http://%s:%d/Captions/%lld.srt\r\n",
+				                 lan_addr[0].str, runtime_vars.port, id);
+				strcat(header, hdr_buf);
+			}
+			sqlite3_free_table(result);
 		}
 	}
 

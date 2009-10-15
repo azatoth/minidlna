@@ -80,6 +80,7 @@ struct upnphttp {
 #define FLAG_XFERSTREAMING      0x00001000
 #define FLAG_XFERINTERACTIVE    0x00002000
 #define FLAG_XFERBACKGROUND     0x00004000
+#define FLAG_CAPTION            0x00008000
 
 #define FLAG_DLNA               0x00100000
 #define FLAG_MIME_AVI_DIVX      0x00200000
@@ -135,6 +136,8 @@ void
 SendResp_icon(struct upnphttp *, char * url);
 void
 SendResp_albumArt(struct upnphttp *, char * url);
+void
+SendResp_caption(struct upnphttp *, char * url);
 void
 SendResp_resizedimg(struct upnphttp *, char * url);
 void

@@ -73,6 +73,9 @@ ends_with(const char * haystack, const char * needle);
 char *
 modifyString(char * string, const char * before, const char * after, short like);
 
+void
+check_for_captions(const char * path, sqlite_int64 detailID);
+
 sqlite_int64
 GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art);
 

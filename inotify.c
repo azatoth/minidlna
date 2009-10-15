@@ -23,6 +23,7 @@
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
+#include "metadata.h"
 #include "albumart.h"
 #include "log.h"
 
@@ -278,6 +279,8 @@ inotify_insert_file(char * name, const char * path)
 	/* Is it cover art for another file? */
 	if( is_image(path) )
 		update_if_album_art(path);
+	else if( ends_with(path, ".srt") )
+		check_for_captions(path, 0);
 
 	/* Check if we're supposed to be scanning for this file type in this directory */
 	while( media_path )

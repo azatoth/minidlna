@@ -118,6 +118,55 @@ get_fourcc(const char *s)
 	return (s[0]) + (s[1]<<8) + (s[2]<<16) + (s[3]<<24);
 }
 
+void
+check_for_captions(const char * path, sqlite_int64 detailID)
+{
+	char * sql;
+	char * file = malloc(PATH_MAX);
+	char **result;
+	int ret, rows;
+
+	sprintf(file, "%s", path);
+	strip_ext(file);
+
+	/* If we weren't given a detail ID, look for one. */
+	if( !detailID )
+	{
+		sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH glob '%q.*'"
+		                      " and MIME glob 'video/*' limit 1", file);
+		ret = sql_get_table(db, sql, &result, &rows, NULL);
+		if( ret == SQLITE_OK )
+		{
+			if( rows )
+			{
+				detailID = strtoll(result[1], NULL, 10);
+				//DEBUG DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like a caption file.\n", path);
+			}
+			/*else
+			{
+				DPRINTF(E_DEBUG, L_METADATA, "No file found for caption %s.\n", path);
+			}*/
+			sqlite3_free_table(result);
+		}
+		sqlite3_free(sql);
+		if( !detailID )
+			goto no_source_video;
+	}
+
+	strcat(file, ".srt");
+	if( access(file, R_OK) == 0 )
+	{
+		sql = sqlite3_mprintf("INSERT into CAPTIONS"
+		                      " (ID, PATH) "
+		                      "VALUES"
+		                      " (%lld, %Q)", detailID, file);
+		sql_exec(db, sql);
+		sqlite3_free(sql);
+	}
+no_source_video:
+	free(file);
+}
+
 sqlite_int64
 GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art)
 {
@@ -942,6 +991,7 @@ GetVideoMetadata(const char * path, char * name)
 	else
 	{
 		ret = sqlite3_last_insert_rowid(db);
+		check_for_captions(path, ret);
 	}
 	sqlite3_free(sql);
 	if( m.dlna_pn )
