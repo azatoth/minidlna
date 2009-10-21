@@ -41,6 +41,7 @@ struct lan_addr_s lan_addr[MAX_LAN_ADDR];
 
 /* UPnP-A/V [DLNA] */
 sqlite3 * db;
+char dlna_no_conv[] = "DLNA.ORG_OP=01;DLNA.ORG_CI=0";
 char friendly_name[FRIENDLYNAME_MAX_LEN];
 struct media_dir_s * media_dirs = NULL;
 struct album_art_name_s * album_art_names = NULL;

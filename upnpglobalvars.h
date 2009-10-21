@@ -50,6 +50,8 @@
 	"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVMED_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0," \
 	"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVMED_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0," \
 	"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVHIGH_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0," \
+	"http-get:*:video/3gpp:DLNA.ORG_PN=MPEG4_P2_3GPP_SP_L0B_AAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0," \
+	"http-get:*:video/3gpp:DLNA.ORG_PN=MPEG4_P2_3GPP_SP_L0B_AMR;DLNA.ORG_OP=01;DLNA.ORG_CI=0," \
 	"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01," \
 	"http-get:*:audio/x-ms-wma:DLNA.ORG_PN=WMABASE;DLNA.ORG_OP=01," \
 	"http-get:*:audio/x-ms-wma:DLNA.ORG_PN=WMAFULL;DLNA.ORG_OP=01," \
@@ -57,6 +59,7 @@
 	"http-get:*:audio/mp4:DLNA.ORG_PN=AAC_ISO_320;DLNA.ORG_OP=01," \
 	"http-get:*:audio/mp4:DLNA.ORG_PN=AAC_ISO;DLNA.ORG_OP=01," \
 	"http-get:*:audio/mp4:DLNA.ORG_PN=AAC_MULT5_ISO;DLNA.ORG_OP=01," \
+	"http-get:*:audio/L16;rate=44100;channels=2:DLNA.ORG_PN=LPCM;DLNA.ORG_OP=01," \
 	"http-get:*:image/jpeg:*," \
 	"http-get:*:video/avi:*," \
 	"http-get:*:video/divx:*," \
@@ -65,6 +68,9 @@
 	"http-get:*:video/mp4:*," \
 	"http-get:*:video/x-ms-wmv:*," \
 	"http-get:*:video/x-msvideo:*," \
+	"http-get:*:video/x-flv:*," \
+	"http-get:*:video/x-tivo-mpeg:*," \
+	"http-get:*:video/quicktime:*," \
 	"http-get:*:audio/mp4:*," \
 	"http-get:*:audio/x-wav:*," \
 	"http-get:*:audio/x-flac:*," \
@@ -106,6 +112,7 @@ extern struct lan_addr_s lan_addr[];
 
 /* UPnP-A/V [DLNA] */
 extern sqlite3 *db;
+extern char dlna_no_conv[];
 #define FRIENDLYNAME_MAX_LEN (64)
 extern char friendly_name[];
 extern struct media_dir_s * media_dirs;

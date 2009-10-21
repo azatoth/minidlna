@@ -1577,7 +1577,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		if( result[5] )
 			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s", result[5]);
 		else if( h->reqflags & FLAG_DLNA )
-			strcpy(last_file.dlna, "DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+			strcpy(last_file.dlna, dlna_no_conv);
 		else
 			last_file.dlna[0] = '\0';
 		sqlite3_free_table(result);

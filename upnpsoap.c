@@ -567,7 +567,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	if( dlna_pn )
 		sprintf(dlna_buf, "DLNA.ORG_PN=%s", dlna_pn);
 	else if( passed_args->flags & FLAG_DLNA )
-		strcpy(dlna_buf, "DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		strcpy(dlna_buf, dlna_no_conv);
 	else
 		strcpy(dlna_buf, "*");
 

@@ -50,15 +50,19 @@
 #define FLAG_BAND	0x00000020
 
 /* Audio profile flags */
-#define MP3		0x00000001
-#define AC3		0x00000002
-#define WMA_BASE	0x00000004
-#define WMA_FULL	0x00000008
-#define WMA_PRO		0x00000010
-#define MP2		0x00000020
-#define PCM		0x00000040
-#define AAC		0x00000100
-#define AAC_MULT5	0x00000200
+enum audio_profiles {
+	PROFILE_AUDIO_UNKNOWN,
+	PROFILE_AUDIO_MP3,
+	PROFILE_AUDIO_AC3,
+	PROFILE_AUDIO_WMA_BASE,
+	PROFILE_AUDIO_WMA_FULL,
+	PROFILE_AUDIO_WMA_PRO,
+	PROFILE_AUDIO_MP2,
+	PROFILE_AUDIO_PCM,
+	PROFILE_AUDIO_AAC,
+	PROFILE_AUDIO_AAC_MULT5,
+	PROFILE_AUDIO_AMR
+};
 
 /* This function shamelessly copied from libdlna */
 #define MPEG_TS_SYNC_CODE 0x47
@@ -529,11 +533,11 @@ no_exifdata:
 		return 0;
 	}
 	if( width <= 640 && height <= 480 )
-		asprintf(&m.dlna_pn, "JPEG_SM;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		asprintf(&m.dlna_pn, "JPEG_SM;%s", dlna_no_conv);
 	else if( width <= 1024 && height <= 768 )
-		asprintf(&m.dlna_pn, "JPEG_MED;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		asprintf(&m.dlna_pn, "JPEG_MED;%s", dlna_no_conv);
 	else if( (width <= 4096 && height <= 4096) || !(GETFLAG(DLNA_STRICT_MASK)) )
-		asprintf(&m.dlna_pn, "JPEG_LRG;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+		asprintf(&m.dlna_pn, "JPEG_LRG;%s", dlna_no_conv);
 	asprintf(&m.resolution, "%dx%d", width, height);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
@@ -576,7 +580,7 @@ GetVideoMetadata(const char * path, char * name)
 	char date[20];
 	AVFormatContext *ctx;
 	int audio_stream = -1, video_stream = -1;
-	int audio_profile = 0;
+	enum audio_profiles audio_profile = PROFILE_AUDIO_UNKNOWN;
 	ts_timestamp_t ts_timestamp = NONE;
 	int duration, hours, min, sec, ms;
 	aac_object_type_t aac_type = AAC_INVALID;
@@ -622,7 +626,7 @@ GetVideoMetadata(const char * path, char * name)
 	if( video_stream == -1 )
 	{
 		av_close_input_file(ctx);
-		DPRINTF(E_WARN, L_METADATA, "File %s does not contain a video stream!\n", basename(path));
+		DPRINTF(E_DEBUG, L_METADATA, "File %s does not contain a video stream.\n", basename(path));
 		return 0;
 	}
 	if( audio_stream >= 0 )
@@ -630,7 +634,7 @@ GetVideoMetadata(const char * path, char * name)
 		switch( ctx->streams[audio_stream]->codec->codec_id )
 		{
 			case CODEC_ID_MP3:
-				audio_profile = MP3;
+				audio_profile = PROFILE_AUDIO_MP3;
 				break;
 			case CODEC_ID_AAC:
 				if( !ctx->streams[audio_stream]->codec->extradata_size ||
@@ -659,10 +663,10 @@ GetVideoMetadata(const char * path, char * name)
 						/* AAC @ Level 1/2 */
 						if( ctx->streams[audio_stream]->codec->channels <= 2 &&
 						    ctx->streams[audio_stream]->codec->bit_rate <= 576000 )
-							audio_profile = AAC;
+							audio_profile = PROFILE_AUDIO_AAC;
 						else if( ctx->streams[audio_stream]->codec->channels <= 6 &&
 							 ctx->streams[audio_stream]->codec->bit_rate <= 1440000 )
-							audio_profile = AAC_MULT5;
+							audio_profile = PROFILE_AUDIO_AAC_MULT5;
 						else
 							DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC: %d channels, %d bitrate\n",
 								ctx->streams[audio_stream]->codec->channels,
@@ -675,29 +679,32 @@ GetVideoMetadata(const char * path, char * name)
 				break;
 			case CODEC_ID_AC3:
 			case CODEC_ID_DTS:
-				audio_profile = AC3;
+				audio_profile = PROFILE_AUDIO_AC3;
 				break;
 			case CODEC_ID_WMAV1:
 			case CODEC_ID_WMAV2:
 				/* WMA Baseline: stereo, up to 48 KHz, up to 192,999 bps */
 				if ( ctx->streams[audio_stream]->codec->bit_rate <= 193000 )
-					audio_profile = WMA_BASE;
+					audio_profile = PROFILE_AUDIO_WMA_BASE;
 				/* WMA Full: stereo, up to 48 KHz, up to 385 Kbps */
 				else if ( ctx->streams[audio_stream]->codec->bit_rate <= 385000 )
-					audio_profile = WMA_FULL;
+					audio_profile = PROFILE_AUDIO_WMA_FULL;
 				break;
 			#if LIBAVCODEC_VERSION_INT > ((51<<16)+(50<<8)+1)
 			case CODEC_ID_WMAPRO:
-				audio_profile = WMA_PRO;
+				audio_profile = PROFILE_AUDIO_WMA_PRO;
 				break;
 			#endif
 			case CODEC_ID_MP2:
-				audio_profile = MP2;
+				audio_profile = PROFILE_AUDIO_MP2;
+				break;
+			case CODEC_ID_AMR_NB:
+				audio_profile = PROFILE_AUDIO_AMR;
 				break;
 			default:
 				if( (ctx->streams[audio_stream]->codec->codec_id >= CODEC_ID_PCM_S16LE) &&
 				    (ctx->streams[audio_stream]->codec->codec_id < CODEC_ID_ADPCM_IMA_QT) )
-					audio_profile = PCM;
+					audio_profile = PROFILE_AUDIO_PCM;
 				else
 					DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [0x%X]\n", ctx->streams[audio_stream]->codec->codec_id);
 				break;
@@ -733,7 +740,7 @@ GetVideoMetadata(const char * path, char * name)
 					if( (ctx->streams[video_stream]->codec->width  == 352) &&
 					    (ctx->streams[video_stream]->codec->height <= 288) )
 					{
-						asprintf(&m.dlna_pn, "MPEG1;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						asprintf(&m.dlna_pn, "MPEG1;%s", dlna_no_conv);
 					}
 					asprintf(&m.mime, "video/mpeg");
 				}
@@ -746,7 +753,7 @@ GetVideoMetadata(const char * path, char * name)
 					tsinfo_t * ts = ctx->priv_data;
 					if( ts->packet_size == 192 )
 					{
-						asprintf(&m.dlna_pn, "MPEG_TS_HD_NA;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						asprintf(&m.dlna_pn, "MPEG_TS_HD_NA;%s", dlna_no_conv);
 						asprintf(&m.mime, "video/vnd.dlna.mpeg-tts");
 					}
 					else if( ts->packet_size == 188 )
@@ -756,7 +763,7 @@ GetVideoMetadata(const char * path, char * name)
 							res = 'H';
 						else
 							res = 'S';
-						asprintf(&m.dlna_pn, "MPEG_TS_%cD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0", res);
+						asprintf(&m.dlna_pn, "MPEG_TS_%cD_NA_ISO;%s", res, dlna_no_conv);
 						asprintf(&m.mime, "video/mpeg");
 					}
 				}
@@ -769,7 +776,7 @@ GetVideoMetadata(const char * path, char * name)
 						strcpy(region, "PAL");
 					else
 						strcpy(region, "NTSC");
-					asprintf(&m.dlna_pn, "MPEG_PS_%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", region);
+					asprintf(&m.dlna_pn, "MPEG_PS_%s;%s", region, dlna_no_conv);
 					asprintf(&m.mime, "video/mpeg");
 				}
 				else
@@ -801,17 +808,17 @@ GetVideoMetadata(const char * path, char * name)
 					{
 						switch( audio_profile )
 						{
-							case MP3:
-								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_MPEG1_L3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
-									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+							case PROFILE_AUDIO_MP3:
+								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_MPEG1_L3%s;%s",
+									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"", dlna_no_conv);
 								break;
-							case AC3:
-								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AC3%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
-									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+							case PROFILE_AUDIO_AC3:
+								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AC3%s;%s",
+									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"", dlna_no_conv);
 								break;
-							case AAC_MULT5:
-								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AAC_MULT5%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0",
-									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"");
+							case PROFILE_AUDIO_AAC_MULT5:
+								asprintf(&m.dlna_pn, "AVC_TS_MP_HD_AAC_MULT5%s;%s",
+									ts_timestamp==NONE?"_ISO" : ts_timestamp==VALID?"_T":"", dlna_no_conv);
 								break;
 							default:
 								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for TS/AVC/%cD file %s\n", res, basename(path));
@@ -838,11 +845,11 @@ GetVideoMetadata(const char * path, char * name)
 					{
 						switch( audio_profile )
 						{
-							case AC3:
-								asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AC3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							case PROFILE_AUDIO_AC3:
+								asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AC3;%s", dlna_no_conv);
 								break;
-							case AAC_MULT5:
-								asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AAC_MULT5;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							case PROFILE_AUDIO_AAC_MULT5:
+								asprintf(&m.dlna_pn, "AVC_MP4_MP_SD_AAC_MULT5;%s", dlna_no_conv);
 								break;
 							default:
 								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for MP4/AVC/SD file %s\n", basename(path));
@@ -868,6 +875,23 @@ GetVideoMetadata(const char * path, char * name)
 					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is DiVX\n", video_stream, basename(path));
 					asprintf(&m.artist, "DiVX");
 				}
+				else if( ends_with(path, ".3gp") && (strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0) )
+				{
+					asprintf(&m.mime, "video/3gpp");
+					switch( audio_profile )
+					{
+						case PROFILE_AUDIO_AAC:
+							asprintf(&m.dlna_pn, "MPEG4_P2_3GPP_SP_L0B_AAC;%s", dlna_no_conv);
+							break;
+						case PROFILE_AUDIO_AMR:
+							asprintf(&m.dlna_pn, "MPEG4_P2_3GPP_SP_L0B_AMR;%s", dlna_no_conv);
+							break;
+						default:
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for MPEG4-P2 3GP/0x%X file %s\n",
+							        ctx->streams[audio_stream]->codec->codec_id, basename(path));
+							break;
+					}
+				}
 				else
 				{
 					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is MPEG4 [%X]\n", video_stream, basename(path), ctx->streams[video_stream]->codec->codec_tag);
@@ -884,11 +908,11 @@ GetVideoMetadata(const char * path, char * name)
 				{
 					switch( audio_profile )
 					{
-						case MP3:
-							asprintf(&m.dlna_pn, "WMVSPML_MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_MP3:
+							asprintf(&m.dlna_pn, "WMVSPML_MP3;%s", dlna_no_conv);
 							break;
-						case WMA_BASE:
-							asprintf(&m.dlna_pn, "WMVSPML_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_WMA_BASE:
+							asprintf(&m.dlna_pn, "WMVSPML_BASE;%s", dlna_no_conv);
 							break;
 						default:
 							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPML/0x%X file %s\n", audio_profile, basename(path));
@@ -901,14 +925,14 @@ GetVideoMetadata(const char * path, char * name)
 				{
 					switch( audio_profile )
 					{
-						case WMA_PRO:
-							asprintf(&m.dlna_pn, "WMVMED_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_WMA_PRO:
+							asprintf(&m.dlna_pn, "WMVMED_PRO;%s", dlna_no_conv);
 							break;
-						case WMA_FULL:
-							asprintf(&m.dlna_pn, "WMVMED_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_WMA_FULL:
+							asprintf(&m.dlna_pn, "WMVMED_FULL;%s", dlna_no_conv);
 							break;
-						case WMA_BASE:
-							asprintf(&m.dlna_pn, "WMVMED_BASE;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_WMA_BASE:
+							asprintf(&m.dlna_pn, "WMVMED_BASE;%s", dlna_no_conv);
 							break;
 						default:
 							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVMED/0x%X file %s\n", audio_profile, basename(path));
@@ -921,11 +945,11 @@ GetVideoMetadata(const char * path, char * name)
 				{
 					switch( audio_profile )
 					{
-						case WMA_PRO:
-							asprintf(&m.dlna_pn, "WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_WMA_PRO:
+							asprintf(&m.dlna_pn, "WMVHIGH_PRO;%s", dlna_no_conv);
 							break;
-						case WMA_FULL:
-							asprintf(&m.dlna_pn, "WMVHIGH_FULL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						case PROFILE_AUDIO_WMA_FULL:
+							asprintf(&m.dlna_pn, "WMVHIGH_FULL;%s", dlna_no_conv);
 							break;
 						default:
 							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVHIGH/0x%X file %s\n", audio_profile, basename(path));

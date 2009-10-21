@@ -185,7 +185,7 @@ is_video(const char * file)
 #ifdef TIVO_SUPPORT
 		ends_with(file, ".TiVo") ||
 #endif
-		ends_with(file, ".mov"));
+		ends_with(file, ".mov") || ends_with(file, ".3gp"));
 }
 
 int
