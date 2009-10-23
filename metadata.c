@@ -357,11 +357,11 @@ GetAudioMetadata(const char * path, char * name)
 	album_art = find_album_art(path, song.image, song.image_size);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (PATH, SIZE, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
+				" (PATH, SIZE, TIMESTAMP, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
 				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 				"VALUES"
-				" (%Q, %d, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
-				path, song.file_size, duration, song.channels, song.bitrate, song.samplerate, date,
+				" (%Q, %lld, %ld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
+				path, file.st_size, file.st_mtime, duration, song.channels, song.bitrate, song.samplerate, date,
 				title, band, artist, album, genre, comment, song.disc, song.track,
 				dlna_pn, song.mime?song.mime:mime, album_art);
         freetags(&song);
@@ -418,7 +418,6 @@ GetImageMetadata(const char * path, char * name)
 	struct jpeg_error_mgr jerr;
 	FILE *infile;
 	int width=0, height=0, thumb=0;
-	off_t size;
 	char *date = NULL, *cam = NULL;
 	char make[32], model[64] = {'\0'};
 	char b[1024];
@@ -430,12 +429,10 @@ GetImageMetadata(const char * path, char * name)
 	memset(&m, '\0', sizeof(metadata_t));
 
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
-	if ( stat(path, &file) == 0 )
-		size = file.st_size;
-	else
+	if ( stat(path, &file) != 0 )
 		return 0;
 	strip_ext(name);
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", size);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", file.st_size);
 
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
 	asprintf(&m.mime, "image/jpeg");
@@ -541,10 +538,10 @@ no_exifdata:
 	asprintf(&m.resolution, "%dx%d", width, height);
 
 	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (PATH, TITLE, SIZE, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
+				" (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 				"VALUES"
-				" (%Q, '%q', %lld, %Q, %Q, %d, %Q, %Q, %Q);",
-				path, name, size, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
+				" (%Q, '%q', %lld, %ld, %Q, %Q, %d, %Q, %Q, %Q);",
+				path, name, file.st_size, file.st_mtime, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
 	if( sql_exec(db, sql) != SQLITE_OK )
 	{
@@ -572,7 +569,6 @@ no_exifdata:
 sqlite_int64
 GetVideoMetadata(const char * path, char * name)
 {
-	off_t size = 0;
 	struct stat file;
 	char *sql;
 	int ret, i;
@@ -590,14 +586,13 @@ GetVideoMetadata(const char * path, char * name)
 	date[0] = '\0';
 
 	DPRINTF(E_DEBUG, L_METADATA, "Parsing video %s...\n", name);
-	if ( stat(path, &file) == 0 )
-	{
-		modtime = localtime(&file.st_mtime);
-		strftime(date, sizeof(date), "%FT%T", modtime);
-		size = file.st_size;
-	}
+	if ( stat(path, &file) != 0 )
+		return 0;
 	strip_ext(name);
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", size);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", file.st_size);
+
+	modtime = localtime(&file.st_mtime);
+	strftime(date, sizeof(date), "%FT%T", modtime);
 
 	av_register_all();
 	if( av_open_input_file(&ctx, path, NULL, 0, NULL) != 0 )
@@ -997,11 +992,11 @@ GetVideoMetadata(const char * path, char * name)
 	album_art = find_album_art(path, NULL, 0);
 
 	sql = sqlite3_mprintf( "INSERT into DETAILS"
-	                       " (PATH, SIZE, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
+	                       " (PATH, SIZE, TIMESTAMP, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART) "
 	                       "VALUES"
-	                       " (%Q, %lld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld);",
-	                       path, size, m.duration,
+	                       " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld);",
+	                       path, file.st_size, file.st_mtime, m.duration,
 	                       strlen(date) ? date : NULL,
 	                       m.channels, m.bitrate, m.frequency, m.resolution,
 	                       m.artist, name, m.dlna_pn, m.mime,

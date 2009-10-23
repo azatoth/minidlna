@@ -628,7 +628,8 @@ CreateDatabase(void)
 					"DLNA_PN TEXT, "
 					"MIME TEXT, "
 					"ALBUM_ART INTEGER DEFAULT 0, "
-					"DISC INTEGER"
+					"DISC INTEGER, "
+					"TIMESTAMP INTEGER"
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;

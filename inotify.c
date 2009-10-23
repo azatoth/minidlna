@@ -20,6 +20,7 @@
 #endif
 
 #include "upnpglobalvars.h"
+#include "inotify.h"
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
@@ -275,6 +276,7 @@ inotify_insert_file(char * name, const char * path)
 	int depth = 1;
 	enum media_types type = ALL_MEDIA;
 	struct media_dir_s * media_path = media_dirs;
+	struct stat st;
 
 	/* Is it cover art for another file? */
 	if( is_image(path) )
@@ -317,19 +319,29 @@ inotify_insert_file(char * name, const char * path)
 			break;
 	}
 	
-	/* If it's already in the database, just skip it for now.
-	 * TODO: compare modify timestamps */
-	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH = '%q'", path);
+	/* If it's already in the database and hasn't been modified, skip it. */
+	if( stat(path, &st) != 0 )
+		return -1;
+
+	sql = sqlite3_mprintf("SELECT TIMESTAMP from DETAILS where PATH = '%q'", path);
 	if( sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK )
 	{
  		if( rows )
 		{
-			free(last_dir);
-			free(path_buf);
-			free(base_name);
-			sqlite3_free(sql);
-			sqlite3_free_table(result);
-			return -1;
+			if( atoi(result[1]) < st.st_mtime )
+			{
+				DPRINTF(E_DEBUG, L_INOTIFY, "%s is newer than the last db entry.\n", path);
+				inotify_remove_file(path_buf);
+			}
+			else
+			{
+				free(last_dir);
+				free(path_buf);
+				free(base_name);
+				sqlite3_free(sql);
+				sqlite3_free_table(result);
+				return -1;
+			}
 		}
 		sqlite3_free_table(result);
 	}
@@ -518,22 +530,27 @@ inotify_remove_file(const char * path)
 				if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
 				{
 					children = atoi(result2[1]);
-					if( children < 2 )
-					{
-						free(sql);
-						asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
-						sql_exec(db, sql);
-					}
 					sqlite3_free_table(result2);
 					if( children < 2 )
 					{
-						*rindex(result[i], '$') = '\0';
 						free(sql);
+						asprintf(&sql, "DELETE from DETAILS where ID ="
+						               " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
+						sql_exec(db, sql);
+						free(sql);
+						asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
+						sql_exec(db, sql);
+						free(sql);
+						*rindex(result[i], '$') = '\0';
 						asprintf(&sql, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
 						if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
 						{
 							if( atoi(result2[1]) == 0 )
 							{
+								free(sql);
+								asprintf(&sql, "DELETE from DETAILS where ID ="
+								               " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
+								sql_exec(db, sql);
 								free(sql);
 								asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
 								sql_exec(db, sql);
