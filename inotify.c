@@ -399,10 +399,11 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	char **result;
 	char *id=NULL, *path_buf, *parent_buf, *esc_name;
 	int wd;
-	int rows, i = 0;
+	int rows;
 	enum file_types type = TYPE_UNKNOWN;
 	enum media_types dir_type = ALL_MEDIA;
 	struct media_dir_s * media_path;
+	struct stat st;
 
  	parent_buf = dirname(strdup(path));
 	sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
@@ -438,47 +439,47 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	}
 
 	ds = opendir(path);
-	if( ds != NULL )
+	if( !ds )
 	{
-		while( (e = readdir(ds)) )
+		DPRINTF(E_ERROR, L_INOTIFY, "opendir failed! [%s]\n", strerror(errno));
+		return -1;
+	}
+	while( (e = readdir(ds)) )
+	{
+		if( strcmp(e->d_name, ".") == 0 ||
+		    strcmp(e->d_name, "..") == 0 )
+			continue;
+		esc_name = escape_tag(e->d_name);
+		if( !esc_name )
+			esc_name = strdup(e->d_name);
+		asprintf(&path_buf, "%s/%s", path, e->d_name);
+		switch( e->d_type )
 		{
-			if( strcmp(e->d_name, ".") == 0 ||
-			    strcmp(e->d_name, "..") == 0 )
-				continue;
-			esc_name = escape_tag(e->d_name);
-			if( !esc_name )
-				esc_name = strdup(e->d_name);
-			asprintf(&path_buf, "%s/%s", path, e->d_name);
-			switch( e->d_type )
-			{
-				case DT_DIR:
-				case DT_REG:
-				case DT_LNK:
-				case DT_UNKNOWN:
-					type = resolve_unknown_type(path_buf, dir_type);
-				default:
-					break;
-			}
-			if( type == TYPE_DIR )
-			{
-				inotify_insert_directory(fd, esc_name, path_buf);
-			}
-			else if( type == TYPE_FILE )
+			case DT_DIR:
+			case DT_REG:
+			case DT_LNK:
+			case DT_UNKNOWN:
+				type = resolve_unknown_type(path_buf, dir_type);
+			default:
+				break;
+		}
+		if( type == TYPE_DIR )
+		{
+			inotify_insert_directory(fd, esc_name, path_buf);
+		}
+		else if( type == TYPE_FILE )
+		{
+			if( (stat(path_buf, &st) == 0) && (st.st_blocks<<9 >= st.st_size) )
 			{
 				inotify_insert_file(esc_name, path_buf);
 			}
-			free(esc_name);
-			free(path_buf);
 		}
-	}
-	else
-	{
-		DPRINTF(E_ERROR, L_INOTIFY, "opendir failed! [%s]\n", strerror(errno));
+		free(esc_name);
+		free(path_buf);
 	}
 	closedir(ds);
-	i++;
 
-	return(i);
+	return 0;
 }
 
 int
