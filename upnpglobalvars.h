@@ -21,11 +21,11 @@
 
 #include <sqlite3.h>
 
-#define MINIDLNA_VERSION "1.0.16-pre6"
+#define MINIDLNA_VERSION "1.0.16-pre7"
 
 #define CLIENT_CACHE_SLOTS 20
 #define USE_FORK 1
-#define DB_VERSION 2
+#define DB_VERSION 3
 
 #if 0 // Add these once the newer ffmpeg libs that can detect WMAPRO are more widely used
 	"http-get:*:video/x-ms-wmv:DLNA.ORG_PN=WMVHIGH_PRO;DLNA.ORG_OP=01;DLNA.ORG_CI=0,"
