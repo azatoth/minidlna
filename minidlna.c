@@ -184,6 +184,7 @@ getfriendlyname(char * buf, int len)
 	#else
 	char * logname;
 	logname = getenv("LOGNAME");
+#if 1 // Disable for static linking
 	if( !logname )
 	{
 		struct passwd * pwent;
@@ -191,6 +192,7 @@ getfriendlyname(char * buf, int len)
 		if( pwent )
 			logname = pwent->pw_name;
 	}
+#endif
 	strncat(buf, logname?logname:"Unknown", len-strlen(buf)-1);
 	#endif
 }

@@ -36,6 +36,7 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
 LIBS = -lexif -ljpeg -lsqlite3 -lavformat -lid3tag -lFLAC -lvorbis
+#STATIC_LINKING: LIBS = -lvorbis -logg -lm -lsqlite3 -lpthread -lexif -ljpeg -lFLAC -lm -lid3tag -lz -lavformat -lavutil -lavcodec -lm
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 
