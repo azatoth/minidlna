@@ -19,7 +19,7 @@ int
 getsysaddr(char * buf, int len);
 
 int
-getifhwaddr(const char * ifname, char * buf, int len);
+getsyshwaddr(char * buf, int len);
 
 int
 get_remote_mac(struct in_addr ip_addr, unsigned char * mac);

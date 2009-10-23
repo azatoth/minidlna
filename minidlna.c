@@ -214,7 +214,7 @@ init(int argc, char * * argv)
 	/*const char * logfilename = 0;*/
 	const char * presurl = 0;
 	const char * optionsfile = "/etc/minidlna.conf";
-	char * mac_str = calloc(1, 64);
+	char mac_str[13];
 	char * string, * word;
 	enum media_types type;
 	char * path;
@@ -233,15 +233,13 @@ init(int argc, char * * argv)
 	}
 
 	/* set up uuid based on mac address */
-	if( (getifhwaddr("eth0", mac_str, 64) < 0) &&
-	    (getifhwaddr("eth1", mac_str, 64) < 0) )
+	if( getsyshwaddr(mac_str, sizeof(mac_str)) < 0 )
 	{
 		DPRINTF(E_OFF, L_GENERAL, "No MAC address found.  Falling back to generic UUID.\n");
 		strcpy(mac_str, "554e4b4e4f57");
 	}
 	strcpy(uuidvalue+5, "4d696e69-444c-164e-9d41-");
 	strncat(uuidvalue, mac_str, 12);
-	free(mac_str);
 
 	getfriendlyname(friendly_name, FRIENDLYNAME_MAX_LEN);
 	

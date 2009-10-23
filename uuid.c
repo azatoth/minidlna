@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <errno.h>
 
+#include "getifaddr.h"
 #include "log.h"
 
 #define ETH_ALEN 6
@@ -109,55 +110,21 @@ generate_uuid(unsigned char uuid_out[16])
 {
 	static u_int64_t last_time_all;
 	static unsigned int clock_seq_started;
-	static char last_node[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+	static char last_node[6] = { 0, 0, 0, 0, 0, 0 };
 
 	struct timespec ts;
 	u_int64_t time_all;
 	int inc_clock_seq = 0;
 
-	struct ifaddrs *ifaddr, *ifa;
 	unsigned char mac[6];
-	struct ifreq ifr;
-	int fd;
-
-	int found_mac = 0;
+	int mac_error;
 
 	memset(&mac, '\0', sizeof(mac));
 	/* Get the spatially unique node identifier */
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if( fd < 0 )
-		return -1;
 
-	if(getifaddrs(&ifaddr) == -1)
-	{
-		DPRINTF(E_ERROR, L_HTTP, "getifaddrs(): %s\n", strerror(errno));
-		return -1;
-	}
+	mac_error = getsyshwaddr((char *)mac, sizeof(mac));
 
-	for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
-	{
-		if(ifa->ifa_addr->sa_family != AF_PACKET)
-			continue;
-		if(ifa->ifa_flags & IFF_LOOPBACK)
-			continue;
-
-		strcpy(ifr.ifr_name, ifa->ifa_name);
-		if(strncmp(last_node, ifa->ifa_name, sizeof(last_node)) != 0)
-		{
-			inc_clock_seq = 1;
-			strncpy(last_node, ifa->ifa_name, sizeof(last_node));
-		}
-
-		if(ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
-			memmove(mac, ifr.ifr_hwaddr.sa_data, 6);
-
-		found_mac = 1;
-		break;
-	}
-	close(fd);
-	freeifaddrs(ifaddr);
-
-	if(found_mac)
+	if(!mac_error)
 	{
 		memcpy(&uuid_out[10], mac, ETH_ALEN);
 	}
@@ -170,6 +137,12 @@ generate_uuid(unsigned char uuid_out[16])
 			DPRINTF(E_INFO, L_HTTP, "bootid node not successfully read.\n");
 			read_random_bytes(&uuid_out[10], 6);
 		}
+	}
+
+	if(memcmp(last_node, uuid_out+10, 6) != 0)
+	{
+		inc_clock_seq = 1;
+		memcpy(last_node, uuid_out+10, 6);
 	}
 
 	/* Determine 60-bit timestamp value. For UUID version 1, this is

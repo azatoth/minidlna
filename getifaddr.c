@@ -91,41 +91,54 @@ getsysaddr(char * buf, int len)
 }
 
 int
-getifhwaddr(const char * ifname, char * buf, int len)
+getsyshwaddr(char * buf, int len)
 {
-	/* SIOCGIFADDR struct ifreq *  */
-	int s;
+	struct if_nameindex *ifaces, *if_idx;
+	unsigned char mac[6];
 	struct ifreq ifr;
-	int ifrlen;
-	unsigned char addr[6];
-	char mac_string[4];
-	int i;
-	ifrlen = sizeof(ifr);
-	if( len < 12 )
-	{
-		return -2;
-	}
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if(s < 0)
-	{
-		DPRINTF(E_ERROR, L_GENERAL, "socket(PF_INET, SOCK_DGRAM): %s\n", strerror(errno));
-		return -1;
-	}
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
-	if(ioctl(s, SIOCGIFHWADDR, &ifr, &ifrlen) < 0)
-	{
-		DPRINTF(E_ERROR, L_GENERAL, "ioctl(s, SIOCGIFHWADDR, ...): %s\n", strerror(errno));
-		close(s);
-		return -1;
-	}
-	close(s);
+	int fd;
+	int ret = -1;
 
-	memmove( addr, ifr.ifr_hwaddr.sa_data, 6);
-	for (i=0; i<6; ++i) {
-		sprintf(mac_string, "%2.2x", addr[i]);
-		strcat(buf, mac_string);
+	memset(&mac, '\0', sizeof(mac));
+	/* Get the spatially unique node identifier */
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if( fd < 0 )
+		return(ret);
+
+	ifaces = if_nameindex();
+	if(!ifaces)
+		return(ret);
+
+	for(if_idx = ifaces+2; if_idx->if_index; if_idx++)
+	{
+		strncpy(ifr.ifr_name, if_idx->if_name, IFNAMSIZ);
+		if(ioctl(fd, SIOCGIFFLAGS, &ifr) < 0)
+			continue;
+		if(ifr.ifr_ifru.ifru_flags & IFF_LOOPBACK)
+			continue;
+		if( ioctl(fd, SIOCGIFHWADDR, &ifr) < 0 )
+			continue;
+		ret = 0;
+		break;
 	}
-	return 0;
+	if_freenameindex(ifaces);
+	close(fd);
+
+	if(ret == 0)
+	{
+		if(len > 12)
+		{
+			memmove(mac, ifr.ifr_hwaddr.sa_data, 6);
+			sprintf(buf, "%02x%02x%02x%02x%02x%02x",
+			        mac[0]&0xFF, mac[1]&0xFF, mac[2]&0xFF,
+			        mac[3]&0xFF, mac[4]&0xFF, mac[5]&0xFF);
+		}
+		else if(len == 6)
+		{
+			memmove(buf, ifr.ifr_hwaddr.sa_data, 6);
+		}
+	}
+	return ret;
 }
 
 int
