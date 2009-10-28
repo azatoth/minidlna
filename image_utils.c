@@ -447,7 +447,7 @@ void
 image_upsize(image * pdest, image * psrc, int32_t width, int32_t height)
 {
 	int32_t vx, vy;
-#ifdef __sparc__
+#if !defined __i386__ && !defined __x86_64__
 	int32_t rx, ry;
 	pix vcol;
 
@@ -512,7 +512,7 @@ image_downsize(image * pdest, image * psrc, int32_t width, int32_t height)
 	int32_t vx, vy;
 	pix vcol;
 	int32_t i, j;
-#ifdef __sparc__
+#if !defined __i386__ && !defined __x86_64__
 	int32_t rx, ry, rx_next, ry_next;
 	int red, green, blue, alpha;
 	int factor;
