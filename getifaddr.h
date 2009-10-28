@@ -8,6 +8,14 @@
 #define __GETIFADDR_H__
 #include <arpa/inet.h>
 
+#define MACADDR_IS_ZERO(x) \
+  ((x[0] == 0x00) && \
+   (x[1] == 0x00) && \
+   (x[2] == 0x00) && \
+   (x[3] == 0x00) && \
+   (x[4] == 0x00) && \
+   (x[5] == 0x00))
+
 /* getifaddr()
  * take a network interface name and write the
  * ip v4 address as text in the buffer

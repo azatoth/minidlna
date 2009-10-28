@@ -109,7 +109,7 @@ getsyshwaddr(char * buf, int len)
 	if(!ifaces)
 		return(ret);
 
-	for(if_idx = ifaces+2; if_idx->if_index; if_idx++)
+	for(if_idx = ifaces; if_idx->if_index; if_idx++)
 	{
 		strncpy(ifr.ifr_name, if_idx->if_name, IFNAMSIZ);
 		if(ioctl(fd, SIOCGIFFLAGS, &ifr) < 0)
@@ -117,6 +117,8 @@ getsyshwaddr(char * buf, int len)
 		if(ifr.ifr_ifru.ifru_flags & IFF_LOOPBACK)
 			continue;
 		if( ioctl(fd, SIOCGIFHWADDR, &ifr) < 0 )
+			continue;
+		if( MACADDR_IS_ZERO(&ifr.ifr_hwaddr.sa_data) )
 			continue;
 		ret = 0;
 		break;

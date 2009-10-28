@@ -16,7 +16,6 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <string.h>
-#include <ifaddrs.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>

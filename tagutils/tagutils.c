@@ -31,13 +31,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
-#include <iconv.h>
 #include <sys/time.h>
+#include <netinet/in.h>
 #include <ogg/ogg.h>
 #include <vorbis/codec.h>
 #include <FLAC/metadata.h>
 
-#include <netinet/in.h>
+#ifdef HAVE_ICONV_H
+#include <iconv.h>
+#endif
 
 #include <sqlite3.h>
 #include "tagutils.h"

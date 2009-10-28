@@ -159,6 +159,15 @@ echo "/*#define HAVE_INOTIFY_H*/" >> ${CONFIGFILE}
 fi
 echo "" >> ${CONFIGFILE}
 
+echo "/* Enable if the system iconv.h exists.  ID3 tag reading in various character sets will not work properly otherwise. */" >> ${CONFIGFILE}
+if [ -f /usr/include/iconv.h ]; then
+echo "#define HAVE_ICONV_H" >> ${CONFIGFILE}
+else
+echo -e "\nWARNING!!  Iconv support not found.  ID3 tag reading may not work."
+echo "/*#define HAVE_ICONV_H*/" >> ${CONFIGFILE}
+fi
+echo "" >> ${CONFIGFILE}
+
 echo "/* Enable NETGEAR-specific tweaks. */" >> ${CONFIGFILE}
 echo "${NETGEAR}" >> ${CONFIGFILE}
 echo "/* Enable ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
