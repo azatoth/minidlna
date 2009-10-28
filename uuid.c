@@ -42,7 +42,7 @@ monotonic_us(void)
 }
 
 int
-read_bootid_node(u_int8_t *buf, size_t size)
+read_bootid_node(unsigned char *buf, size_t size)
 {
 	FILE *boot_id;
 
@@ -53,9 +53,8 @@ read_bootid_node(u_int8_t *buf, size_t size)
 	if(!boot_id)
 		return -1;
 	if((fseek(boot_id, 24, SEEK_SET) < 0) ||
-	   (fscanf(boot_id, "%02x%02x%02x%02x%02x%02x",
-		   (unsigned *)&buf[0], (unsigned *)&buf[1], (unsigned *)&buf[2],
-		   (unsigned *)&buf[3], (unsigned *)&buf[4], (unsigned *)&buf[5]) != 6))
+	   (fscanf(boot_id, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
+		   &buf[0], &buf[1], &buf[2], &buf[3], &buf[4], &buf[5]) != 6))
 	{
 		fclose(boot_id);
 		return -1;
