@@ -529,7 +529,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	     *duration = argv[7], *bitrate = argv[8], *sampleFrequency = argv[9], *artist = argv[10], *album = argv[11],
 	     *genre = argv[12], *comment = argv[13], *nrAudioChannels = argv[14], *track = argv[15], *date = argv[16], *resolution = argv[17],
 	     *tn = argv[18], *creator = argv[19], *dlna_pn = argv[20], *mime = argv[21], *album_art = argv[22];
-	char dlna_buf[64];
+	char dlna_buf[96];
 	char ext[5];
 	char str_buf[512];
 	char **result;
