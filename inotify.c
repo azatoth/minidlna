@@ -532,7 +532,7 @@ inotify_remove_file(const char * path)
 					sql_exec(db, sql);
 
 					*rindex(result[i], '$') = '\0';
-					if( sql_get_int_field("SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]) == 0 )
+					if( sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]) == 0 )
 					{
 						free(sql);
 						asprintf(&sql, "DELETE from DETAILS where ID ="
