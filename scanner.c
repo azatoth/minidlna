@@ -429,16 +429,11 @@ insert_directory(const char * name, const char * path, const char * base, const 
 		{
 			if( strcmp(id_buf, last_found) == 0 )
 				break;
-			sql = sqlite3_mprintf("SELECT count(*) from OBJECTS where OBJECT_ID = '%s'", id_buf);
-			if( (sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK) && atoi(result[1]) )
+			if( sql_get_int_field(db, "SELECT count(*) from OBJECTS where OBJECT_ID = '%s'", id_buf) > 0 )
 			{
-				sqlite3_free_table(result);
-				sqlite3_free(sql);
 				strcpy(last_found, id_buf);
 				break;
 			}
-			sqlite3_free_table(result);
-			sqlite3_free(sql);
 			/* Does not exist.  Need to create, and may need to create parents also */
 			sql = sqlite3_mprintf("SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s'", refID);
 			if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) && rows )
@@ -578,7 +573,7 @@ CreateDatabase(void)
 					"1$14", "1", "Folders",
 					   "2", "0", "Video",
 					 "2$8", "2", "All Video",
-					"2$15", "2", "Folders",
+				  VIDEO_DIR_ID, "2", "Folders",
 					   "3", "0", "Pictures",
 					"3$11", "3", "All Pictures",
 					"3$12", "3", "Date Taken",
@@ -646,11 +641,12 @@ CreateDatabase(void)
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE SETTINGS ("
-					"UPDATE_ID INTEGER PRIMARY KEY DEFAULT 0"
+					"UPDATE_ID INTEGER PRIMARY KEY DEFAULT 0, "
+					"FLAGS INTEGER DEFAULT 0"
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
-	ret = sql_exec(db, "INSERT into SETTINGS values (0)");
+	ret = sql_exec(db, "INSERT into SETTINGS values (0, 0)");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
 	for( i=0; containers[i]; i=i+3 )

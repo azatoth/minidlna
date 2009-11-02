@@ -111,9 +111,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
              *bitrate = argv[6], *sampleFrequency = argv[7], *artist = argv[8], *album = argv[9], *genre = argv[10],
              *comment = argv[11], *date = argv[12], *resolution = argv[13], *mime = argv[14], *path = argv[15];
 	char str_buf[4096];
-	char **result;
-	int flags = 0;
-	int ret = 0;
+	int ret = 0, flags = 0, count;
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
@@ -256,19 +254,18 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	{
 		/* Determine the number of children */
 #ifdef __sparc__ /* Adding filters on large containers can take a long time on slow processors */
-		sprintf(str_buf, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", id);
+		count = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", id);
 #else
-		sprintf(str_buf, "SELECT count(*) from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where PARENT_ID = '%s' and "
-		                 " (MIME in ('image/jpeg', 'audio/mpeg', 'video/mpeg', 'video/x-tivo-mpeg')"
-		                 " or CLASS glob 'container*')", id);
+		count = sql_get_int_field(db, "SELECT count(*) from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID) where PARENT_ID = '%s' and "
+		                              " (MIME in ('image/jpeg', 'audio/mpeg', 'video/mpeg', 'video/x-tivo-mpeg')"
+		                              " or CLASS glob 'container*')", id);
 #endif
-		ret = sql_get_table(db, str_buf, &result, NULL, NULL);
 		ret = sprintf(str_buf, "<Item>"
 		                         "<Details>"
 		                           "<ContentType>x-container/folder</ContentType>"
 		                           "<SourceFormat>x-container/folder</SourceFormat>"
 		                           "<Title>%s</Title>"
-		                           "<TotalItems>%s</TotalItems>"
+		                           "<TotalItems>%d</TotalItems>"
 		                         "</Details>"
 		                         "<Links>"
 		                           "<Content>"
@@ -276,8 +273,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		                             "<ContentType>x-tivo-container/folder</ContentType>"
 		                           "</Content>"
 		                         "</Links>",
-		                         unescape_tag(title), result[1], id);
-		sqlite3_free_table(result);
+		                         unescape_tag(title), count, id);
 	}
 	memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 	passed_args->size += ret;
@@ -568,18 +564,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	args.start = itemStart+anchorOffset;
 	sqlite3Prng.isInit = 0;
 
-	asprintf(&sql, "SELECT count(distinct DETAIL_ID) "
-	               "from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
-	               " where %s and (%s)",
-	               which, myfilter);
-	DPRINTF(E_DEBUG, L_TIVO, "Count SQL: %s\n", sql);
-	ret = sql_get_table(db, sql, &result, NULL, NULL);
-	if( ret == SQLITE_OK )
-	{
-		totalMatches = atoi(result[1]);
-		sqlite3_free_table(result);
-	}
-	free(sql);
+	ret = sql_get_int_field(db, "SELECT count(distinct DETAIL_ID) "
+	                            "from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	                            " where %s and (%s)",
+	                            which, myfilter);
+	totalMatches = (ret > 0) ? ret : 0;
 
 	sql = sqlite3_mprintf("SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
 	                      " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"

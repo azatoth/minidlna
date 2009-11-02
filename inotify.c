@@ -124,19 +124,13 @@ int
 inotify_create_watches(int fd)
 {
 	FILE * max_watches;
-	unsigned int num_watches = 0, watch_limit = 8192;
+	unsigned int num_watches, watch_limit = 8192;
 	char **result;
 	int i, rows = 0;
 	struct media_dir_s * media_path;
 
-	if( sql_get_table(db, "SELECT count(*) from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL) == SQLITE_OK )
-	{
-		if( rows )
-		{
-			num_watches = strtoul(result[1], NULL, 10);
-		}
-		sqlite3_free_table(result);
-	}
+	i = sql_get_int_field(db, "SELECT count(*) from DETAILS where SIZE is NULL and PATH is not NULL");
+	num_watches = (i < 0) ? 0 : i;
 		
 	max_watches = fopen("/proc/sys/fs/inotify/max_user_watches", "r");
 	if( max_watches )
@@ -499,7 +493,6 @@ inotify_remove_file(const char * path)
 {
 	char * sql;
 	char **result;
-	char **result2;
 	char * art_cache;
 	sqlite_int64 detailID = 0;
 	int i, rows, children, ret = 1;
@@ -525,13 +518,21 @@ inotify_remove_file(const char * path)
 		{
 			for( i=1; i < rows; i++ )
 			{
-				free(sql);
-				asprintf(&sql, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
-				if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
+				children = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
+				if( children < 0 )
+					continue;
+				if( children < 2 )
 				{
-					children = atoi(result2[1]);
-					sqlite3_free_table(result2);
-					if( children < 2 )
+					free(sql);
+					asprintf(&sql, "DELETE from DETAILS where ID ="
+					               " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
+					sql_exec(db, sql);
+					free(sql);
+					asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
+					sql_exec(db, sql);
+
+					*rindex(result[i], '$') = '\0';
+					if( sql_get_int_field("SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]) == 0 )
 					{
 						free(sql);
 						asprintf(&sql, "DELETE from DETAILS where ID ="
@@ -540,23 +541,6 @@ inotify_remove_file(const char * path)
 						free(sql);
 						asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
 						sql_exec(db, sql);
-						free(sql);
-						*rindex(result[i], '$') = '\0';
-						asprintf(&sql, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
-						if( sql_get_table(db, sql, &result2, NULL, NULL) == SQLITE_OK )
-						{
-							if( atoi(result2[1]) == 0 )
-							{
-								free(sql);
-								asprintf(&sql, "DELETE from DETAILS where ID ="
-								               " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
-								sql_exec(db, sql);
-								free(sql);
-								asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
-								sql_exec(db, sql);
-							}
-							sqlite3_free_table(result2);
-						}
 					}
 				}
 			}

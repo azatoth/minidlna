@@ -30,6 +30,7 @@
 #include "upnpreplyparse.h"
 #include "getifaddr.h"
 
+#include "scanner.h"
 #include "utils.h"
 #include "sql.h"
 #include "log.h"
@@ -532,7 +533,6 @@ callback(void *args, int argc, char **argv, char **azColName)
 	char dlna_buf[96];
 	char ext[5];
 	char str_buf[512];
-	char **result;
 	int children, ret = 0;
 
 	/* Make sure we have at least 4KB left of allocated memory to finish the response. */
@@ -777,15 +777,8 @@ callback(void *args, int argc, char **argv, char **azColName)
 		passed_args->size += ret;
 		if( passed_args->filter & FILTER_CHILDCOUNT )
 		{
-			sprintf(str_buf, "SELECT count(*) from OBJECTS where PARENT_ID = '%s';", id);
-			ret = sql_get_table(db, str_buf, &result, NULL, NULL);
-			if( ret == SQLITE_OK ) {
-				children = atoi(result[1]);
-				sqlite3_free_table(result);
-			}
-			else {
-				children = 0;
-			}
+			ret = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s';", id);
+			children = (ret > 0) ? ret : 0;
 			ret = sprintf(str_buf, "childCount=\"%d\"", children);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
@@ -860,10 +853,9 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	char str_buf[512];
 	char *zErrMsg = 0;
 	char *sql, *ptr;
-	char **result;
 	int ret;
 	struct Response args;
-	int totalMatches = 0;
+	int totalMatches;
 	struct NameValueParserData data;
 	*resp = '\0';
 
@@ -924,7 +916,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		if( strcmp(ObjectId, "16") == 0 )
 			ObjectId = strdup("3$16");
 		else if( strcmp(ObjectId, "15") == 0 )
-			ObjectId = strdup("2$15");
+			ObjectId = strdup(VIDEO_DIR_ID);
 		else
 			ObjectId = strdup(ObjectId);
 	}
@@ -950,12 +942,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	}
 	else
 	{
-		sprintf(str_buf, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", ObjectId);
-		ret = sql_get_table(db, str_buf, &result, NULL, NULL);
-		if( ret == SQLITE_OK ) {
-			totalMatches = atoi(result[1]);
-			sqlite3_free_table(result);
-		}
+		ret = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", ObjectId);
+		totalMatches = (ret > 0) ? ret : 0;
 #ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
 		ret = 0;
 		if( totalMatches < 10000 )
@@ -984,15 +972,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	/* Does the object even exist? */
 	if( !totalMatches )
 	{
-		ret = 0;
-		sql = sqlite3_mprintf("SELECT count(*) from OBJECTS where OBJECT_ID = '%q'", ObjectId);
-		if( sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK )
-		{
-			ret = atoi(result[1]);
-			sqlite3_free_table(result);
-		}
-		sqlite3_free(sql);
-		if( !ret )
+		ret = sql_get_int_field(db, "SELECT count(*) from OBJECTS where OBJECT_ID = '%s'", ObjectId);
+		if( ret <= 0 )
 		{
 			SoapError(h, 701, "No such object error");
 			goto browse_error;
@@ -1184,16 +1165,9 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	/* Does the object even exist? */
 	if( !totalMatches )
 	{
-		ret = 0;
-		sql = sqlite3_mprintf("SELECT count(*) from OBJECTS where OBJECT_ID = '%q'",
-		                      !strcmp(ContainerID, "*")?"0":ContainerID);
-		if( sql_get_table(db, sql, &result, NULL, NULL) == SQLITE_OK )
-		{
-			ret = atoi(result[1]);
-			sqlite3_free_table(result);
-		}
-		sqlite3_free(sql);
-		if( !ret )
+		ret = sql_get_int_field(db, "SELECT count(*) from OBJECTS where OBJECT_ID = '%q'",
+		                        !strcmp(ContainerID, "*")?"0":ContainerID);
+		if( ret <= 0 )
 		{
 			SoapError(h, 710, "No such container");
 			goto search_error;

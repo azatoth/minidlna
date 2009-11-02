@@ -694,55 +694,45 @@ main(int argc, char * * argv)
 	}
 	else
 	{
-		char **result;
-		int rows;
 		sqlite3_busy_timeout(db, 5000);
-		if( !new_db && (sql_get_table(db, "SELECT UPDATE_ID from SETTINGS", &result, &rows, 0) == SQLITE_OK) )
+		if( !new_db )
 		{
-			if( rows )
-			{
-				updateID = atoi(result[1]);
-			}
-			sqlite3_free_table(result);
+			updateID = sql_get_int_field(db, "SELECT UPDATE_ID from SETTINGS");
 		}
-		if( sql_get_table(db, "pragma user_version", &result, &rows, 0) == SQLITE_OK )
+		if( sql_get_int_field(db, "pragma user_version") != DB_VERSION )
 		{
-			if( atoi(result[1]) != DB_VERSION )
+			if( new_db )
 			{
-				if( new_db )
-				{
-					DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
-				}
-				else
-				{
-					DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
-				}
-				sqlite3_close(db);
-				unlink(DB_PATH "/files.db");
-				system("rm -rf " DB_PATH "/art_cache");
-				sqlite3_open(DB_PATH "/files.db", &db);
-				sqlite3_busy_timeout(db, 5000);
-				if( CreateDatabase() != 0 )
-				{
-					DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
-				}
-#if USE_FORK
-				scanning = 1;
-				sqlite3_close(db);
-				scanner_pid = fork();
-				sqlite3_open(DB_PATH "/files.db", &db);
-				sqlite3_busy_timeout(db, 5000);
-				if( !scanner_pid ) // child (scanner) process
-				{
-					start_scanner();
-					sqlite3_close(db);
-					exit(EXIT_SUCCESS);
-				}
-#else
-				start_scanner();
-#endif
+				DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
 			}
-			sqlite3_free_table(result);
+			else
+			{
+				DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
+			}
+			sqlite3_close(db);
+			unlink(DB_PATH "/files.db");
+			system("rm -rf " DB_PATH "/art_cache");
+			sqlite3_open(DB_PATH "/files.db", &db);
+			sqlite3_busy_timeout(db, 5000);
+			if( CreateDatabase() != 0 )
+			{
+				DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
+			}
+#if USE_FORK
+			scanning = 1;
+			sqlite3_close(db);
+			scanner_pid = fork();
+			sqlite3_open(DB_PATH "/files.db", &db);
+			sqlite3_busy_timeout(db, 5000);
+			if( !scanner_pid ) // child (scanner) process
+			{
+				start_scanner();
+				sqlite3_close(db);
+				exit(EXIT_SUCCESS);
+			}
+#else
+			start_scanner();
+#endif
 		}
 		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
 		    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
