@@ -106,7 +106,6 @@ update_if_album_art(const char * path)
 	char * dir;
 	char * match = NULL;
 	char * file = NULL;
-	char * sql;
 	int ncmp = 0;
 	struct album_art_name_s * album_art_name;
 	DIR * dh;
@@ -161,10 +160,8 @@ update_if_album_art(const char * path)
 			DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like cover art for %s\n", path, dp->d_name);
 			asprintf(&file, "%s/%s", dir, dp->d_name);
 			art_id = find_album_art(file, NULL, 0);
-			sql = sqlite3_mprintf("UPDATE DETAILS set ALBUM_ART = %lld where PATH = '%q'", art_id, file);
-			if( sql_exec(db, sql) != SQLITE_OK )
+			if( sql_exec(db, "UPDATE DETAILS set ALBUM_ART = %lld where PATH = '%q'", art_id, file) != SQLITE_OK )
 				DPRINTF(E_WARN, L_METADATA, "Error setting %s as cover art for %s\n", match, dp->d_name);
-			sqlite3_free(sql);
 			free(file);
 		}
 	}
@@ -359,9 +356,7 @@ find_album_art(const char * path, const char * image_data, int image_size)
 		}
 		else
 		{
-			sqlite3_free(sql);
-			sql = sqlite3_mprintf("INSERT into ALBUM_ART (PATH) VALUES ('%q')", album_art);
-			if( sql_exec(db, sql) == SQLITE_OK )
+			if( sql_exec(db, "INSERT into ALBUM_ART (PATH) VALUES ('%q')", album_art) == SQLITE_OK )
 				ret = sqlite3_last_insert_rowid(db);
 		}
 		sqlite3_free_table(result);

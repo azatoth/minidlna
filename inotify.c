@@ -523,24 +523,16 @@ inotify_remove_file(const char * path)
 					continue;
 				if( children < 2 )
 				{
-					free(sql);
-					asprintf(&sql, "DELETE from DETAILS where ID ="
-					               " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
-					sql_exec(db, sql);
-					free(sql);
-					asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
-					sql_exec(db, sql);
+					sql_exec(db, "DELETE from DETAILS where ID ="
+					             " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
+					sql_exec(db, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
 
 					*rindex(result[i], '$') = '\0';
 					if( sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]) == 0 )
 					{
-						free(sql);
-						asprintf(&sql, "DELETE from DETAILS where ID ="
-						               " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
-						sql_exec(db, sql);
-						free(sql);
-						asprintf(&sql, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
-						sql_exec(db, sql);
+						sql_exec(db, "DELETE from DETAILS where ID ="
+						             " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s')", result[i]);
+						sql_exec(db, "DELETE from OBJECTS where OBJECT_ID = '%s'", result[i]);
 					}
 				}
 			}
@@ -548,12 +540,8 @@ inotify_remove_file(const char * path)
 		}
 		free(sql);
 		/* Now delete the actual objects */
-		asprintf(&sql, "DELETE from DETAILS where ID = %lld", detailID);
-		sql_exec(db, sql);
-		free(sql);
-		asprintf(&sql, "DELETE from OBJECTS where DETAIL_ID = %lld", detailID);
-		sql_exec(db, sql);
-		free(sql);
+		sql_exec(db, "DELETE from DETAILS where ID = %lld", detailID);
+		sql_exec(db, "DELETE from OBJECTS where DETAIL_ID = %lld", detailID);
 	}
 	asprintf(&art_cache, "%s/art_cache%s", DB_PATH, path);
 	remove(art_cache);
@@ -566,7 +554,6 @@ int
 inotify_remove_directory(int fd, const char * path)
 {
 	char * sql;
-	char * sql2;
 	char **result;
 	sqlite_int64 detailID = 0;
 	int rows, i, ret = 1;
@@ -581,12 +568,8 @@ inotify_remove_directory(int fd, const char * path)
 			for( i=1; i <= rows; i++ )
 			{
 				detailID = strtoll(result[i], NULL, 10);
-				asprintf(&sql2, "DELETE from DETAILS where ID = %lld", detailID);
-				sql_exec(db, sql2);
-				free(sql2);
-				asprintf(&sql2, "DELETE from OBJECTS where DETAIL_ID = %lld", detailID);
-				sql_exec(db, sql2);
-				free(sql2);
+				sql_exec(db, "DELETE from DETAILS where ID = %lld", detailID);
+				sql_exec(db, "DELETE from OBJECTS where DETAIL_ID = %lld", detailID);
 			}
 			ret = 0;
 		}
@@ -594,9 +577,7 @@ inotify_remove_directory(int fd, const char * path)
 	}
 	sqlite3_free(sql);
 	/* Clean up any album art entries in the deleted directory */
-	sql = sqlite3_mprintf("DELETE from ALBUM_ART where PATH glob '%q/*'", path);
-	sql_exec(db, sql);
-	sqlite3_free(sql);
+	sql_exec(db, "DELETE from ALBUM_ART where PATH glob '%q/*'", path);
 
 	return ret;
 }

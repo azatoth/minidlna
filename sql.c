@@ -21,12 +21,17 @@
 #include "log.h"
 
 int
-sql_exec(sqlite3 * db, const char * sql)
+sql_exec(sqlite3 *db, const char *fmt, ...)
 {
 	int ret;
 	char *errMsg = NULL;
+	char *sql;
+	va_list ap;
 	//DPRINTF(E_DEBUG, L_DB_SQL, "SQL: %s\n", sql);
 
+	va_start(ap, fmt);
+
+	sql = sqlite3_vmprintf(fmt, ap);
 	ret = sqlite3_exec(db, sql, 0, 0, &errMsg);
 	if( ret != SQLITE_OK )
 	{
@@ -34,6 +39,8 @@ sql_exec(sqlite3 * db, const char * sql)
 		if (errMsg)
 			sqlite3_free(errMsg);
 	}
+	sqlite3_free(sql);
+
 	return ret;
 }
 
@@ -51,6 +58,7 @@ sql_get_table(sqlite3 *db, const char *sql, char ***pazResult, int *pnRow, int *
 		if (errMsg)
 			sqlite3_free(errMsg);
 	}
+
 	return ret;
 }
 

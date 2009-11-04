@@ -160,12 +160,10 @@ check_for_captions(const char * path, sqlite_int64 detailID)
 	strcat(file, ".srt");
 	if( access(file, R_OK) == 0 )
 	{
-		sql = sqlite3_mprintf("INSERT into CAPTIONS"
-		                      " (ID, PATH) "
-		                      "VALUES"
-		                      " (%lld, %Q)", detailID, file);
-		sql_exec(db, sql);
-		sqlite3_free(sql);
+		sql_exec(db, "INSERT into CAPTIONS"
+		             " (ID, PATH) "
+		             "VALUES"
+		             " (%lld, %Q)", detailID, file);
 	}
 no_source_video:
 	free(file);
@@ -174,20 +172,18 @@ no_source_video:
 sqlite_int64
 GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art)
 {
-	char * sql;
 	int ret;
 
-	sql = sqlite3_mprintf( "INSERT into DETAILS"
-                               " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART) "
-                               "VALUES"
-                               " ('%q', %Q, %Q, %Q, %Q, %lld);",
-                               name, path, artist, artist, genre,
-                               album_art ? strtoll(album_art, NULL, 10) : 0);
-	if( sql_exec(db, sql) != SQLITE_OK )
+	ret = sql_exec(db, "INSERT into DETAILS"
+	                   " (TITLE, PATH, CREATOR, ARTIST, GENRE, ALBUM_ART) "
+	                   "VALUES"
+	                   " ('%q', %Q, %Q, %Q, %Q, %lld);",
+	                   name, path, artist, artist, genre,
+	                   album_art ? strtoll(album_art, NULL, 10) : 0);
+	if( ret != SQLITE_OK )
 		ret = 0;
 	else
 		ret = sqlite3_last_insert_rowid(db);
-	sqlite3_free(sql);
 
 	return ret;
 }
@@ -199,7 +195,6 @@ GetAudioMetadata(const char * path, char * name)
 	static char lang[6] = { '\0' };
 	struct stat file;
 	sqlite_int64 ret;
-	char *sql;
 	char *title, *artist = NULL, *album = NULL, *band = NULL, *genre = NULL, *comment = NULL, *date = NULL;
 	char *esc_tag;
 	int i, free_flags = 0;
@@ -356,14 +351,24 @@ GetAudioMetadata(const char * path, char * name)
 
 	album_art = find_album_art(path, song.image, song.image_size);
 
-	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (PATH, SIZE, TIMESTAMP, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
-				"  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
-				"VALUES"
-				" (%Q, %lld, %ld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
-				path, file.st_size, file.st_mtime, duration, song.channels, song.bitrate, song.samplerate, date,
-				title, band, artist, album, genre, comment, song.disc, song.track,
-				dlna_pn, song.mime?song.mime:mime, album_art);
+	ret = sql_exec(db, "INSERT into DETAILS"
+	                   " (PATH, SIZE, TIMESTAMP, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
+	                   "  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
+	                   "VALUES"
+	                   " (%Q, %lld, %ld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
+	                   path, file.st_size, file.st_mtime, duration, song.channels, song.bitrate, song.samplerate, date,
+	                   title, band, artist, album, genre, comment, song.disc, song.track,
+	                   dlna_pn, song.mime?song.mime:mime, album_art);
+	if( ret != SQLITE_OK )
+	{
+		fprintf(stderr, "Error inserting details for '%s'!\n", path);
+		ret = 0;
+	}
+	else
+	{
+		ret = sqlite3_last_insert_rowid(db);
+	}
+
         freetags(&song);
 	if( dlna_pn )
 		free(dlna_pn);
@@ -381,18 +386,6 @@ GetAudioMetadata(const char * path, char * name)
 		free(genre);
 	if( free_flags & FLAG_COMMENT )
 		free(comment);
-
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
-	if( sql_exec(db, sql) != SQLITE_OK )
-	{
-		fprintf(stderr, "Error inserting details for '%s'!\n", path);
-		ret = 0;
-	}
-	else
-	{
-		ret = sqlite3_last_insert_rowid(db);
-	}
-	sqlite3_free(sql);
 
 	return ret;
 }
@@ -423,7 +416,6 @@ GetImageMetadata(const char * path, char * name)
 	char b[1024];
 	struct stat file;
 	sqlite_int64 ret;
-	char *sql;
 	image * imsrc;
 	metadata_t m;
 	memset(&m, '\0', sizeof(metadata_t));
@@ -537,13 +529,12 @@ no_exifdata:
 		asprintf(&m.dlna_pn, "JPEG_LRG;%s", dlna_no_conv);
 	asprintf(&m.resolution, "%dx%d", width, height);
 
-	sql = sqlite3_mprintf(	"INSERT into DETAILS"
-				" (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
-				"VALUES"
-				" (%Q, '%q', %lld, %ld, %Q, %Q, %d, %Q, %Q, %Q);",
-				path, name, file.st_size, file.st_mtime, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
-	if( sql_exec(db, sql) != SQLITE_OK )
+	ret = sql_exec(db, "INSERT into DETAILS"
+	                   " (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
+	                   "VALUES"
+	                   " (%Q, '%q', %lld, %ld, %Q, %Q, %d, %Q, %Q, %Q);",
+	                   path, name, file.st_size, file.st_mtime, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
+	if( ret != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
 		ret = 0;
@@ -552,7 +543,6 @@ no_exifdata:
 	{
 		ret = sqlite3_last_insert_rowid(db);
 	}
-	sqlite3_free(sql);
 	if( m.resolution )
 		free(m.resolution);
 	if( m.dlna_pn )
@@ -570,7 +560,6 @@ sqlite_int64
 GetVideoMetadata(const char * path, char * name)
 {
 	struct stat file;
-	char *sql;
 	int ret, i;
 	struct tm *modtime;
 	char date[20];
@@ -991,18 +980,16 @@ GetVideoMetadata(const char * path, char * name)
 #endif
 	album_art = find_album_art(path, NULL, 0);
 
-	sql = sqlite3_mprintf( "INSERT into DETAILS"
-	                       " (PATH, SIZE, TIMESTAMP, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
-	                       "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART) "
-	                       "VALUES"
-	                       " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld);",
-	                       path, file.st_size, file.st_mtime, m.duration,
-	                       strlen(date) ? date : NULL,
-	                       m.channels, m.bitrate, m.frequency, m.resolution,
-	                       m.artist, name, m.dlna_pn, m.mime,
-	                       album_art);
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "SQL: %s\n", sql);
-	if( sql_exec(db, sql) != SQLITE_OK )
+	ret = sql_exec(db, "INSERT into DETAILS"
+	                   " (PATH, SIZE, TIMESTAMP, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
+	                   "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART) "
+	                   "VALUES"
+	                   " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld);",
+	                   path, file.st_size, file.st_mtime, m.duration,
+	                   strlen(date) ? date : NULL,
+	                   m.channels, m.bitrate, m.frequency, m.resolution,
+	                   m.artist, name, m.dlna_pn, m.mime, album_art);
+	if( ret != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
 		ret = 0;
@@ -1012,7 +999,6 @@ GetVideoMetadata(const char * path, char * name)
 		ret = sqlite3_last_insert_rowid(db);
 		check_for_captions(path, ret);
 	}
-	sqlite3_free(sql);
 	if( m.dlna_pn )
 		free(m.dlna_pn);
 	if( m.mime )

@@ -649,7 +649,6 @@ main(int argc, char * * argv)
 	struct timeval timeout, timeofday, lastnotifytime = {0, 0}, lastupdatetime = {0, 0};
 	int max_fd = -1;
 	int last_changecnt = 0;
-	char * sql;
 	short int new_db = 0;
 	pid_t scanner_pid = 0;
 	pthread_t inotify_thread = 0;
@@ -1009,9 +1008,7 @@ shutdown:
 	if( inotify_thread )
 		pthread_join(inotify_thread, NULL);
 
-	asprintf(&sql, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
-	sql_exec(db, sql);
-	free(sql);
+	sql_exec(db, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
 	sqlite3_close(db);
 
 	struct media_dir_s * media_path = media_dirs;

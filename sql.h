@@ -13,7 +13,7 @@
 #include <sqlite3.h>
 
 int
-sql_exec(sqlite3 * db, const char * sql);
+sql_exec(sqlite3 *db, const char *fmt, ...);
 
 int
 sql_get_table(sqlite3 *db, const char *zSql, char ***pazResult, int *pnRow, int *pnColumn);
