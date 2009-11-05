@@ -35,6 +35,7 @@
 #include <jpeglib.h>
 #include <endian.h>
 
+#include "upnpreplyparse.h"
 #include "image_utils.h"
 #include "log.h"
 
@@ -279,6 +280,91 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 		}
 	}
 	fclose(img);
+	return ret;
+}
+
+int
+image_get_jpeg_date_xmp(const char * path, char ** date)
+{
+	FILE *img;
+	unsigned char buf[8];
+	char *data = NULL;
+	u_int16_t offset;
+	struct NameValueParserData xml;
+	char * exif;
+	int ret = 1;
+
+	img = fopen(path, "r");
+	if( !img )
+		return(-1);
+
+	fread(&buf, 2, 1, img);
+	if( (buf[0] != 0xFF) || (buf[1] != 0xD8) )
+	{
+		fclose(img);
+		return(-1);
+	}
+	memset(&buf, 0, sizeof(buf));
+
+	while( !feof(img) )
+	{
+		while( buf[0] != 0xFF && !feof(img) )
+			fread(&buf, 1, 1, img);
+
+		while( buf[0] == 0xFF && !feof(img) )
+			fread(&buf, 1, 1, img);
+
+		if( feof(img) )
+			break;
+
+		if( buf[0] == 0xE1 ) // APP1 marker
+		{
+			offset = 0;
+			fread(&buf, 2, 1, img);
+			memcpy(&offset, buf, 2);
+			offset = SWAP16(offset) - 2;
+
+			if( offset < 30 )
+			{
+				fseek(img, offset, SEEK_CUR);
+				continue;
+			}
+
+			data = realloc(data, 30);
+			fread(data, 29, 1, img);
+			offset -= 29;
+			if( strcmp(data, "http://ns.adobe.com/xap/1.0/") != 0 )
+			{
+				fseek(img, offset, SEEK_CUR);
+				continue;
+			}
+
+			data = realloc(data, offset+1);
+			fread(data, offset, 1, img);
+
+			ParseNameValue(data, offset, &xml);
+			exif = GetValueFromNameValueList(&xml, "DateTimeOriginal");
+			if( !exif )
+				break;
+			*date = realloc(*date, strlen(exif)+1);
+			strcpy(*date, exif);
+			ClearNameValueList(&xml);
+
+			ret = 0;
+			break;
+		}
+		else
+		{
+			offset = 0;
+			fread(&buf, 2, 1, img);
+			memcpy(&offset, buf, 2);
+			offset = SWAP16(offset) - 2;
+			fseek(img, offset, SEEK_CUR);
+		}
+	}
+	fclose(img);
+	if( data )
+		free(data);
 	return ret;
 }
 

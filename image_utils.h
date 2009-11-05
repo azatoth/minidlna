@@ -21,6 +21,9 @@ void
 image_free(image *pimage);
 
 int
+image_get_jpeg_date_xmp(const char * path, char ** date);
+
+int
 image_get_jpeg_resolution(const char * path, int * width, int * height);
 
 image *

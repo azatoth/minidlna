@@ -406,7 +406,6 @@ GetImageMetadata(const char * path, char * name)
 	ExifData *ed;
 	ExifEntry *e = NULL;
 	ExifLoader *l;
-	ExifTag tag;
 	struct jpeg_decompress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	FILE *infile;
@@ -436,9 +435,8 @@ GetImageMetadata(const char * path, char * name)
 	if( !ed )
 		goto no_exifdata;
 
-	tag = EXIF_TAG_DATE_TIME_ORIGINAL;
-	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], tag);
-	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_DATE_TIME)) ) {
+	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_ORIGINAL);
+	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_DIGITIZED)) ) {
 		date = strdup(exif_entry_get_value(e, b, sizeof(b)));
 		if( strlen(date) > 10 )
 		{
@@ -451,15 +449,17 @@ GetImageMetadata(const char * path, char * name)
 			date = NULL;
 		}
 	}
+	else {
+		/* One last effort to get the date from XMP */
+		image_get_jpeg_date_xmp(path, &date);
+	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * date: %s\n", date);
 
-	tag = EXIF_TAG_MAKE;
-	e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], tag);
+	e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MAKE);
 	if( e )
 	{
 		strncpy(make, exif_entry_get_value(e, b, sizeof(b)), sizeof(make));
-		tag = EXIF_TAG_MODEL;
-		e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], tag);
+		e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MODEL);
 		if( e )
 		{
 			strncpy(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
