@@ -968,7 +968,7 @@ GetVideoMetadata(const char * path, char * name)
 		else if( strcmp(ctx->iformat->name, "flv") == 0 )
 			asprintf(&m.mime, "video/x-flv");
 		else
-			DPRINTF(E_WARN, L_METADATA, "Unhandled format: %s\n", ctx->iformat->name);
+			DPRINTF(E_WARN, L_METADATA, "%s: Unhandled format: %s\n", path, ctx->iformat->name);
 	}
 	av_close_input_file(ctx);
 #ifdef TIVO_SUPPORT

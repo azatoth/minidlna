@@ -235,7 +235,7 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 {
 	FILE *img;
 	unsigned char buf[8];
-	u_int16_t offset;
+	u_int16_t offset, h, w;
 	int ret = 1;
 
 	img = fopen(path, "r");
@@ -263,10 +263,10 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 			fread(&buf, 7, 1, img);
 			*width = 0;
 			*height = 0;
-			memcpy(height, buf+3, 2);
-			*height = SWAP16(*height);
-			memcpy(width, buf+5, 2);
-			*width = SWAP16(*width);
+			memcpy(&h, buf+3, 2);
+			*height = SWAP16(h);
+			memcpy(&w, buf+5, 2);
+			*width = SWAP16(w);
 			ret = 0;
 			break;
 		}
