@@ -508,7 +508,7 @@ static void add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_p
 		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 		passed_args->size += ret;
 	}
-	ret = sprintf(str_buf, "protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=%s\"&gt;"
+	ret = sprintf(str_buf, "protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=%s;DLNA.ORG_CI=1\"&gt;"
 	                       "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
 	                       "&lt;/res&gt;",
 	                       dlna_pn, lan_addr[0].str, runtime_vars.port,
