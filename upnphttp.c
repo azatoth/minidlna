@@ -1361,28 +1361,28 @@ void
 SendResp_resizedimg(struct upnphttp * h, char * object)
 {
 	char header[1500];
-	char sql_buf[256];
+	char str_buf[256];
 	char **result;
 	char date[30];
 	char dlna_pn[4];
 	time_t curtime = time(NULL);
 	int width=640, height=480, dstw, dsth, rotation, size;
-	unsigned char * data;
+	long srcw, srch;
+	unsigned char * data = NULL;
 	char *path, *file_path;
 	char *resolution, *tn;
 	char *key, *val;
 	char *saveptr=NULL, *item=NULL;
 	char *pixelshape=NULL;
 	sqlite_int64 id;
-	int rows=0, ret;
+	int rows=0, chunked=0, ret;
 	ExifData *ed;
 	ExifLoader *l;
-	image * imsrc;
-	image * imdst;
+	image *imsrc = NULL, *imdst = NULL;
 
 	id = strtoll(object, NULL, 10);
-	sprintf(sql_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%lld'", id);
-	ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
+	sprintf(str_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%lld'", id);
+	ret = sql_get_table(db, str_buf, &result, &rows, NULL);
 	if( (ret != SQLITE_OK) )
 	{
 		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %lld!\n", id);
@@ -1405,6 +1405,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	file_path = result[3];
 	resolution = result[4];
 	tn = result[5];
+	srcw = strtol(resolution, &saveptr, 10);
+	srch = strtol(saveptr+1, NULL, 10);
 
 	path = strdup(object);
 	if( strtok_r(path, "?", &saveptr) )
@@ -1448,11 +1450,45 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 
 	DPRINTF(E_INFO, L_HTTP, "Serving resized image for ObjectId: %lld [%s]\n", id, file_path);
 
+	/* Figure out the best destination resolution we can use */
+	dstw = width;
+	dsth = ((((width<<10)/srcw)*srch)>>10);
+	if( dsth > height )
+	{
+		dsth = height;
+		dstw = (((height<<10)/srch) * srcw>>10);
+	}
+
+	if( dstw <= 640 && dsth <= 480 )
+		strcpy(dlna_pn, "SM");
+	else if( dstw <= 1024 && dsth <= 768 )
+		strcpy(dlna_pn, "MED");
+	else
+		strcpy(dlna_pn, "LRG");
+
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+	snprintf(header, sizeof(header)-100, "HTTP/1.1 200 OK\r\n"
+	                                     "Content-Type: image/jpeg\r\n"
+	                                     "Connection: close\r\n"
+	                                     "Date: %s\r\n"
+	                                     "EXT:\r\n"
+	                                     "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s;DLNA.ORG_CI=1\r\n"
+	                                     "Server: " MINIDLNA_SERVER_STRING "\r\n",
+	                                     date, dlna_pn);
+	if( h->reqflags & FLAG_XFERINTERACTIVE )
+	{
+		strcat(header, "transferMode.dlna.org: Interactive\r\n");
+	}
+	else if( h->reqflags & FLAG_XFERBACKGROUND )
+	{
+		strcat(header, "transferMode.dlna.org: Background\r\n");
+	}
+
 	/* Resizing from a thumbnail is much faster than from a large image */
 	#ifdef __sparc__
-	if( width <= 200 && height <= 150 && atoi(tn) )
+	if( dstw <= 200 && dsth <= 150 && atoi(tn) )
 	#else
-	if( width <= 160 && height <= 120 && atoi(tn) )
+	if( dstw <= 160 && dsth <= 120 && atoi(tn) )
 	#endif
 	{
 		l = exif_loader_new();
@@ -1470,62 +1506,58 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size);
 		exif_data_unref(ed);
 	}
-	else
+	else if( strcmp(h->HttpVer, "HTTP/1.0") == 0 )
 	{
 		imsrc = image_new_from_jpeg(file_path, 1, NULL, 0);
 	}
-	if( !imsrc )
-	{
-		Send404(h);
-		goto resized_error;
-	}
-	/* Figure out the best destination resolution we can use */
-	dstw = width;
-	dsth = ((((width<<10)/imsrc->width)*imsrc->height)>>10);
-	if( dsth > height )
-	{
-		dsth = height;
-		dstw = (((height<<10)/imsrc->height) * imsrc->width>>10);
-	}
-	imdst = image_resize(imsrc, dstw, dsth);
-	data = image_save_to_jpeg_buf(imdst, &size);
-
-	if( dstw <= 640 && dsth <= 480 )
-		strcpy(dlna_pn, "SM");
-	else if( dstw <= 1024 && dsth <= 768 )
-		strcpy(dlna_pn, "MED");
 	else
-		strcpy(dlna_pn, "LRG");
-
-	//DPRINTF(E_INFO, L_HTTP, "size: %d\n", size);
-	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-	snprintf(header, sizeof(header)-50, "HTTP/1.1 200 OK\r\n"
-	                                    "Content-Type: image/jpeg\r\n"
-	                                    "Content-Length: %d\r\n"
-	                                    "Connection: close\r\n"
-	                                    "Date: %s\r\n"
-	                                    "EXT:\r\n"
-	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s;DLNA.ORG_CI=1\r\n"
-	                                    "Server: " MINIDLNA_SERVER_STRING "\r\n",
-	                                    size, date, dlna_pn);
-
-	if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
-		strcat(header, "transferMode.dlna.org: Interactive\r\n");
+		chunked = 1;
+		strcat(header, "Transfer-Encoding: chunked\r\n\r\n");
 	}
-	else if( h->reqflags & FLAG_XFERBACKGROUND )
+
+	if( !chunked )
 	{
-		strcat(header, "transferMode.dlna.org: Background\r\n");
+		if( !imsrc )
+		{
+			Send404(h);
+			goto resized_error;
+		}
+
+		imdst = image_resize(imsrc, dstw, dsth);
+		data = image_save_to_jpeg_buf(imdst, &size);
+
+		sprintf(str_buf, "Content-Length: %d\r\n\r\n", size);
+		strcat(header, str_buf);
 	}
-	strcat(header, "\r\n");
 
 	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
 	{
-		send_data(h, (char *)data, size);
+		if( chunked )
+		{
+			imsrc = image_new_from_jpeg(file_path, 1, NULL, 0);
+			if( !imsrc )
+			{
+				Send404(h);
+				goto resized_error;
+			}
+			imdst = image_resize(imsrc, dstw, dsth);
+			data = image_save_to_jpeg_buf(imdst, &size);
+
+			ret = sprintf(str_buf, "%x\r\n", size);
+			send_data(h, str_buf, ret);
+			send_data(h, (char *)data, size);
+			send_data(h, "\r\n0\r\n\r\n", 7);
+		}
+		else
+		{
+			send_data(h, (char *)data, size);
+		}
 	}
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
+	if( imdst )
+		image_free(imdst);
 	image_free(imsrc);
-	image_free(imdst);
 	resized_error:
 	sqlite3_free_table(result);
 #if USE_FORK
