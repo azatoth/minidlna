@@ -217,6 +217,11 @@ GetAudioMetadata(const char * path, char * name)
 		strcpy(type, "aac");
 		strcpy(mime, "audio/mp4");
 	}
+	else if( ends_with(path, ".3gp") )
+	{
+		strcpy(type, "aac");
+		strcpy(mime, "audio/3gpp");
+	}
 	else if( ends_with(path, ".wma") || ends_with(path, ".asf") )
 	{
 		strcpy(type, "asf");
@@ -574,7 +579,7 @@ GetVideoMetadata(const char * path, char * name)
 	memset(&m, '\0', sizeof(m));
 	date[0] = '\0';
 
-	DPRINTF(E_DEBUG, L_METADATA, "Parsing video %s...\n", name);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Parsing video %s...\n", name);
 	if ( stat(path, &file) != 0 )
 		return 0;
 	strip_ext(name);
@@ -610,7 +615,8 @@ GetVideoMetadata(const char * path, char * name)
 	if( video_stream == -1 )
 	{
 		av_close_input_file(ctx);
-		DPRINTF(E_DEBUG, L_METADATA, "File %s does not contain a video stream.\n", basename(path));
+		if( !is_audio(path) )
+			DPRINTF(E_DEBUG, L_METADATA, "File %s does not contain a video stream.\n", basename(path));
 		return 0;
 	}
 	if( audio_stream >= 0 )
