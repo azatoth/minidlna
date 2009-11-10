@@ -350,25 +350,25 @@ next_header:
 	}
 	if( h->reqflags & FLAG_CHUNKED )
 	{
-		if( h->req_buflen > h->req_contentoff )
+		char *endptr;
+		h->req_chunklen = -1;
+		if( h->req_buflen <= h->req_contentoff )
+			return;
+		while( (h->req_chunklen = strtol(line, &endptr, 16)) && (endptr != line) )
 		{
-			h->req_chunklen = strtol(line, NULL, 16);
-			while(!(line[0] == '\r' && line[1] == '\n'))
+			while(!(endptr[0] == '\r' && endptr[1] == '\n'))
 			{
-				line++;
-				h->req_contentoff++;
+				endptr++;
 			}
-			h->req_contentoff += 2;
-			h->req_contentlen = h->req_buflen - h->req_contentoff;
+			line = endptr+h->req_chunklen+2;
 		}
-		else
+
+		if( endptr == line )
 		{
 			h->req_chunklen = -1;
+			return;
 		}
 	}
-	/* Don't bother checking client type until we have the whole request. */
-	if( (h->req_buflen - h->req_contentoff) < h->req_contentlen )
-		return;
 	/* If the client type wasn't found, search the cache.
 	 * This is done because a lot of clients like to send a
 	 * different User-Agent with different types of requests. */
@@ -670,30 +670,38 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 	HttpVer[i] = '\0';
 	/*DPRINTF(E_INFO, L_HTTP, "HTTP REQUEST : %s %s (%s)\n",
 	       HttpCommand, HttpUrl, HttpVer);*/
-	DPRINTF(E_DEBUG, L_HTTP, "HTTP REQUEST: %.*s\n", h->req_buflen, h->req_buf);
 	ParseHttpHeaders(h);
 
 	/* see if we need to wait for remaining data */
 	if( (h->reqflags & FLAG_CHUNKED) )
 	{
-		char * chunkstart = h->req_buf+h->req_contentoff;
-		char * numstart;
-		h->state = 2;
-		while( h->req_chunklen )
+		if( h->req_chunklen )
 		{
-			if( chunkstart >= (h->req_buf+h->req_buflen) )
-				return;
-			numstart = chunkstart+h->req_chunklen+2;
-			h->req_chunklen = strtol(numstart, &chunkstart, 16);
-			if( !h->req_chunklen && (chunkstart == numstart) )
-			{
-				DPRINTF(E_DEBUG, L_HTTP, "Chunked request needs more input.\n");
-				return;
-			}
-			chunkstart = chunkstart+2;
+			h->state = 2;
+	                return;
 		}
+		char *chunkstart, *chunk, *endptr, *endbuf;
+		chunk = endbuf = chunkstart = h->req_buf + h->req_contentoff;
+
+		while( (h->req_chunklen = strtol(chunk, &endptr, 16)) && (endptr != chunk) )
+		{
+			while(!(endptr[0] == '\r' && endptr[1] == '\n'))
+			{
+				endptr++;
+			}
+			endptr += 2;
+
+			memmove(endbuf, endptr, h->req_chunklen);
+
+			endbuf += h->req_chunklen;
+			chunk = endptr + h->req_chunklen;
+		}
+		h->req_contentlen = endbuf - chunkstart;
+		h->req_buflen = endbuf - h->req_buf;
 		h->state = 100;
 	}
+
+	DPRINTF(E_DEBUG, L_HTTP, "HTTP REQUEST: %.*s\n", h->req_buflen, h->req_buf);
 	if(strcmp("POST", HttpCommand) == 0)
 	{
 		h->req_command = EPost;
@@ -887,11 +895,15 @@ Process_upnphttp(struct upnphttp * h)
 			if((h->req_buflen - h->req_contentoff) >= h->req_contentlen)
 			{
 				/* Need the struct to point to the realloc'd memory locations */
-				ParseHttpHeaders(h);
 				if( h->state == 1 )
+				{
+					ParseHttpHeaders(h);
 					ProcessHTTPPOST_upnphttp(h);
+				}
 				else if( h->state == 2 )
+				{
 					ProcessHttpQuery_upnphttp(h);
+				}
 			}
 		}
 		break;
