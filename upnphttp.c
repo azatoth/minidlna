@@ -251,6 +251,7 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = ESamsungTV;
 					h->reqflags |= FLAG_DLNA;
+					h->reqflags |= FLAG_NO_RESIZE;
 					//h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
 				else if(strstr(p, "bridgeCo-DMP/3"))
@@ -1492,7 +1493,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	                                    "Connection: close\r\n"
 	                                    "Date: %s\r\n"
 	                                    "EXT:\r\n"
-	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s\r\n"
+	                                    "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s;DLNA.ORG_CI=1\r\n"
 	                                    "Server: " MINIDLNA_SERVER_STRING "\r\n",
 	                                    size, date, dlna_pn);
 

@@ -493,6 +493,12 @@ static void add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_p
 	int dsth = reqh;
 	char str_buf[256];
 
+
+	if( passed_args->flags & FLAG_NO_RESIZE )
+	{
+		return;
+	}
+
 	ret = sprintf(str_buf, "&lt;res ");
 	memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 	passed_args->size += ret;
