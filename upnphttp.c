@@ -715,6 +715,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		{
 			DPRINTF(E_WARN, L_HTTP, "Invalid request, responding ERROR 400.  (No Host specified in HTTP headers?)\n");
 			Send400(h);
+			return;
 		}
 		#if 1 /* 7.3.33.4 */
 		else if( ((h->reqflags & FLAG_TIMESEEK) || (h->reqflags & FLAG_PLAYSPEED)) &&
