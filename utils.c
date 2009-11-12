@@ -57,6 +57,30 @@ trim(char *str)
         return str;
 }
 
+/* Find the first occurrence of p in s, where s is terminated by t */
+char *
+strstrc(const char *s, const char *p, const char t)
+{
+	char *endptr;
+	size_t slen, plen;
+
+	endptr = strchr(s, t);
+	if (!endptr)
+		return NULL;
+
+	plen = strlen(p);
+	slen = endptr - s;
+	while (slen >= plen)
+	{
+		if (*s == *p && strncmp(s+1, p+1, plen-1) == 0)
+			return (char*)s;
+		s++;
+		slen--;
+	}
+
+	return NULL;
+} 
+
 char *
 modifyString(char * string, const char * before, const char * after, short like)
 {

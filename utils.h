@@ -17,6 +17,9 @@ char *
 trim(char *str);
 
 char *
+strstrc(const char *s, const char *p, const char t);
+
+char *
 modifyString(char * string, const char * before, const char * after, short like);
 
 char *

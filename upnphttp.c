@@ -254,12 +254,12 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_NO_RESIZE;
 					//h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
-				else if(strstr(p, "bridgeCo-DMP/3"))
+				else if(strstrc(p, "bridgeCo-DMP/3", '\r'))
 				{
 					h->req_client = EDenonReceiver;
 					h->reqflags |= FLAG_DLNA;
 				}
-				else if(strstr(p, "fbxupnpav/"))
+				else if(strstrc(p, "fbxupnpav/", '\r'))
 				{
 					h->req_client = EFreeBox;
 				}
@@ -268,7 +268,7 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EPopcornHour;
 					h->reqflags |= FLAG_MIME_FLAC_FLAC;
 				}
-				else if(strcasestr(p, "DLNADOC/1.50"))
+				else if(strstrc(p, "DLNADOC/1.50", '\r'))
 				{
 					h->req_client = EStandardDLNA150;
 					h->reqflags |= FLAG_DLNA;
@@ -354,7 +354,9 @@ next_header:
 		h->req_chunklen = -1;
 		if( h->req_buflen <= h->req_contentoff )
 			return;
-		while( (h->req_chunklen = strtol(line, &endptr, 16)) && (endptr != line) )
+		while( (line < (h->req_buf + h->req_buflen)) &&
+		       (h->req_chunklen = strtol(line, &endptr, 16)) &&
+		       (endptr != line) )
 		{
 			while(!(endptr[0] == '\r' && endptr[1] == '\n'))
 			{
@@ -445,7 +447,7 @@ Send406(struct upnphttp * h)
 {
 	static const char body406[] =
 		"<HTML><HEAD><TITLE>406 Not Acceptable</TITLE></HEAD>"
-		"<BODY><H1>Not Acceptable</H1>An unsupported operation "
+		"<BODY><H1>Not Acceptable</H1>An unsupported operation"
 		" was requested.</BODY></HTML>\r\n";
 	h->respflags = FLAG_HTML;
 	BuildResp2_upnphttp(h, 406, "Not Acceptable",
@@ -721,6 +723,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			DPRINTF(E_WARN, L_HTTP, "DLNA %s requested, responding ERROR 406\n",
 			                        h->reqflags&FLAG_TIMESEEK ? "TimeSeek" : "PlaySpeed");
 			Send406(h);
+			return;
 		}
 		#endif
 		else if(strcmp("GET", HttpCommand) == 0)
@@ -765,7 +768,6 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		else if(strncmp(HttpUrl, "/Thumbnails/", 12) == 0)
 		{
 			SendResp_thumbnail(h, HttpUrl+12);
-			CloseSocket_upnphttp(h);
 		}
 		else if(strncmp(HttpUrl, "/AlbumArt/", 10) == 0)
 		{
@@ -1041,7 +1043,7 @@ send_data(struct upnphttp * h, char * header, size_t size)
 	n = send(h->socket, header, size, 0);
 	if(n<0)
 	{
-		DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s", strerror(errno));
+		DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s\n", strerror(errno));
 	} 
 	else if(n < h->res_buflen)
 	{
@@ -1196,7 +1198,8 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 				"Connection: close\r\n"
 				"Date: %s\r\n"
 				"EXT:\r\n"
-			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
+				"realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
+				"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
 				"Server: " MINIDLNA_SERVER_STRING "\r\n",
 				size, date);
 
@@ -1334,6 +1337,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 				"Connection: close\r\n"
 				"Date: %s\r\n"
 				"EXT:\r\n"
+				"realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
 				"Server: " MINIDLNA_SERVER_STRING "\r\n",
 				ed->size, date);
@@ -1353,6 +1357,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 		}
 		exif_data_unref(ed);
 	}
+	CloseSocket_upnphttp(h);
 	error:
 	sqlite3_free_table(result);
 }
@@ -1472,6 +1477,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	                                     "Connection: close\r\n"
 	                                     "Date: %s\r\n"
 	                                     "EXT:\r\n"
+	                                     "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 	                                     "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s;DLNA.ORG_CI=1\r\n"
 	                                     "Server: " MINIDLNA_SERVER_STRING "\r\n",
 	                                     date, dlna_pn);
@@ -1555,9 +1561,10 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		}
 	}
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
+	if( imsrc )
+		image_free(imsrc);
 	if( imdst )
 		image_free(imdst);
-	image_free(imsrc);
 	resized_error:
 	sqlite3_free_table(result);
 #if USE_FORK
@@ -1762,6 +1769,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			 "Connection: close\r\n"
 			 "Date: %s\r\n"
 			 "EXT:\r\n"
+	                 "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 			 "contentFeatures.dlna.org: %s\r\n"
 			 "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
 			 date, last_file.dlna);
