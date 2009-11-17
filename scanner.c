@@ -546,11 +546,6 @@ CreateDatabase(void)
 					  "64", "0", "Browse Folders",
 					0 };
 
-	sql_exec(db, "pragma page_size = 4096");
-	sql_exec(db, "pragma journal_mode = OFF");
-	sql_exec(db, "pragma synchronous = OFF;");
-	sql_exec(db, "pragma default_cache_size = 8192;");
-
 	ret = sql_exec(db, "CREATE TABLE OBJECTS ( "
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
 					"OBJECT_ID TEXT UNIQUE NOT NULL, "

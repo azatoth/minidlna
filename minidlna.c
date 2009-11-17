@@ -197,6 +197,20 @@ getfriendlyname(char * buf, int len)
 	#endif
 }
 
+void
+open_db(void)
+{
+	if( sqlite3_open(DB_PATH "/files.db", &db) != SQLITE_OK )
+	{
+		DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to open sqlite database!  Exiting...\n");
+	}
+	sqlite3_busy_timeout(db, 5000);
+	sql_exec(db, "pragma page_size = 4096");
+	sql_exec(db, "pragma journal_mode = OFF");
+	sql_exec(db, "pragma synchronous = OFF;");
+	sql_exec(db, "pragma default_cache_size = 8192;");
+}
+
 /* init phase :
  * 1) read configuration file
  * 2) read command line arguments
@@ -687,57 +701,48 @@ main(int argc, char * * argv)
 		free(db_path);
 		new_db = 1;
 	}
-	if( sqlite3_open(DB_PATH "/files.db", &db) != SQLITE_OK )
+	open_db();
+	if( !new_db )
 	{
-		DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to open sqlite database!  Exiting...\n");
+		updateID = sql_get_int_field(db, "SELECT UPDATE_ID from SETTINGS");
 	}
-	else
+	if( sql_get_int_field(db, "pragma user_version") != DB_VERSION )
 	{
-		sqlite3_busy_timeout(db, 5000);
-		if( !new_db )
+		if( new_db )
 		{
-			updateID = sql_get_int_field(db, "SELECT UPDATE_ID from SETTINGS");
+			DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
 		}
-		if( sql_get_int_field(db, "pragma user_version") != DB_VERSION )
+		else
 		{
-			if( new_db )
-			{
-				DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
-			}
-			else
-			{
-				DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
-			}
-			sqlite3_close(db);
-			unlink(DB_PATH "/files.db");
-			system("rm -rf " DB_PATH "/art_cache");
-			sqlite3_open(DB_PATH "/files.db", &db);
-			sqlite3_busy_timeout(db, 5000);
-			if( CreateDatabase() != 0 )
-			{
-				DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
-			}
+			DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
+		}
+		sqlite3_close(db);
+		unlink(DB_PATH "/files.db");
+		system("rm -rf " DB_PATH "/art_cache");
+		open_db();
+		if( CreateDatabase() != 0 )
+		{
+			DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to create sqlite database!  Exiting...\n");
+		}
 #if USE_FORK
-			scanning = 1;
-			sqlite3_close(db);
-			scanner_pid = fork();
-			sqlite3_open(DB_PATH "/files.db", &db);
-			sqlite3_busy_timeout(db, 5000);
-			if( !scanner_pid ) // child (scanner) process
-			{
-				start_scanner();
-				sqlite3_close(db);
-				exit(EXIT_SUCCESS);
-			}
-#else
-			start_scanner();
-#endif
-		}
-		if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
-		    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
+		scanning = 1;
+		sqlite3_close(db);
+		scanner_pid = fork();
+		open_db();
+		if( !scanner_pid ) // child (scanner) process
 		{
-			DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
+			start_scanner();
+			sqlite3_close(db);
+			exit(EXIT_SUCCESS);
 		}
+#else
+		start_scanner();
+#endif
+	}
+	if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
+	    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
+	{
+		DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 	}
 
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
