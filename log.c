@@ -122,7 +122,7 @@ log_err(int level, enum _log_facility facility, char *fname, int lineno, char *f
 	time_t t;
 	struct tm *tm;
 
-	if (level && level>log_level[facility])
+	if (level && level>log_level[facility] && level>E_FATAL)
 		return;
 
 	if (!log_fp)

@@ -19,6 +19,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <linux/limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -27,6 +28,7 @@
 #include <errno.h>
 
 #include "minidlnatypes.h"
+#include "log.h"
 
 int
 ends_with(const char * haystack, const char * needle)
@@ -198,7 +200,7 @@ make_dir(char * path, mode_t mode)
 
 	} while (1);
 
-	printf("make_dir: cannot create directory '%s'", path);
+	DPRINTF(E_WARN, L_GENERAL, "make_dir: cannot create directory '%s'\n", path);
 	return -1;
 }
 

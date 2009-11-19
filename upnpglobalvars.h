@@ -116,6 +116,7 @@ extern sqlite3 *db;
 extern char dlna_no_conv[];
 #define FRIENDLYNAME_MAX_LEN (64)
 extern char friendly_name[];
+extern char db_path[];
 extern struct media_dir_s * media_dirs;
 extern struct album_art_name_s * album_art_names;
 extern struct client_cache_s clients[CLIENT_CACHE_SLOTS];

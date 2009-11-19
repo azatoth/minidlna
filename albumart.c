@@ -37,7 +37,7 @@
 int
 art_cache_exists(const char * orig_path, char ** cache_file)
 {
-	asprintf(cache_file, DB_PATH "/art_cache%s", orig_path);
+	asprintf(cache_file, "%s/art_cache%s", db_path, orig_path);
 	strcpy(strchr(*cache_file, '\0')-4, ".jpg");
 
 	return (!access(*cache_file, F_OK));

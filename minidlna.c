@@ -197,10 +197,19 @@ getfriendlyname(char * buf, int len)
 	#endif
 }
 
-void
+int
 open_db(void)
 {
-	if( sqlite3_open(DB_PATH "/files.db", &db) != SQLITE_OK )
+	char path[PATH_MAX];
+	int new_db = 0;
+
+	snprintf(path, sizeof(path), "%s/files.db", db_path);
+	if( access(path, F_OK) != 0 )
+	{
+		new_db = 1;
+		make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
+	}
+	if( sqlite3_open(path, &db) != SQLITE_OK )
 	{
 		DPRINTF(E_FATAL, L_GENERAL, "ERROR: Failed to open sqlite database!  Exiting...\n");
 	}
@@ -209,6 +218,7 @@ open_db(void)
 	sql_exec(db, "pragma journal_mode = OFF");
 	sql_exec(db, "pragma synchronous = OFF;");
 	sql_exec(db, "pragma default_cache_size = 8192;");
+	return new_db;
 }
 
 /* init phase :
@@ -385,6 +395,18 @@ init(int argc, char * * argv)
 					}
 				}
 				break;
+			case UPNPDBDIR:
+				path = realpath(ary_options[i].value, real_path);
+				if( !path )
+					path = (ary_options[i].value);
+				make_dir(path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
+				if( access(path, F_OK) != 0 )
+				{
+					DPRINTF(E_FATAL, L_GENERAL, "Database path not accessible! [%s]\n", path);
+					break;
+				}
+				strncpy(db_path, path, PATH_MAX);
+				break;
 			case UPNPINOTIFY:
 				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
 					CLEARFLAG(INOTIFY_MASK);
@@ -533,7 +555,8 @@ init(int argc, char * * argv)
 			runtime_vars.port = 0; // triggers help display
 			break;
 		case 'R':
-			system("rm -rf " DB_PATH); // triggers a full rescan
+			snprintf(real_path, sizeof(real_path), "rm -rf %s", db_path);
+			system(real_path);
 			break;
 		case 'V':
 			printf("Version " MINIDLNA_VERSION "\n");
@@ -596,7 +619,10 @@ init(int argc, char * * argv)
 		#ifdef READYNAS
 		log_init("/var/log/upnp-av.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
 		#else
-		log_init(DB_PATH "/minidlna.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
+		if( access(db_path, F_OK) != 0 )
+			make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
+		sprintf(real_path, "%s/minidlna.log", db_path);
+		log_init(real_path, "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
 		#endif
 	}
 
@@ -618,7 +644,7 @@ init(int argc, char * * argv)
 	{
 #ifdef READYNAS
 		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
-		         "https://%s/admin/", lan_addr[0].str);
+		         "http://%s/admin/", lan_addr[0].str);
 #else
 		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
 		         "http://%s:%d/", lan_addr[0].str, runtime_vars.port);
@@ -694,14 +720,7 @@ main(int argc, char * * argv)
 #endif
 	LIST_INIT(&upnphttphead);
 
-	if( access(DB_PATH, F_OK) != 0 )
-	{
-		char *db_path = strdup(DB_PATH);
-		make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
-		free(db_path);
-		new_db = 1;
-	}
-	open_db();
+	new_db = open_db();
 	if( !new_db )
 	{
 		updateID = sql_get_int_field(db, "SELECT UPDATE_ID from SETTINGS");
@@ -717,8 +736,10 @@ main(int argc, char * * argv)
 			DPRINTF(E_WARN, L_GENERAL, "Database version mismatch; need to recreate...\n");
 		}
 		sqlite3_close(db);
-		unlink(DB_PATH "/files.db");
-		system("rm -rf " DB_PATH "/art_cache");
+		char *cmd;
+		asprintf(&cmd, "rm -rf %s/files.db %s/art_cache", db_path, db_path);
+		system(cmd);
+		free(cmd);
 		open_db();
 		if( CreateDatabase() != 0 )
 		{

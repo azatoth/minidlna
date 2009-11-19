@@ -12,6 +12,7 @@
  */
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <linux/limits.h>
 
 #include "config.h"
 #include "upnpglobalvars.h"
@@ -43,6 +44,7 @@ struct lan_addr_s lan_addr[MAX_LAN_ADDR];
 sqlite3 * db;
 char dlna_no_conv[] = "DLNA.ORG_OP=01;DLNA.ORG_CI=0";
 char friendly_name[FRIENDLYNAME_MAX_LEN];
+char db_path[PATH_MAX] = DEFAULT_DB_PATH;
 struct media_dir_s * media_dirs = NULL;
 struct album_art_name_s * album_art_names = NULL;
 struct client_cache_s clients[CLIENT_CACHE_SLOTS];

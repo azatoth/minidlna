@@ -143,7 +143,7 @@ echo "#define OS_URL		\"${OS_URL}\"" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* full path of the file database */" >> ${CONFIGFILE}
-echo "#define DB_PATH		\"${DB_PATH}\"" >> ${CONFIGFILE}
+echo "#define DEFAULT_DB_PATH	\"${DB_PATH}\"" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* Comment the following line to use home made daemonize() func instead" >> ${CONFIGFILE}
