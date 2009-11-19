@@ -89,7 +89,7 @@ modifyString(char * string, const char * before, const char * after, short like)
 
 	oldlen = strlen(before);
 	newlen = strlen(after);
-	if( newlen > oldlen )
+	if( newlen+like > oldlen )
 	{
 		s = string;
 		while( (p = strstr(s, before)) )
@@ -114,10 +114,17 @@ modifyString(char * string, const char * before, const char * after, short like)
 			while( isspace(*t) )
 				t++;
 			if( *t == '"' )
+			{
+				if( like == 2 )
+				{
+					memmove(t+2, t+1, strlen(t+1)+1);
+					*++t = '*';
+				}
 				while( *++t != '"' )
 					continue;
-			memmove(t+1, t, strlen(t)+1);
-			*t = '*';
+				memmove(t+1, t, strlen(t)+1);
+				*t = '*';
+			}
 		}
 		s = p + newlen;
 	}
