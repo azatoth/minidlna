@@ -120,12 +120,12 @@ modifyString(char * string, const char * before, const char * after, short like)
 				if( like == 2 )
 				{
 					memmove(t+2, t+1, strlen(t+1)+1);
-					*++t = '*';
+					*++t = '%';
 				}
 				while( *++t != '"' )
 					continue;
 				memmove(t+1, t, strlen(t)+1);
-				*t = '*';
+				*t = '%';
 			}
 		}
 		s = p + newlen;

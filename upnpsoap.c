@@ -1121,8 +1121,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "&quot;", "\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&apos;", "'", 0);
 		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
-		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "glob", 1);
-		SearchCriteria = modifyString(SearchCriteria, "contains", "glob", 2);
+		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "like", 1);
+		SearchCriteria = modifyString(SearchCriteria, "contains", "like", 2);
 		SearchCriteria = modifyString(SearchCriteria, "dc:title", "d.TITLE", 0);
 		SearchCriteria = modifyString(SearchCriteria, "dc:creator", "d.CREATOR", 0);
 		SearchCriteria = modifyString(SearchCriteria, "upnp:class", "o.CLASS", 0);
