@@ -1136,6 +1136,14 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			newSearchCriteria = modifyString(strdup(SearchCriteria), "@id", "OBJECT_ID", 0);
 			SearchCriteria = newSearchCriteria;
 		}
+		if( strstr(SearchCriteria, "res is ") )
+		{
+			if( newSearchCriteria )
+				newSearchCriteria = modifyString(newSearchCriteria, "res is ", "MIME is ", 0);
+			else
+				newSearchCriteria = modifyString(strdup(SearchCriteria), "res is ", "MIME is ", 0);
+			SearchCriteria = newSearchCriteria;
+		}
 		#if 0 // Does 360 need this?
 		if( strstr(SearchCriteria, "&amp;") )
 		{
