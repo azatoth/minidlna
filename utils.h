@@ -41,6 +41,9 @@ int
 is_image(const char * file);
 
 int
+is_playlist(const char * file);
+
+int
 resolve_unknown_type(const char * path, enum media_types dir_type);
 
 #endif

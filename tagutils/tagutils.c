@@ -146,6 +146,7 @@ static taghandler taghandlers[] = {
 #include "tagutils-asf.c"
 #include "tagutils-wav.c"
 #include "tagutils-pcm.c"
+#include "tagutils-plist.c"
 
 //*********************************************************************************
 // freetags()

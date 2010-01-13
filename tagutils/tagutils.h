@@ -115,7 +115,7 @@ extern void make_composite_tags(struct song_metadata *psong);
 extern int readtags(char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type);
 extern void freetags(struct song_metadata *psong);
 
-extern int start_plist(char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type);
+extern int start_plist(const char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type);
 extern int next_plist_track(struct song_metadata *psong, struct stat *stat, char *lang, char *type);
 
 #endif

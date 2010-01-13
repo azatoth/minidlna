@@ -240,6 +240,12 @@ is_image(const char * file)
 }
 
 int
+is_playlist(const char * file)
+{
+	return (ends_with(file, ".m3u") || ends_with(file, ".pls"));
+}
+
+int
 resolve_unknown_type(const char * path, enum media_types dir_type)
 {
 	struct stat entry;
@@ -258,11 +264,13 @@ resolve_unknown_type(const char * path, enum media_types dir_type)
 				case ALL_MEDIA:
 					if( is_image(path) ||
 					    is_audio(path) ||
-					    is_video(path) )
+					    is_video(path) ||
+					    is_playlist(path) )
 						type = TYPE_FILE;
 					break;
 				case AUDIO_ONLY:
-					if( is_audio(path) )
+					if( is_audio(path) ||
+					    is_playlist(path) )
 						type = TYPE_FILE;
 					break;
 				case VIDEO_ONLY:

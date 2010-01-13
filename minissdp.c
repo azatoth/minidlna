@@ -287,7 +287,7 @@ SendSSDPNotifies(int s, const char * host, unsigned short port,
 				(struct sockaddr *)&sockname, sizeof(struct sockaddr_in) );
 			if(n < 0)
 			{
-				DPRINTF(E_ERROR, L_SSDP, "sendto(udp_notify=%d, %s): %s", s, host, strerror(errno));
+				DPRINTF(E_ERROR, L_SSDP, "sendto(udp_notify=%d, %s): %s\n", s, host, strerror(errno));
 			}
 			i++;
 		}

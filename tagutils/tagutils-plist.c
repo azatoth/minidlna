@@ -31,38 +31,45 @@
 #include "log.h"
 
 
-#define MAX_BUF 1024
+#define MAX_BUF 4096
 
 static FILE *fp = 0;
 static int _utf8bom = 0;
+static int _trackno;
 
 static int (*_next_track)(struct song_metadata*, struct stat*, char*, char*);
 static int _m3u_next_track(struct song_metadata*, struct stat*, char*, char*);
+static int _pls_next_track(struct song_metadata*, struct stat*, char*, char*);
 
 int
-start_plist(char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type)
+start_plist(const char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type)
 {
 	char *fname, *suffix;
 
 	_next_track = 0;
 	_utf8bom = 0;
+	_trackno = 0;
 
-	if(!strcmp(type, "m3u"))
+	if(strcmp(type, "m3u") == 0)
 		_next_track = _m3u_next_track;
+	else if(strcmp(type, "pls") == 0)
+		_next_track = _pls_next_track;
 
 	if(!_next_track)
 	{
-		DPRINTF(E_ERROR, L_SCAN_SCANNER, "Non supported type of playlist <%s>\n", type);
+		DPRINTF(E_ERROR, L_SCANNER, "Unsupported playlist type <%s>\n", type);
 		return -1;
 	}
 
 	if(!(fp = fopen(path, "rb")))
 	{
-		DPRINTF(E_ERROR, L_SCAN_SCANNER, "Cannot open %s\n", path);
+		DPRINTF(E_ERROR, L_SCANNER, "Cannot open %s\n", path);
 		return -1;
 	}
 
-	//
+	if(!psong)
+		return 0;
+
 	memset((void*)psong, 0, sizeof(struct song_metadata));
 	psong->is_plist = 1;
 	psong->path = strdup(path);
@@ -121,6 +128,7 @@ _m3u_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 				p[--len] = '\0';
 			}
 			psong->path = strdup(p);
+			psong->track = ++_trackno;
 			return 0;
 		}
 		p = fgets(buf, MAX_BUF, fp);
@@ -128,7 +136,57 @@ _m3u_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 	}
 
 	fclose(fp);
-	return -1;
+	return 1;
+}
+
+int
+_pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char *type)
+{
+	char buf[MAX_BUF], *p;
+	int len;
+
+	memset((void*)psong, 0, sizeof(struct song_metadata));
+
+	// read first line
+	p = fgets(buf, MAX_BUF, fp);
+
+	while(p)
+	{
+		while(isspace(*p)) p++;
+		if(*p && *p != '#')
+		{
+			// verify that it's a valid pls playlist
+			if(!_trackno)
+			{
+				if(strncmp(p, "[playlist]", 10))
+					break;
+				_trackno++;
+				goto next_line;
+			}
+
+			if(strncmp(p, "File", 4))
+				goto next_line;
+
+			psong->track = strtol(p+4, &p, 10);
+			if(!psong->track || !p)
+				goto next_line;
+			_trackno = psong->track;
+			// check dos format
+			len = strlen(++p);
+
+			while(p[len - 1] == '\r' || p[len - 1] == '\n')
+			{
+				p[--len] = '\0';
+			}
+			psong->path = strdup(p);
+			return 0;
+		}
+next_line:
+		p = fgets(buf, MAX_BUF, fp);
+	}
+
+	fclose(fp);
+	return 1;
 }
 
 int

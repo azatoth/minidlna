@@ -670,6 +670,9 @@ callback(void *args, int argc, char **argv, char **azColName)
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
+		if( strncmp(id, MUSIC_PLIST_ID, strlen(MUSIC_PLIST_ID)) == 0 ) {
+			track = strrchr(id, '$')+1;
+		}
 		if( track && atoi(track) && (passed_args->filter & FILTER_UPNP_ORIGINALTRACKNUMBER) ) {
 			ret = sprintf(str_buf, "&lt;upnp:originalTrackNumber&gt;%s&lt;/upnp:originalTrackNumber&gt;", track);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
@@ -920,7 +923,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	if( h->req_client == EXbox )
 	{
 		if( strcmp(ObjectId, "16") == 0 )
-			ObjectId = strdup("3$16");
+			ObjectId = strdup(IMAGE_DIR_ID);
 		else if( strcmp(ObjectId, "15") == 0 )
 			ObjectId = strdup(VIDEO_DIR_ID);
 		else
@@ -950,11 +953,24 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	{
 		ret = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", ObjectId);
 		totalMatches = (ret > 0) ? ret : 0;
-#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
 		ret = 0;
-		if( totalMatches < 10000 )
+		if( SortCriteria )
+		{
+#ifdef __sparc__ /* Sorting takes too long on slow processors with very large containers */
+			if( totalMatches < 10000 )
 #endif
 			orderBy = parse_sort_criteria(SortCriteria, &ret);
+		}
+		else
+		{
+			if( strncmp(ObjectId, MUSIC_PLIST_ID, strlen(MUSIC_PLIST_ID)) == 0 )
+			{
+				if( strcmp(ObjectId, MUSIC_PLIST_ID) == 0 )
+					asprintf(&orderBy, "order by d.TITLE");
+				else
+					asprintf(&orderBy, "order by length(OBJECT_ID), OBJECT_ID");
+			}
+		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
 		if( (args.flags & FLAG_DLNA) && ret )
 		{
@@ -1080,6 +1096,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			ContainerID = strdup("1$6");
 		else if( strcmp(ContainerID, "7") == 0 )
 			ContainerID = strdup("1$7");
+		else if( strcmp(ContainerID, "F") == 0 )
+			ContainerID = strdup(MUSIC_PLIST_ID);
 		else
 			ContainerID = strdup(ContainerID);
 		#if 0 // Looks like the 360 already does this

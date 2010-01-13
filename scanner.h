@@ -12,6 +12,7 @@
 
 #define BROWSEDIR_ID	"64"
 #define MUSIC_DIR_ID	"1$14"
+#define MUSIC_PLIST_ID	"1$F"
 #define VIDEO_DIR_ID	"2$15"
 #define IMAGE_DIR_ID	"3$16"
 

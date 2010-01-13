@@ -1,3 +1,20 @@
+/*  MiniDLNA media server
+ *  Copyright (C) 2008-2010  Justin Maggard
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 #include "config.h"
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +43,7 @@
 #include "scanner.h"
 #include "metadata.h"
 #include "albumart.h"
+#include "playlist.h"
 #include "log.h"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
@@ -43,6 +61,7 @@ struct watch
 
 static struct watch *watches;
 static struct watch *lastwatch = NULL;
+static time_t next_pl_fill = 0;
 
 char *get_path_from_wd(int wd)
 {
@@ -293,11 +312,13 @@ inotify_insert_file(char * name, const char * path)
 		case ALL_MEDIA:
 			if( !is_image(path) &&
 			    !is_audio(path) &&
-			    !is_video(path) )
+			    !is_video(path) &&
+			    !is_playlist(path) )
 				return -1;
 			break;
 		case AUDIO_ONLY:
-			if( !is_audio(path) )
+			if( !is_audio(path) &&
+			    !is_playlist(path) )
 				return -1;
 			break;
 		case VIDEO_ONLY:
@@ -337,6 +358,12 @@ inotify_insert_file(char * name, const char * path)
 				return -1;
 			}
 		}
+		else if( is_playlist(path) && (sql_get_int_field(db, "SELECT ID from PLAYLISTS where PATH = '%q'", path) > 0) )
+		{
+			DPRINTF(E_DEBUG, L_INOTIFY, "Re-reading modified playlist.\n", path);
+			inotify_remove_file(path_buf);
+			next_pl_fill = 1;
+		}
 		sqlite3_free_table(result);
 	}
 	sqlite3_free(sql);
@@ -350,7 +377,7 @@ inotify_insert_file(char * name, const char * path)
 
 		do
 		{
-			DPRINTF(E_DEBUG, L_INOTIFY, "Checking %s\n", parent_buf);
+			//DEBUG DPRINTF(E_DEBUG, L_INOTIFY, "Checking %s\n", parent_buf);
 			sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 			                      " where d.PATH = '%q' and REF_ID is NULL", parent_buf);
 			if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) && rows )
@@ -390,8 +417,14 @@ inotify_insert_file(char * name, const char * path)
 
 	if( !depth )
 	{
+		//DEBUG DPRINTF(E_DEBUG, L_INOTIFY, "Inserting %s\n", name);
 		insert_file(name, path, id+2, get_next_available_id("OBJECTS", id));
 		free(id);
+		if( (is_audio(path) || is_playlist(path)) && next_pl_fill != 1 )
+		{
+			next_pl_fill = time(NULL) + 120; // Schedule a playlist scan for 2 minutes from now.
+			//DEBUG DPRINTF(E_WARN, L_INOTIFY,  "Playlist scan scheduled for %s", ctime(&next_pl_fill));
+		}
 	}
 	return depth;
 }
@@ -495,11 +528,12 @@ inotify_remove_file(const char * path)
 	char **result;
 	char * art_cache;
 	sqlite_int64 detailID = 0;
-	int i, rows, children, ret = 1;
+	int i, rows, children, playlist, ret = 1;
 
 	/* Invalidate the scanner cache so we don't insert files into non-existent containers */
 	valid_cache = 0;
-	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH = '%q'", path);
+	playlist = is_playlist(path);
+	sql = sqlite3_mprintf("SELECT ID from %s where PATH = '%q'", playlist?"PLAYLISTS":"DETAILS", path);
 	if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
 	{
 		if( rows )
@@ -510,14 +544,30 @@ inotify_remove_file(const char * path)
 		sqlite3_free_table(result);
 	}
 	sqlite3_free(sql);
-	if( detailID )
+	if( playlist && detailID )
+	{
+		sql_exec(db, "DELETE from PLAYLISTS where ID = %lld", detailID);
+		sql_exec(db, "DELETE from DETAILS where ID ="
+		             " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s$%lld')",
+		         MUSIC_PLIST_ID, detailID);
+		sql_exec(db, "DELETE from OBJECTS where OBJECT_ID = '%s$%lld' or PARENT_ID = '%s$%lld'",
+		         MUSIC_PLIST_ID, detailID, MUSIC_PLIST_ID, detailID);
+	}
+	else if( detailID )
 	{
 		/* Delete the parent containers if we are about to empty them. */
 		asprintf(&sql, "SELECT PARENT_ID from OBJECTS where DETAIL_ID = %lld", detailID);
 		if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
 		{
-			for( i=1; i < rows; i++ )
+			for( i=1; i <= rows; i++ )
 			{
+				/* If it's a playlist item, adjust the item count of the playlist */
+				if( strncmp(result[i], MUSIC_PLIST_ID, strlen(MUSIC_PLIST_ID)) == 0 )
+				{
+					sql_exec(db, "UPDATE PLAYLISTS set FOUND = (FOUND-1) where ID = %d",
+					         atoi(strrchr(result[i], '$') + 1));
+				}
+
 				children = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", result[i]);
 				if( children < 0 )
 					continue;
@@ -615,6 +665,11 @@ start_inotify()
                 length = poll(pollfds, 1, timeout);
 		if( !length )
 		{
+			if( next_pl_fill && (time(NULL) >= next_pl_fill) )
+			{
+				fill_playlists();
+				next_pl_fill = 0;
+			}
 			continue;
 		}
 		else if( length < 0 )

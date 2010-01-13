@@ -30,6 +30,7 @@
 
 #include "upnpglobalvars.h"
 #include "metadata.h"
+#include "playlist.h"
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
@@ -479,6 +480,11 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		if( !detailID )
 			strcpy(name, orig_name);
 	}
+	else if( is_playlist(name) )
+	{
+		if( insert_playlist(path, name) == 0 )
+			return 1;
+	}
 	if( !detailID && is_audio(name) )
 	{
 		strcpy(base, MUSIC_DIR_ID);
@@ -534,7 +540,8 @@ CreateDatabase(void)
 					 "1$5", "1", "Genre",
 					 "1$6", "1", "Artist",
 					 "1$7", "1", "Album",
-					"1$14", "1", "Folders",
+				  MUSIC_DIR_ID, "1", "Folders",
+				MUSIC_PLIST_ID, "1", "Playlists",
 					   "2", "0", "Video",
 					 "2$8", "2", "All Video",
 				  VIDEO_DIR_ID, "2", "Folders",
@@ -542,7 +549,7 @@ CreateDatabase(void)
 					"3$11", "3", "All Pictures",
 					"3$12", "3", "Date Taken",
 					"3$13", "3", "Camera",
-					"3$16", "3", "Folders",
+				  IMAGE_DIR_ID, "3", "Folders",
 					  "64", "0", "Browse Folders",
 					0 };
 
@@ -595,6 +602,15 @@ CreateDatabase(void)
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
+	ret = sql_exec(db, "CREATE TABLE PLAYLISTS ("
+					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
+					"NAME TEXT NOT NULL, "
+					"PATH TEXT NOT NULL, "
+					"ITEMS INTEGER DEFAULT 0, "
+					"FOUND INTEGER DEFAULT 0"
+					")");
+	if( ret != SQLITE_OK )
+		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE SETTINGS ("
 					"UPDATE_ID INTEGER PRIMARY KEY DEFAULT 0, "
 					"FLAGS INTEGER DEFAULT 0"
@@ -636,8 +652,10 @@ filter_audio(const struct dirent *d)
 	          (d->d_type == DT_LNK) ||
 	          (d->d_type == DT_UNKNOWN) ||
 		  ((d->d_type == DT_REG) &&
-		   is_audio(d->d_name) )
-	       ) );
+		   (is_audio(d->d_name) ||
+	            is_playlist(d->d_name)
+		   )
+	       ) ));
 }
 
 int
@@ -674,7 +692,8 @@ filter_media(const struct dirent *d)
 	          ((d->d_type == DT_REG) &&
 	           (is_image(d->d_name) ||
 	            is_audio(d->d_name) ||
-	            is_video(d->d_name)
+	            is_video(d->d_name) ||
+	            is_playlist(d->d_name)
 	           )
 	       ) ));
 }
@@ -795,6 +814,8 @@ start_scanner()
 	 * This index is very useful for large libraries used with an XBox360 (or any
 	 * client that uses UPnPSearch on large containers). */
 	sql_exec(db, "create INDEX IDX_SEARCH_OPT ON OBJECTS(OBJECT_ID, CLASS, DETAIL_ID);");
+
+	fill_playlists();
 
 	//JM: Set up a db version number, so we know if we need to rebuild due to a new structure.
 	sql_exec(db, "pragma user_version = %d;", DB_VERSION);
