@@ -30,7 +30,7 @@ NameValueParserGetData(void * d, const char * datas, int l)
     nv = malloc(sizeof(struct NameValue));
     if(l>511)
         l = 511;
-    strncpy(nv->name, data->curelt, 512);
+    strncpy(nv->name, data->curelt, 64);
     nv->name[63] = '\0';
     memcpy(nv->value, datas, l);
     nv->value[l] = '\0';

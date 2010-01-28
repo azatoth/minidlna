@@ -200,7 +200,7 @@ _make_composite_tags(struct song_metadata *psong)
 {
 	int len;
 
-	len = 0;
+	len = 1;
 
 	if(!psong->contributor[ROLE_ARTIST] &&
 	   (psong->contributor[ROLE_BAND] || psong->contributor[ROLE_CONDUCTOR]))
