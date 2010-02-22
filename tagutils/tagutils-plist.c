@@ -50,14 +50,14 @@ start_plist(const char *path, struct song_metadata *psong, struct stat *stat, ch
 	_utf8bom = 0;
 	_trackno = 0;
 
-	if(strcmp(type, "m3u") == 0)
+	if(strcasecmp(type, "m3u") == 0)
 		_next_track = _m3u_next_track;
-	else if(strcmp(type, "pls") == 0)
+	else if(strcasecmp(type, "pls") == 0)
 		_next_track = _pls_next_track;
 
 	if(!_next_track)
 	{
-		DPRINTF(E_ERROR, L_SCANNER, "Unsupported playlist type <%s>\n", type);
+		DPRINTF(E_ERROR, L_SCANNER, "Unsupported playlist type <%s> (%s)\n", type, path);
 		return -1;
 	}
 
@@ -118,6 +118,14 @@ _m3u_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 	while(p)
 	{
 		while(isspace(*p)) p++;
+
+		if(!isprint(*p))
+		{
+			DPRINTF(E_ERROR, L_SCANNER, "Playlist looks bad (unprintable characters)\n");
+			fclose(fp);
+			return 2;
+		}
+
 		if(*p && *p != '#')
 		{
 			// check dos format
@@ -153,6 +161,14 @@ _pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 	while(p)
 	{
 		while(isspace(*p)) p++;
+
+		if(!isprint(*p))
+		{
+			DPRINTF(E_ERROR, L_SCANNER, "Playlist looks bad (unprintable characters)\n");
+			fclose(fp);
+			return 2;
+		}
+
 		if(*p && *p != '#')
 		{
 			// verify that it's a valid pls playlist

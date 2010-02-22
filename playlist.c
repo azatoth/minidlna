@@ -40,7 +40,7 @@ insert_playlist(const char * path, char * name)
 {
 	struct song_metadata plist;
 	struct stat file;
-	int items = 0, matches;
+	int items = 0, matches, ret;
 	char type[4];
 
 	strncpy(type, strrchr(name, '.')+1, 4);
@@ -50,10 +50,15 @@ insert_playlist(const char * path, char * name)
 		DPRINTF(E_WARN, L_SCANNER, "Bad playlist [%s]\n", path);
 		return -1;
 	}
-	while( next_plist_track(&plist, &file, NULL, type) == 0 )
+	while( (ret = next_plist_track(&plist, &file, NULL, type)) == 0 )
 	{
 		items++;
 		freetags(&plist);
+	}
+	if( ret == 2 ) // Bad playlist -- contains binary characters
+	{
+		DPRINTF(E_WARN, L_SCANNER, "Bad playlist [%s]\n", path);
+		return -1;
 	}
 	strip_ext(name);
 
@@ -113,9 +118,8 @@ fill_playlists()
 			continue;
 
 		DPRINTF(E_DEBUG, L_SCANNER, "Scanning playlist \"%s\" [%s]\n", plname, plpath);
-		sprintf(sql_buf, "SELECT ID from OBJECTS where PARENT_ID = '"MUSIC_PLIST_ID"'"
-		                  " and NAME = '%s'", plname);
-		if( sql_get_int_field(db, sql_buf) <= 0 )
+		if( sql_get_int_field(db, "SELECT ID from OBJECTS where PARENT_ID = '"MUSIC_PLIST_ID"'"
+		                          " and NAME = '%q'", plname) <= 0 )
 		{
 			detailID = GetFolderMetadata(plname, NULL, NULL, NULL, NULL);
 			sql_exec(db, "INSERT into OBJECTS"
