@@ -250,9 +250,26 @@ resolve_unknown_type(const char * path, enum media_types dir_type)
 {
 	struct stat entry;
 	unsigned char type = TYPE_UNKNOWN;
+	char str_buf[PATH_MAX];
+	ssize_t len;
 
-	if( stat(path, &entry) == 0 )
+	if( lstat(path, &entry) == 0 )
 	{
+		if( S_ISLNK(entry.st_mode) )
+		{
+			if( (len = readlink(path, str_buf, PATH_MAX-1)) > 0 )
+			{
+				str_buf[len] = '\0';
+				//DEBUG DPRINTF(E_DEBUG, L_GENERAL, "Checking for recursive symbolic link: %s (%s)\n", path, str_buf);
+				if( strncmp(path, str_buf, strlen(str_buf)) == 0 )
+				{
+					DPRINTF(E_DEBUG, L_GENERAL, "Ignoring recursive symbolic link: %s (%s)\n", path, str_buf);
+					return type;
+				}
+			}
+			stat(path, &entry);
+		}
+
 		if( S_ISDIR(entry.st_mode) )
 		{
 			type = TYPE_DIR;
