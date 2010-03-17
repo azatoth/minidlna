@@ -304,6 +304,8 @@ set_filter_flags(char * filter)
 	{
 		if( saveptr )
 			*(item-1) = ',';
+		while( isspace(*item) )
+			item++;
 		if( strcmp(item, "@childCount") == 0 )
 		{
 			flags |= FILTER_CHILDCOUNT;
