@@ -251,6 +251,10 @@ mime_to_ext(const char * mime, char * buf)
 				strcpy(buf, "flv");
 			else if( strcmp(mime+6, "vnd.dlna.mpeg-tts") == 0 )
 				strcpy(buf, "mpg");
+			else if( strcmp(mime+6, "quicktime") == 0 )
+				strcpy(buf, "mov");
+			else if( strcmp(mime+6, "3gpp") == 0 )
+				strcpy(buf, "3gp");
 			else if( strcmp(mime+6, "x-tivo-mpeg") == 0 )
 				strcpy(buf, "TiVo");
 			else
