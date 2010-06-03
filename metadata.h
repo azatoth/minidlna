@@ -13,6 +13,7 @@
 typedef struct metadata_s {
 	char *title;
 	char *artist;
+	char *creator;
 	char *album;
 	char *genre;
 	char *comment;
@@ -22,6 +23,7 @@ typedef struct metadata_s {
 	char *bps;
 	char *resolution;
 	char *duration;
+	char *date;
 	char *mime;
 	char *dlna_pn;
 } metadata_t;

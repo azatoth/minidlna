@@ -36,6 +36,7 @@
 #include "tagutils/tagutils.h"
 
 #include "upnpglobalvars.h"
+#include "upnpreplyparse.h"
 #include "metadata.h"
 #include "albumart.h"
 #include "utils.h"
@@ -47,7 +48,16 @@
 #define FLAG_ALBUM	0x00000004
 #define FLAG_GENRE	0x00000008
 #define FLAG_COMMENT	0x00000010
-#define FLAG_BAND	0x00000020
+#define FLAG_CREATOR	0x00000020
+#define FLAG_DATE	0x00000040
+#define FLAG_DLNA_PN	0x00000080
+#define FLAG_MIME	0x00000100
+#define FLAG_DURATION	0x00000200
+#define FLAG_RESOLUTION	0x00000400
+#define FLAG_BITRATE	0x00000800
+#define FLAG_FREQUENCY	0x00001000
+#define FLAG_BPS	0x00002000
+#define FLAG_CHANNELS	0x00004000
 
 /* Audio profile flags */
 enum audio_profiles {
@@ -169,6 +179,88 @@ no_source_video:
 	free(file);
 }
 
+void
+parse_nfo(const char * path, metadata_t * m)
+{
+	FILE *nfo;
+	char buf[65536];
+	struct NameValueParserData xml;
+	struct stat file;
+	size_t nread;
+	char *val, *val2;
+
+	if( stat(path, &file) != 0 ||
+	    file.st_size > 65536 )
+	{
+		DPRINTF(E_INFO, L_METADATA, "Not parsing very large .nfo file %s\n", path);
+		return;
+	}
+	DPRINTF(E_DEBUG, L_METADATA, "Parsing .nfo file: %s\n", path);
+	nfo = fopen(path, "r");
+	if( !nfo )
+		return;
+	nread = fread(&buf, 1, sizeof(buf), nfo);
+	
+	ParseNameValue(buf, nread, &xml);
+
+	//printf("\ttype: %s\n", GetValueFromNameValueList(&xml, "rootElement"));
+	val = GetValueFromNameValueList(&xml, "title");
+	if( val )
+	{
+		val2 = GetValueFromNameValueList(&xml, "episodetitle");
+		if( val2 )
+			asprintf(&m->title, "%s - %s", val, val2);
+		else
+			m->title = strdup(val);
+	}
+
+	val = GetValueFromNameValueList(&xml, "plot");
+	if( val )
+		m->comment = strdup(val);
+
+	val = GetValueFromNameValueList(&xml, "capturedate");
+	if( val )
+		m->date = strdup(val);
+
+	ClearNameValueList(&xml);
+	fclose(nfo);
+}
+
+void
+free_metadata(metadata_t * m, uint32_t flags)
+{
+	if( m->title && (flags & FLAG_TITLE) )
+		free(m->title);
+	if( m->artist && (flags & FLAG_ARTIST) )
+		free(m->artist);
+	if( m->album && (flags & FLAG_ALBUM) )
+		free(m->album);
+	if( m->genre && (flags & FLAG_GENRE) )
+		free(m->genre);
+	if( m->creator && (flags & FLAG_CREATOR) )
+		free(m->creator);
+	if( m->date && (flags & FLAG_DATE) )
+		free(m->date);
+	if( m->comment && (flags & FLAG_COMMENT) )
+		free(m->comment);
+	if( m->dlna_pn && (flags & FLAG_DLNA_PN) )
+		free(m->dlna_pn);
+	if( m->mime && (flags & FLAG_MIME) )
+		free(m->mime);
+	if( m->duration && (flags & FLAG_DURATION) )
+		free(m->duration);
+	if( m->resolution && (flags & FLAG_RESOLUTION) )
+		free(m->resolution);
+	if( m->bitrate && (flags & FLAG_BITRATE) )
+		free(m->bitrate);
+	if( m->frequency && (flags & FLAG_FREQUENCY) )
+		free(m->frequency);
+	if( m->bps && (flags & FLAG_BPS) )
+		free(m->bps);
+	if( m->channels && (flags & FLAG_CHANNELS) )
+		free(m->channels);
+}
+
 sqlite_int64
 GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, const char * album_art)
 {
@@ -191,16 +283,17 @@ GetFolderMetadata(const char * name, const char * path, const char * artist, con
 sqlite_int64
 GetAudioMetadata(const char * path, char * name)
 {
-	char duration[16], mime[16], type[4];
+	char type[4];
 	static char lang[6] = { '\0' };
 	struct stat file;
 	sqlite_int64 ret;
-	char *title, *artist = NULL, *album = NULL, *band = NULL, *genre = NULL, *comment = NULL, *date = NULL;
 	char *esc_tag;
-	int i, free_flags = 0;
+	int i;
 	sqlite_int64 album_art = 0;
 	struct song_metadata song;
-	char *dlna_pn = NULL;
+	metadata_t m;
+	uint32_t free_flags = FLAG_MIME|FLAG_DURATION|FLAG_DLNA_PN|FLAG_DATE;
+	memset(&m, '\0', sizeof(metadata_t));
 
 	if ( stat(path, &file) != 0 )
 		return 0;
@@ -209,43 +302,43 @@ GetAudioMetadata(const char * path, char * name)
 	if( ends_with(path, ".mp3") )
 	{
 		strcpy(type, "mp3");
-		strcpy(mime, "audio/mpeg");
+		m.mime = strdup("audio/mpeg");
 	}
 	else if( ends_with(path, ".m4a") || ends_with(path, ".mp4") ||
 	         ends_with(path, ".aac") || ends_with(path, ".m4p") )
 	{
 		strcpy(type, "aac");
-		strcpy(mime, "audio/mp4");
+		m.mime = strdup("audio/mp4");
 	}
 	else if( ends_with(path, ".3gp") )
 	{
 		strcpy(type, "aac");
-		strcpy(mime, "audio/3gpp");
+		m.mime = strdup("audio/3gpp");
 	}
 	else if( ends_with(path, ".wma") || ends_with(path, ".asf") )
 	{
 		strcpy(type, "asf");
-		strcpy(mime, "audio/x-ms-wma");
+		m.mime = strdup("audio/x-ms-wma");
 	}
 	else if( ends_with(path, ".flac") || ends_with(path, ".fla") || ends_with(path, ".flc") )
 	{
 		strcpy(type, "flc");
-		strcpy(mime, "audio/x-flac");
+		m.mime = strdup("audio/x-flac");
 	}
 	else if( ends_with(path, ".wav") )
 	{
 		strcpy(type, "wav");
-		strcpy(mime, "audio/x-wav");
+		m.mime = strdup("audio/x-wav");
 	}
 	else if( ends_with(path, ".ogg") )
 	{
 		strcpy(type, "ogg");
-		strcpy(mime, "application/ogg");
+		m.mime = strdup("application/ogg");
 	}
 	else if( ends_with(path, ".pcm") )
 	{
 		strcpy(type, "pcm");
-		strcpy(mime, "audio/L16");
+		m.mime = strdup("audio/L16");
 	}
 	else
 	{
@@ -266,91 +359,92 @@ GetAudioMetadata(const char * path, char * name)
 	{
 		DPRINTF(E_WARN, L_GENERAL, "Cannot extract tags from %s!\n", path);
         	freetags(&song);
+		free_metadata(&m, free_flags);
 		return 0;
 	}
 
 	if( song.dlna_pn )
-		asprintf(&dlna_pn, "%s;DLNA.ORG_OP=01", song.dlna_pn);
+		asprintf(&m.dlna_pn, "%s;DLNA.ORG_OP=01", song.dlna_pn);
 	if( song.year )
-		asprintf(&date, "%04d-01-01", song.year);
-	sprintf(duration, "%d:%02d:%02d.%03d",
-	                  (song.song_length/3600000),
-	                  (song.song_length/60000%60),
-	                  (song.song_length/1000%60),
-	                  (song.song_length%1000));
-	title = song.title;
-	if( title && *title )
+		asprintf(&m.date, "%04d-01-01", song.year);
+	asprintf(&m.duration, "%d:%02d:%02d.%03d",
+	                      (song.song_length/3600000),
+	                      (song.song_length/60000%60),
+	                      (song.song_length/1000%60),
+	                      (song.song_length%1000));
+	m.title = song.title;
+	if( m.title && *m.title )
 	{
-		title = trim(title);
-		if( (esc_tag = escape_tag(title)) )
+		m.title = trim(m.title);
+		if( (esc_tag = escape_tag(m.title)) )
 		{
 			free_flags |= FLAG_TITLE;
-			title = esc_tag;
+			m.title = esc_tag;
 		}
 	}
 	else
 	{
-		title = name;
+		m.title = name;
 	}
 	for( i=ROLE_START; i<N_ROLE; i++ )
 	{
 		if( song.contributor[i] && *song.contributor[i] )
 		{
-			artist = trim(song.contributor[i]);
-			if( strlen(artist) > 48 )
+			m.artist = trim(song.contributor[i]);
+			if( strlen(m.artist) > 48 )
 			{
 				free_flags |= FLAG_ARTIST;
-				artist = strdup("Various Artists");
+				m.artist = strdup("Various Artists");
 			}
-			else if( (esc_tag = escape_tag(artist)) )
+			else if( (esc_tag = escape_tag(m.artist)) )
 			{
 				free_flags |= FLAG_ARTIST;
-				artist = esc_tag;
+				m.artist = esc_tag;
 			}
-			band = artist;
+			m.creator = m.artist;
 			break;
 		}
 	}
 	/* If there is a band associated with the album, use it for virtual containers. */
 	if( (i != ROLE_BAND) && song.contributor[ROLE_BAND] && *song.contributor[ROLE_BAND] )
 	{
-		band = trim(song.contributor[ROLE_BAND]);
-		if( strlen(band) > 48 )
+		m.creator = trim(song.contributor[ROLE_BAND]);
+		if( strlen(m.creator) > 48 )
 		{
-			free_flags |= FLAG_BAND;
-			band = strdup("Various Artists");
+			free_flags |= FLAG_CREATOR;
+			m.creator = strdup("Various Artists");
 		}
-		else if( (esc_tag = escape_tag(band)) )
+		else if( (esc_tag = escape_tag(m.creator)) )
 		{
-			free_flags |= FLAG_BAND;
-			band = esc_tag;
+			free_flags |= FLAG_CREATOR;
+			m.creator = esc_tag;
 		}
 	}
 	if( song.album && *song.album )
 	{
-		album = trim(song.album);
-		if( (esc_tag = escape_tag(album)) )
+		m.album = trim(song.album);
+		if( (esc_tag = escape_tag(m.album)) )
 		{
 			free_flags |= FLAG_ALBUM;
-			album = esc_tag;
+			m.album = esc_tag;
 		}
 	}
 	if( song.genre && *song.genre )
 	{
-		genre = trim(song.genre);
-		if( (esc_tag = escape_tag(genre)) )
+		m.genre = trim(song.genre);
+		if( (esc_tag = escape_tag(m.genre)) )
 		{
 			free_flags |= FLAG_GENRE;
-			genre = esc_tag;
+			m.genre = esc_tag;
 		}
 	}
 	if( song.comment && *song.comment )
 	{
-		comment = trim(song.comment);
-		if( (esc_tag = escape_tag(comment)) )
+		m.comment = trim(song.comment);
+		if( (esc_tag = escape_tag(m.comment)) )
 		{
 			free_flags |= FLAG_COMMENT;
-			comment = esc_tag;
+			m.comment = esc_tag;
 		}
 	}
 
@@ -361,9 +455,9 @@ GetAudioMetadata(const char * path, char * name)
 	                   "  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 	                   "VALUES"
 	                   " (%Q, %lld, %ld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
-	                   path, file.st_size, file.st_mtime, duration, song.channels, song.bitrate, song.samplerate, date,
-	                   title, band, artist, album, genre, comment, song.disc, song.track,
-	                   dlna_pn, song.mime?song.mime:mime, album_art);
+	                   path, file.st_size, file.st_mtime, m.duration, song.channels, song.bitrate, song.samplerate, m.date,
+	                   m.title, m.creator, m.artist, m.album, m.genre, m.comment, song.disc, song.track,
+	                   m.dlna_pn, song.mime?song.mime:m.mime, album_art);
 	if( ret != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
@@ -373,24 +467,8 @@ GetAudioMetadata(const char * path, char * name)
 	{
 		ret = sqlite3_last_insert_rowid(db);
 	}
-
         freetags(&song);
-	if( dlna_pn )
-		free(dlna_pn);
-	if( date )
-		free(date);
-	if( free_flags & FLAG_TITLE )
-		free(title);
-	if( free_flags & FLAG_ARTIST )
-		free(artist);
-	if( free_flags & FLAG_ALBUM )
-		free(album);
-	if( free_flags & FLAG_BAND )
-		free(band);
-	if( free_flags & FLAG_GENRE )
-		free(genre);
-	if( free_flags & FLAG_COMMENT )
-		free(comment);
+	free_metadata(&m, free_flags);
 
 	return ret;
 }
@@ -415,13 +493,13 @@ GetImageMetadata(const char * path, char * name)
 	struct jpeg_error_mgr jerr;
 	FILE *infile;
 	int width=0, height=0, thumb=0;
-	char *date = NULL, *cam = NULL;
 	char make[32], model[64] = {'\0'};
 	char b[1024];
 	struct stat file;
 	sqlite_int64 ret;
 	image * imsrc;
 	metadata_t m;
+	uint32_t free_flags = 0xFFFFFFFF;
 	memset(&m, '\0', sizeof(metadata_t));
 
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Parsing %s...\n", path);
@@ -442,23 +520,23 @@ GetImageMetadata(const char * path, char * name)
 
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_ORIGINAL);
 	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_DIGITIZED)) ) {
-		date = strdup(exif_entry_get_value(e, b, sizeof(b)));
-		if( strlen(date) > 10 )
+		m.date = strdup(exif_entry_get_value(e, b, sizeof(b)));
+		if( strlen(m.date) > 10 )
 		{
-			date[4] = '-';
-			date[7] = '-';
-			date[10] = 'T';
+			m.date[4] = '-';
+			m.date[7] = '-';
+			m.date[10] = 'T';
 		}
 		else {
-			free(date);
-			date = NULL;
+			free(m.date);
+			m.date = NULL;
 		}
 	}
 	else {
 		/* One last effort to get the date from XMP */
-		image_get_jpeg_date_xmp(path, &date);
+		image_get_jpeg_date_xmp(path, &m.date);
 	}
-	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * date: %s\n", date);
+	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * date: %s\n", m.date);
 
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MAKE);
 	if( e )
@@ -470,7 +548,7 @@ GetImageMetadata(const char * path, char * name)
 			strncpy(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
 			if( !strcasestr(model, make) )
 				snprintf(model, sizeof(model), "%s %s", make, exif_entry_get_value(e, b, sizeof(b)));
-			cam = strdup(model);
+			m.creator = strdup(model);
 		}
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * model: %s\n", model);
@@ -484,16 +562,12 @@ GetImageMetadata(const char * path, char * name)
 			if( imsrc )
 			{
  				if( (imsrc->width <= 160) && (imsrc->height <= 160) )
-				{
 					thumb = 1;
-				}
 				image_free(imsrc);
 			}
 		}
 		else
-		{
 			thumb = 1;
-		}
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * thumbnail: %d\n", thumb);
 
@@ -522,8 +596,7 @@ no_exifdata:
 
 	if( !width || !height )
 	{
-		if( m.mime )
-			free(m.mime);
+		free_metadata(&m, free_flags);
 		return 0;
 	}
 	if( width <= 640 && height <= 480 )
@@ -538,7 +611,7 @@ no_exifdata:
 	                   " (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 	                   "VALUES"
 	                   " (%Q, '%q', %lld, %ld, %Q, %Q, %d, %Q, %Q, %Q);",
-	                   path, name, file.st_size, file.st_mtime, date, m.resolution, thumb, cam, m.dlna_pn, m.mime);
+	                   path, name, file.st_size, file.st_mtime, m.date, m.resolution, thumb, m.creator, m.dlna_pn, m.mime);
 	if( ret != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
@@ -548,16 +621,8 @@ no_exifdata:
 	{
 		ret = sqlite3_last_insert_rowid(db);
 	}
-	if( m.resolution )
-		free(m.resolution);
-	if( m.dlna_pn )
-		free(m.dlna_pn);
-	if( m.mime )
-		free(m.mime);
-	if( date )
-		free(date);
-	if( cam )
-		free(cam);
+	free_metadata(&m, free_flags);
+
 	return ret;
 }
 
@@ -567,7 +632,6 @@ GetVideoMetadata(const char * path, char * name)
 	struct stat file;
 	int ret, i;
 	struct tm *modtime;
-	char date[20];
 	AVFormatContext *ctx;
 	int audio_stream = -1, video_stream = -1;
 	enum audio_profiles audio_profile = PROFILE_AUDIO_UNKNOWN;
@@ -575,18 +639,17 @@ GetVideoMetadata(const char * path, char * name)
 	int duration, hours, min, sec, ms;
 	aac_object_type_t aac_type = AAC_INVALID;
 	sqlite_int64 album_art = 0;
+	char nfo[PATH_MAX], *ext;
 	metadata_t m;
+	uint32_t free_flags = 0xFFFFFFFF;
 	memset(&m, '\0', sizeof(m));
-	date[0] = '\0';
+//	memset(&free_flags, 0xFF, sizeof(free_flags));
 
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Parsing video %s...\n", name);
 	if ( stat(path, &file) != 0 )
 		return 0;
 	strip_ext(name);
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", file.st_size);
-
-	modtime = localtime(&file.st_mtime);
-	strftime(date, sizeof(date), "%FT%T", modtime);
 
 	av_register_all();
 	if( av_open_input_file(&ctx, path, NULL, 0, NULL) != 0 )
@@ -619,6 +682,25 @@ GetVideoMetadata(const char * path, char * name)
 			DPRINTF(E_DEBUG, L_METADATA, "File %s does not contain a video stream.\n", basename(path));
 		return 0;
 	}
+
+	strcpy(nfo, path);
+	ext = strrchr(nfo, '.');
+	if( ext )
+	{
+		strcpy(ext+1, "nfo");
+		if( access(nfo, F_OK) == 0 )
+		{
+			parse_nfo(nfo, &m);
+		}
+	}
+
+	if( !m.date )
+	{
+		m.date = malloc(20);
+		modtime = localtime(&file.st_mtime);
+		strftime(m.date, 20, "%FT%T", modtime);
+	}
+
 	if( audio_stream >= 0 )
 	{
 		switch( ctx->streams[audio_stream]->codec->codec_id )
@@ -988,13 +1070,14 @@ GetVideoMetadata(const char * path, char * name)
 
 	ret = sql_exec(db, "INSERT into DETAILS"
 	                   " (PATH, SIZE, TIMESTAMP, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
-	                   "  CREATOR, TITLE, DLNA_PN, MIME, ALBUM_ART) "
+	                   "  CREATOR, TITLE, COMMENT, DLNA_PN, MIME, ALBUM_ART) "
 	                   "VALUES"
-	                   " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, '%q', %lld);",
+	                   " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, %Q, '%q', %lld);",
 	                   path, file.st_size, file.st_mtime, m.duration,
-	                   strlen(date) ? date : NULL,
-	                   m.channels, m.bitrate, m.frequency, m.resolution,
-	                   m.artist, name, m.dlna_pn, m.mime, album_art);
+	                   m.date, m.channels,
+                           m.bitrate, m.frequency, m.resolution, m.artist,
+                           m.title ? m.title : name, m.comment, m.dlna_pn,
+                           m.mime, album_art);
 	if( ret != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);
@@ -1005,24 +1088,7 @@ GetVideoMetadata(const char * path, char * name)
 		ret = sqlite3_last_insert_rowid(db);
 		check_for_captions(path, ret);
 	}
-	if( m.dlna_pn )
-		free(m.dlna_pn);
-	if( m.mime )
-		free(m.mime);
-	if( m.duration )
-		free(m.duration);
-	if( m.resolution )
-		free(m.resolution);
-	if( m.bitrate )
-		free(m.bitrate);
-	if( m.frequency )
-		free(m.frequency);
-	if( m.bps )
-		free(m.bps);
-	if( m.channels )
-		free(m.channels);
-	if( m.artist )
-		free(m.artist);
+	free_metadata(&m, free_flags);
 
 	return ret;
 }
