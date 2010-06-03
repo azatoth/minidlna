@@ -485,8 +485,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	}
 	while( (e = readdir(ds)) )
 	{
-		if( strcmp(e->d_name, ".") == 0 ||
-		    strcmp(e->d_name, "..") == 0 )
+		if( e->d_name[0] == '.' )
 			continue;
 		esc_name = escape_tag(e->d_name);
 		if( !esc_name )
