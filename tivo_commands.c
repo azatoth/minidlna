@@ -151,7 +151,8 @@ int callback(void *args, int argc, char **argv, char **azColName)
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
-			if( comment ) {
+			if( comment )
+			{
 				ret = sprintf(str_buf, "<Caption>%s</Caption>", comment);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
@@ -159,13 +160,26 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		}
 		else if( strncmp(mime, "video", 5) == 0 )
 		{
+			char *episode;
 			flags |= FLAG_NO_PARAMS;
 			flags |= FLAG_VIDEO;
 			ret = sprintf(str_buf, "<Item><Details>"
 			                       "<ContentType>video/x-tivo-mpeg</ContentType>"
 			                       "<SourceFormat>%s</SourceFormat>"
-			                       "<SourceSize>%s</SourceSize>"
-			                       "<EpisodeTitle>%s</EpisodeTitle>", mime, size, title);
+			                       "<SourceSize>%s</SourceSize>", mime, size);
+			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+			passed_args->size += ret;
+			episode = strstr(title, " - ");
+			if( episode )
+			{
+				ret = sprintf(str_buf, "<Title>%.*s</Title>"
+				                       "<EpisodeTitle>%s</EpisodeTitle>", 
+				                       episode-title, title, episode+3);
+			}
+			else
+			{
+				ret = sprintf(str_buf, "<Title>%s</Title>", title);
+			}
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 			if( date )
@@ -174,6 +188,12 @@ int callback(void *args, int argc, char **argv, char **azColName)
 				memset(&tm, 0, sizeof(tm));
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
 				ret = sprintf(str_buf, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
+			if( comment )
+			{
+				ret = sprintf(str_buf, "<Description>%s</Description>", comment);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
