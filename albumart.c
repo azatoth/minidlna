@@ -245,7 +245,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 			art_path = NULL;
 			goto end_art;
 		}
-		nwritten = fwrite((void *)image_data, image_size, 1, dstfile);
+		nwritten = fwrite((void *)image_data, 1, image_size, dstfile);
 		fclose(dstfile);
 		if( nwritten != image_size )
 		{
