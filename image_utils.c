@@ -345,7 +345,10 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 			ParseNameValue(data, offset, &xml);
 			exif = GetValueFromNameValueList(&xml, "DateTimeOriginal");
 			if( !exif )
+			{
+				ClearNameValueList(&xml);
 				break;
+			}
 			*date = realloc(*date, strlen(exif)+1);
 			strcpy(*date, exif);
 			ClearNameValueList(&xml);
