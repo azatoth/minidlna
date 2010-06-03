@@ -692,6 +692,8 @@ main(int argc, char * * argv)
 	short int new_db = 0;
 	pid_t scanner_pid = 0;
 	pthread_t inotify_thread = 0;
+	struct media_dir_s *media_path, *last_path;
+	struct album_art_name_s *art_names, *last_name;
 #ifdef TIVO_SUPPORT
 	unsigned short int beacon_interval = 5;
 	int sbeacon = -1;
@@ -754,6 +756,23 @@ main(int argc, char * * argv)
 		{
 			start_scanner();
 			sqlite3_close(db);
+			media_path = media_dirs;
+			art_names = album_art_names;
+			while( media_path )
+			{
+				free(media_path->path);
+				last_path = media_path;
+				media_path = media_path->next;
+				free(last_path);
+			}
+			while( art_names )
+			{
+				free(art_names->name);
+				last_name = art_names;
+				art_names = art_names->next;
+				free(last_name);
+			}
+			freeoptions();
 			exit(EXIT_SUCCESS);
 		}
 #else
@@ -1037,8 +1056,8 @@ shutdown:
 	sql_exec(db, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
 	sqlite3_close(db);
 
-	struct media_dir_s * media_path = media_dirs;
-	struct media_dir_s * last_path;
+	media_path = media_dirs;
+	art_names = album_art_names;
 	while( media_path )
 	{
 		free(media_path->path);
@@ -1046,8 +1065,6 @@ shutdown:
 		media_path = media_path->next;
 		free(last_path);
 	}
-	struct album_art_name_s * art_names = album_art_names;
-	struct album_art_name_s * last_name;
 	while( art_names )
 	{
 		free(art_names->name);
