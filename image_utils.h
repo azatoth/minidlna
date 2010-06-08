@@ -27,7 +27,7 @@ int
 image_get_jpeg_resolution(const char * path, int * width, int * height);
 
 image *
-image_new_from_jpeg(const char * path, int is_file, const char * ptr, int size);
+image_new_from_jpeg(const char * path, int is_file, const char * ptr, int size, int scale);
 
 image *
 image_resize(image * src_image, int32_t width, int32_t height);

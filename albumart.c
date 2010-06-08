@@ -218,7 +218,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 	}
 	last_hash = hash;
 
-	imsrc = image_new_from_jpeg(NULL, 0, image_data, image_size);
+	imsrc = image_new_from_jpeg(NULL, 0, image_data, image_size, 1);
 	if( !imsrc )
 	{
 		last_success = 0;
@@ -286,7 +286,7 @@ check_for_album_file(char * dir, const char * path)
 		if( art_cache_exists(file, &art_file) )
 			goto existing_file;
 		free(art_file);
-		imsrc = image_new_from_jpeg(file, 1, NULL, 0);
+		imsrc = image_new_from_jpeg(file, 1, NULL, 0, 1);
 		if( imsrc )
 			goto found_file;
 	}
@@ -298,7 +298,7 @@ check_for_album_file(char * dir, const char * path)
 		if( art_cache_exists(file, &art_file) )
 			goto existing_file;
 		free(art_file);
-		imsrc = image_new_from_jpeg(file, 1, NULL, 0);
+		imsrc = image_new_from_jpeg(file, 1, NULL, 0, 1);
 		if( imsrc )
 			goto found_file;
 	}
@@ -316,7 +316,7 @@ existing_file:
 				return art_file;
 			}
 			free(art_file);
-			imsrc = image_new_from_jpeg(file, 1, NULL, 0);
+			imsrc = image_new_from_jpeg(file, 1, NULL, 0, 1);
 			if( !imsrc )
 				continue;
 found_file:

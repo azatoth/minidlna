@@ -393,7 +393,7 @@ image_new(int32_t width, int32_t height)
 }
 
 image *
-image_new_from_jpeg(const char * path, int is_file, const char * buf, int size)
+image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, int scale)
 {
 	image *vimage;
 	FILE  *file = NULL;
@@ -427,6 +427,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size)
 		return NULL;
 	}
 	jpeg_read_header(&cinfo, TRUE);
+	cinfo.scale_denom = scale;
 	cinfo.do_fancy_upsampling = FALSE;
 	cinfo.do_block_smoothing = FALSE;
 	jpeg_start_decompress(&cinfo);

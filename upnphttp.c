@@ -1382,9 +1382,12 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char *pixelshape=NULL;
 	sqlite_int64 id;
 	int rows=0, chunked=0, ret;
+#ifdef __sparc__
 	ExifData *ed;
 	ExifLoader *l;
+#endif
 	image *imsrc = NULL, *imdst = NULL;
+	int scale = 1;
 
 	id = strtoll(object, NULL, 10);
 	sprintf(str_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%lld'", id);
@@ -1472,6 +1475,13 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	else
 		strcpy(dlna_pn, "LRG");
 
+	if( srcw>>3 >= dstw && srch>>3 >= dsth)
+		scale = 8;
+	else if( srcw>>2 >= dstw && srch>>2 >= dsth )
+		scale = 4;
+	else if( srcw>>1 >= dstw && srch>>1 >= dsth )
+		scale = 2;
+
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	snprintf(header, sizeof(header)-100, "HTTP/1.1 200 OK\r\n"
 	                                     "Content-Type: image/jpeg\r\n"
@@ -1492,11 +1502,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	}
 
 	/* Resizing from a thumbnail is much faster than from a large image */
-	#ifdef __sparc__
-	if( dstw <= 200 && dsth <= 150 && atoi(tn) )
-	#else
+#ifdef __sparc__
 	if( dstw <= 160 && dsth <= 120 && atoi(tn) )
-	#endif
 	{
 		l = exif_loader_new();
 		exif_loader_write_file(l, file_path);
@@ -1507,15 +1514,18 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		{
 			if( ed )
 				exif_data_unref(ed);
-			Send404(h);
+			DPRINTF(E_WARN, L_HTTP, "Unable to access image thumbnail!\n");
+			Send500(h);
 			goto resized_error;
 		}
-		imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size);
+		imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size, 1);
 		exif_data_unref(ed);
 	}
-	else if( strcmp(h->HttpVer, "HTTP/1.0") == 0 )
+	else
+#endif
+	if( strcmp(h->HttpVer, "HTTP/1.0") == 0 )
 	{
-		imsrc = image_new_from_jpeg(file_path, 1, NULL, 0);
+		imsrc = image_new_from_jpeg(file_path, 1, NULL, 0, scale);
 	}
 	else
 	{
@@ -1527,7 +1537,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	{
 		if( !imsrc )
 		{
-			Send404(h);
+			DPRINTF(E_WARN, L_HTTP, "Unable to open image %s!\n", file_path);
+			Send500(h);
 			goto resized_error;
 		}
 
@@ -1542,10 +1553,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	{
 		if( chunked )
 		{
-			imsrc = image_new_from_jpeg(file_path, 1, NULL, 0);
+			imsrc = image_new_from_jpeg(file_path, 1, NULL, 0, scale);
 			if( !imsrc )
 			{
-				Send404(h);
+				DPRINTF(E_WARN, L_HTTP, "Unable to open image %s!\n", file_path);
+				Send500(h);
 				goto resized_error;
 			}
 			imdst = image_resize(imsrc, dstw, dsth);

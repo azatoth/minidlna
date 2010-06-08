@@ -558,7 +558,7 @@ GetImageMetadata(const char * path, char * name)
 		/* We might need to verify that the thumbnail is 160x160 or smaller */
 		if( ed->size > 12000 )
 		{
-			imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size);
+			imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size, 1);
 			if( imsrc )
 			{
  				if( (imsrc->width <= 160) && (imsrc->height <= 160) )
