@@ -1037,11 +1037,11 @@ SendResp_upnphttp(struct upnphttp * h)
 }
 
 int
-send_data(struct upnphttp * h, char * header, size_t size)
+send_data(struct upnphttp * h, char * header, size_t size, int flags)
 {
 	int n;
 
-	n = send(h->socket, header, size, 0);
+	n = send(h->socket, header, size, flags);
 	if(n<0)
 	{
 		DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s\n", strerror(errno));
@@ -1087,7 +1087,7 @@ SendResp_icon(struct upnphttp * h, char * icon)
 {
 	char * header;
 	char * data;
-	int size;
+	int size, ret;
 	char mime[12];
 	char date[30];
 	time_t curtime = time(NULL);
@@ -1129,17 +1129,17 @@ SendResp_icon(struct upnphttp * h, char * icon)
 
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-	asprintf(&header, "HTTP/1.1 200 OK\r\n"
-			  "Content-Type: %s\r\n"
-			  "Content-Length: %d\r\n"
-			  "Connection: close\r\n"
-			  "Date: %s\r\n"
-			  "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
-			  mime, size, date);
+	ret = asprintf(&header, "HTTP/1.1 200 OK\r\n"
+	                        "Content-Type: %s\r\n"
+	                        "Content-Length: %d\r\n"
+	                        "Connection: close\r\n"
+	                        "Date: %s\r\n"
+	                        "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
+	                        mime, size, date);
 
-	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
+	if( (send_data(h, header, ret, MSG_MORE) == 0) && (h->req_command != EHead) )
 	{
-		send_data(h, data, size);
+		send_data(h, data, size, 0);
 	}
 	free(header);
 }
@@ -1214,7 +1214,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 		}
 
 
-		if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
+		if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 		{
 			send_file(h, sendfh, offset, size);
 		}
@@ -1235,7 +1235,7 @@ SendResp_caption(struct upnphttp * h, char * object)
 	char date[30];
 	time_t curtime = time(NULL);
 	off_t offset = 0, size;
-	int sendfh;
+	int sendfh, ret;
 
 	memset(header, 0, 1500);
 
@@ -1263,16 +1263,16 @@ SendResp_caption(struct upnphttp * h, char * object)
 	size = lseek(sendfh, 0, SEEK_END);
 	lseek(sendfh, 0, SEEK_SET);
 
-	sprintf(header, "HTTP/1.1 200 OK\r\n"
-			"Content-Type: smi/caption\r\n"
-			"Content-Length: %jd\r\n"
-			"Connection: close\r\n"
-			"Date: %s\r\n"
-			"EXT:\r\n"
-			"Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
-			size, date);
+	ret = snprintf(header, sizeof(header), "HTTP/1.1 200 OK\r\n"
+	                                       "Content-Type: smi/caption\r\n"
+	                                       "Content-Length: %jd\r\n"
+	                                       "Connection: close\r\n"
+	                                       "Date: %s\r\n"
+	                                       "EXT:\r\n"
+	                                       "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
+	                                       size, date);
 
-	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
+	if( (send_data(h, header, ret, MSG_MORE) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 	{
 		send_file(h, sendfh, offset, size);
 	}
@@ -1352,9 +1352,9 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 			strcat(header, "transferMode.dlna.org: Interactive\r\n\r\n");
 		}
 
-		if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
+		if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && (h->req_command != EHead) )
 		{
-			send_data(h, (char *)ed->data, ed->size);
+			send_data(h, (char *)ed->data, ed->size, 0);
 		}
 		exif_data_unref(ed);
 	}
@@ -1549,7 +1549,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		strcat(header, str_buf);
 	}
 
-	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) )
+	if( (send_data(h, header, strlen(header), 0) == 0) && (h->req_command != EHead) )
 	{
 		if( chunked )
 		{
@@ -1564,13 +1564,13 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 			data = image_save_to_jpeg_buf(imdst, &size);
 
 			ret = sprintf(str_buf, "%x\r\n", size);
-			send_data(h, str_buf, ret);
-			send_data(h, (char *)data, size);
-			send_data(h, "\r\n0\r\n\r\n", 7);
+			send_data(h, str_buf, ret, MSG_MORE);
+			send_data(h, (char *)data, size, MSG_MORE);
+			send_data(h, "\r\n0\r\n\r\n", 7, 0);
 		}
 		else
 		{
-			send_data(h, (char *)data, size);
+			send_data(h, (char *)data, size, 0);
 		}
 	}
 	DPRINTF(E_INFO, L_HTTP, "Done serving %s\n", file_path);
@@ -1788,7 +1788,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			 date, last_file.dlna);
 	strcat(header, hdr_buf);
 
-	if( (send_data(h, header, strlen(header)) == 0) && (h->req_command != EHead) && (sendfh > 0) )
+	if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 	{
 		send_file(h, sendfh, offset, h->req_RangeEnd);
 	}
