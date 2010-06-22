@@ -82,7 +82,7 @@ sql_get_int_field(sqlite3 *db, const char *fmt, ...)
 		case SQLITE_OK:
 			break;
 		default:
-			DPRINTF(E_ERROR, L_DB_SQL, "prepare failed: %s\n", sqlite3_errmsg(db));
+			DPRINTF(E_ERROR, L_DB_SQL, "prepare failed: %s\n%s\n", sqlite3_errmsg(db), sql);
 			sqlite3_free(sql);
 			return -1;
 	}
