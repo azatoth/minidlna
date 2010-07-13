@@ -248,7 +248,7 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
 				else if(strncmp(p, "SamsungWiselinkPro", 18)==0 ||
-				        strncmp(p, "SEC_HHP_TV", 10)==0)
+				        strncmp(p, "SEC_HHP_", 8)==0)
 				{
 					h->req_client = ESamsungTV;
 					h->reqflags |= FLAG_DLNA;
