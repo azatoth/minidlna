@@ -168,6 +168,14 @@ echo "/*#define HAVE_ICONV_H*/" >> ${CONFIGFILE}
 fi
 echo "" >> ${CONFIGFILE}
 
+echo "/* Enable if the system libintl.h exists for NLS support. */" >> ${CONFIGFILE}
+if [ -f /usr/include/libintl.h ]; then
+echo "#define ENABLE_NLS" >> ${CONFIGFILE}
+else
+echo "/*#define ENABLE_NLS*/" >> ${CONFIGFILE}
+fi
+echo "" >> ${CONFIGFILE}
+
 echo "/* Enable NETGEAR-specific tweaks. */" >> ${CONFIGFILE}
 echo "${NETGEAR}" >> ${CONFIGFILE}
 echo "/* Enable ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}

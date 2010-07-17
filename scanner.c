@@ -26,6 +26,11 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include "config.h"
+
+#ifdef ENABLE_NLS
+#include <libintl.h>
+#endif
 #include <sqlite3.h>
 
 #include "upnpglobalvars.h"
@@ -155,7 +160,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		else
 		{
-			strcpy(date_taken, "Unknown Date");
+			strcpy(date_taken, _("Unknown Date"));
 		}
 		if( valid_cache && strcmp(last_date.name, date_taken) == 0 )
 		{
@@ -183,7 +188,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		else
 		{
-			strcpy(camera, "Unknown Camera");
+			strcpy(camera, _("Unknown Camera"));
 		}
 		if( !valid_cache || strcmp(camera, last_cam.name) != 0 )
 		{
@@ -274,7 +279,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				strcpy(last_artist.name, artist);
 				last_artistAlbum.name[0] = '\0';
 				/* Add this file to the "- All Albums -" container as well */
-				container = insert_container("- All Albums -", last_artist.parentID, NULL, "storageFolder", artist, genre, NULL);
+				container = insert_container(_("- All Albums -"), last_artist.parentID, NULL, "storageFolder", artist, genre, NULL);
 				sprintf(last_artistAlbumAll.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistAlbumAll.objectID = (int)container;
 			}
@@ -282,17 +287,17 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			{
 				last_artistAlbumAll.objectID++;
 			}
-			if( valid_cache && strcmp(album?album:"Unknown Album", last_artistAlbum.name) == 0 )
+			if( valid_cache && strcmp(album?album:_("Unknown Album"), last_artistAlbum.name) == 0 )
 			{
 				last_artistAlbum.objectID++;
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Using last artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			else
 			{
-				container = insert_container(album?album:"Unknown Album", last_artist.parentID, album?last_album.parentID:NULL, "album.musicAlbum", artist, genre, album_art);
+				container = insert_container(album?album:_("Unknown Album"), last_artist.parentID, album?last_album.parentID:NULL, "album.musicAlbum", artist, genre, album_art);
 				sprintf(last_artistAlbum.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistAlbum.objectID = (int)container;
-				strcpy(last_artistAlbum.name, album?album:"Unknown Album");
+				strcpy(last_artistAlbum.name, album?album:_("Unknown Album"));
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached artist/album item: %s/%s/%X\n", last_artist.name, last_artist.parentID, last_artist.objectID);
 			}
 			sql_exec(db, "INSERT into OBJECTS"
@@ -315,7 +320,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				strcpy(last_genre.name, genre);
 				last_genreArtist.name[0] = '\0';
 				/* Add this file to the "- All Artists -" container as well */
-				container = insert_container("- All Artists -", last_genre.parentID, NULL, "storageFolder", NULL, genre, NULL);
+				container = insert_container(_("- All Artists -"), last_genre.parentID, NULL, "storageFolder", NULL, genre, NULL);
 				sprintf(last_genreArtistAll.parentID, "%s$%llX", last_genre.parentID, container>>32);
 				last_genreArtistAll.objectID = (int)container;
 			}
@@ -323,16 +328,16 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			{
 				last_genreArtistAll.objectID++;
 			}
-			if( valid_cache && strcmp(artist?artist:"Unknown Artist", last_genreArtist.name) == 0 )
+			if( valid_cache && strcmp(artist?artist:_("Unknown Artist"), last_genreArtist.name) == 0 )
 			{
 				last_genreArtist.objectID++;
 			}
 			else
 			{
-				container = insert_container(artist?artist:"Unknown Artist", last_genre.parentID, artist?last_artist.parentID:NULL, "person.musicArtist", NULL, genre, NULL);
+				container = insert_container(artist?artist:_("Unknown Artist"), last_genre.parentID, artist?last_artist.parentID:NULL, "person.musicArtist", NULL, genre, NULL);
 				sprintf(last_genreArtist.parentID, "%s$%llX", last_genre.parentID, container>>32);
 				last_genreArtist.objectID = (int)container;
-				strcpy(last_genreArtist.name, artist?artist:"Unknown Artist");
+				strcpy(last_genreArtist.name, artist?artist:_("Unknown Artist"));
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre/artist item: %s/%s/%X\n", last_genreArtist.name, last_genreArtist.parentID, last_genreArtist.objectID);
 			}
 			sql_exec(db, "INSERT into OBJECTS"
@@ -535,22 +540,22 @@ CreateDatabase(void)
 {
 	int ret, i;
 	const char * containers[] = {      "0","-1", "root",
-					   "1", "0", "Music",
-					 "1$4", "1", "All Music",
-					 "1$5", "1", "Genre",
-					 "1$6", "1", "Artist",
-					 "1$7", "1", "Album",
-				  MUSIC_DIR_ID, "1", "Folders",
-				MUSIC_PLIST_ID, "1", "Playlists",
-					   "2", "0", "Video",
-					 "2$8", "2", "All Video",
-				  VIDEO_DIR_ID, "2", "Folders",
-					   "3", "0", "Pictures",
-					"3$11", "3", "All Pictures",
-					"3$12", "3", "Date Taken",
-					"3$13", "3", "Camera",
-				  IMAGE_DIR_ID, "3", "Folders",
-					  "64", "0", "Browse Folders",
+					   "1", "0", _("Music"),
+					 "1$4", "1", _("All Music"),
+					 "1$5", "1", _("Genre"),
+					 "1$6", "1", _("Artist"),
+					 "1$7", "1", _("Album"),
+				  MUSIC_DIR_ID, "1", _("Folders"),
+				MUSIC_PLIST_ID, "1", _("Playlists"),
+					   "2", "0", _("Video"),
+					 "2$8", "2", _("All Video"),
+				  VIDEO_DIR_ID, "2", _("Folders"),
+					   "3", "0", _("Pictures"),
+					"3$11", "3", _("All Pictures"),
+					"3$12", "3", _("Date Taken"),
+					"3$13", "3", _("Camera"),
+				  IMAGE_DIR_ID, "3", _("Folders"),
+					  "64", "0", _("Browse Folders"),
 					0 };
 
 	ret = sql_exec(db, "CREATE TABLE OBJECTS ( "
@@ -713,7 +718,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 	if( chdir(dir) != 0 )
 		return;
 
-	DPRINTF(parent?E_INFO:E_WARN, L_SCANNER, "Scanning %s\n", dir);
+	DPRINTF(parent?E_INFO:E_WARN, L_SCANNER, _("Scanning %s\n"), dir);
 	switch( dir_type )
 	{
 		case ALL_MEDIA:
@@ -781,7 +786,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 	}
 	else
 	{
-		DPRINTF(E_WARN, L_SCANNER, "Scanning %s finished (%llu files)!\n", dir, fileno);
+		DPRINTF(E_WARN, L_SCANNER, _("Scanning %s finished (%llu files)!\n"), dir, fileno);
 	}
 }
 

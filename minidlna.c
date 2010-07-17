@@ -27,8 +27,11 @@
 #include <pthread.h>
 #include <pwd.h>
 
-/* unix sockets */
 #include "config.h"
+
+#ifdef ENABLE_NLS
+#include <libintl.h>
+#endif
 
 #include "upnpglobalvars.h"
 #include "sql.h"
@@ -699,6 +702,12 @@ main(int argc, char * * argv)
 	int sbeacon = -1;
 	struct sockaddr_in tivo_bcast;
 	struct timeval lastbeacontime = {0, 0};
+#endif
+
+#ifdef ENABLE_NLS
+	setlocale(LC_MESSAGES, "");
+	setlocale(LC_CTYPE, "en_US.utf8");
+	textdomain("minidlna");
 #endif
 
 	if(init(argc, argv) != 0)
