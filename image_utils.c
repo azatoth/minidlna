@@ -237,10 +237,16 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 	unsigned char buf[8];
 	u_int16_t offset, h, w;
 	int ret = 1;
+	long size;
+	
 
 	img = fopen(path, "r");
 	if( !img )
 		return(-1);
+
+	fseek(img, 0, SEEK_END);
+	size = ftell(img);
+	rewind(img);
 
 	fread(&buf, 2, 1, img);
 	if( (buf[0] != 0xFF) || (buf[1] != 0xD8) )
@@ -250,7 +256,7 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 	}
 	memset(&buf, 0, sizeof(buf));
 
-	while( !feof(img) )
+	while( ftell(img) < size )
 	{
 		while( buf[0] != 0xFF && !feof(img) )
 			fread(&buf, 1, 1, img);
@@ -276,7 +282,8 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 			fread(&buf, 2, 1, img);
 			memcpy(&offset, buf, 2);
 			offset = SWAP16(offset) - 2;
-			fseek(img, offset, SEEK_CUR);
+			if( fseek(img, offset, SEEK_CUR) == -1 )
+				break;
 		}
 	}
 	fclose(img);
