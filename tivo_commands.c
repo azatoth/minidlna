@@ -719,7 +719,6 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 	{
 		strip_ext(anchorItem);
 	}
-	free(path);
 
 	if( command )
 	{
@@ -742,9 +741,11 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 		{
 			DPRINTF(E_DEBUG, L_GENERAL, "Unhandled command [%s]\n", command);
 			Send501(h);
+			free(path);
 			return;
 		}
 	}
+	free(path);
 	CloseSocket_upnphttp(h);
 }
 #endif // TIVO_SUPPORT
