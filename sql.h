@@ -21,4 +21,7 @@ sql_get_table(sqlite3 *db, const char *zSql, char ***pazResult, int *pnRow, int 
 int
 sql_get_int_field(sqlite3 *db, const char *fmt, ...);
 
+char *
+sql_get_text_field(void *dbh, const char *fmt, ...);
+
 #endif

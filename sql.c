@@ -16,7 +16,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
+
 #include "sql.h"
 #include "log.h"
 
@@ -120,4 +122,79 @@ sql_get_int_field(sqlite3 *db, const char *fmt, ...)
 	sqlite3_finalize(stmt);
 	return ret;
 }
- 
+
+char *
+sql_get_text_field(void *dbh, const char *fmt, ...)
+{
+	va_list         ap;
+	int             counter, result, len;
+	char            *sql;
+	char            *str;
+	sqlite3_stmt    *stmt;
+
+	va_start(ap, fmt);
+
+	if (dbh == NULL)
+	{
+		DPRINTF(E_WARN, L_DB_SQL, "%s: dbh is NULL", __func__);
+		return NULL;
+	}
+
+	sql = sqlite3_vmprintf(fmt, ap);
+
+	//DPRINTF(E_DEBUG, L_DB_SQL, "sql: %s\n", sql);
+
+	switch (sqlite3_prepare_v2(dbh, sql, -1, &stmt, NULL))
+	{
+		case SQLITE_OK:
+			break;
+		default:
+			DPRINTF(E_ERROR, L_DB_SQL, "prepare failed: %s\n%s\n", sqlite3_errmsg, sql);
+			sqlite3_free(sql);
+			return NULL;
+	}
+	sqlite3_free(sql);
+
+	for (counter = 0;
+	     ((result = sqlite3_step(stmt)) == SQLITE_BUSY || result == SQLITE_LOCKED) && counter < 2;
+	     counter++)
+	{
+		/* While SQLITE_BUSY has a built in timeout,
+		 * SQLITE_LOCKED does not, so sleep */
+		if (result == SQLITE_LOCKED)
+			sleep(1);
+	}
+
+	switch (result)
+	{
+		case SQLITE_DONE:
+			/* no rows returned */
+			str = NULL;
+			break;
+
+		case SQLITE_ROW:
+			if (sqlite3_column_type(stmt, 0) == SQLITE_NULL)
+			{
+				str = NULL;
+				break;
+			}
+
+			len = sqlite3_column_bytes(stmt, 0);
+			if ((str = sqlite3_malloc(len + 1)) == NULL)
+			{
+				DPRINTF(E_ERROR, L_DB_SQL, "malloc failed");
+				break;
+			}
+
+			strncpy(str, (char *)sqlite3_column_text(stmt, 0), len + 1);
+			break;
+
+		default:
+			DPRINTF(E_WARN, L_DB_SQL, "%s: step failed: %s", __func__, sqlite3_errmsg);
+			str = NULL;
+			break;
+	}
+
+	sqlite3_finalize(stmt);
+	return str;
+}

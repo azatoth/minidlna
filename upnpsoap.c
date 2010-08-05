@@ -689,15 +689,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 		if( album_art && atoi(album_art) )
 		{
 			/* Video and audio album art is handled differently */
-			if( *mime == 'v' && (passed_args->filter & FILTER_RES) && (passed_args->client != EXbox) ) {
+			if( *mime == 'v' && (passed_args->filter & FILTER_RES) && (passed_args->flags & FLAG_MS_PFS) ) {
 				ret = sprintf(str_buf, "&lt;res protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN\"&gt;"
 				                       "http://%s:%d/AlbumArt/%s-%s.jpg"
 				                       "&lt;/res&gt;",
 				                       lan_addr[0].str, runtime_vars.port, album_art, detailID);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
-			}
-			else if( passed_args->filter & FILTER_UPNP_ALBUMARTURI ) {
+			} else if( passed_args->filter & FILTER_UPNP_ALBUMARTURI ) {
 				ret = sprintf(str_buf, "&lt;upnp:albumArtURI ");
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
@@ -712,6 +711,27 @@ callback(void *args, int argc, char **argv, char **azColName)
 				passed_args->size += ret;
 			}
 		}
+#ifdef PFS_HACK
+		if( (passed_args->flags & FLAG_MS_PFS) && *mime == 'i' ) {
+			ret = snprintf(str_buf, 512, "&lt;upnp:album&gt;%s&lt;/upnp:album&gt;", "[No Keywords]");
+			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+			passed_args->size += ret;
+
+			if( tn && atoi(tn) ) {
+				ret = snprintf(str_buf, 512, "&lt;upnp:albumArtURI&gt;"
+				                             "http://%s:%d/Thumbnails/%s.jpg"
+			        	                     "&lt;/upnp:albumArtURI&gt;",
+			                	             lan_addr[0].str, runtime_vars.port, detailID);
+			} else {
+				ret = snprintf(str_buf, 512, "&lt;upnp:albumArtURI&gt;"
+				                             "http://%s:%d/Resized/%s.jpg?width=160,height=160"
+			        	                     "&lt;/upnp:albumArtURI&gt;",
+			                	             lan_addr[0].str, runtime_vars.port, detailID);
+			}
+			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+			passed_args->size += ret;
+		}
+#endif
 		if( passed_args->filter & FILTER_RES ) {
 			mime_to_ext(mime, ext);
 			if( (passed_args->client == EFreeBox) && tn && atoi(tn) ) {
@@ -736,7 +756,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				passed_args->size += ret;
 			}
 			if( bitrate && (passed_args->filter & FILTER_RES_BITRATE) ) {
-				if( passed_args->client == EXbox )
+				if( passed_args->flags & FLAG_MS_PFS )
 					ret = sprintf(str_buf, "bitrate=\"%d\" ", atoi(bitrate)/1024);
 				else
 					ret = sprintf(str_buf, "bitrate=\"%s\" ", bitrate);
@@ -893,8 +913,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	if( !BrowseFlag || (strcmp(BrowseFlag, "BrowseDirectChildren") && strcmp(BrowseFlag, "BrowseMetadata")) )
 	{
 		SoapError(h, 402, "Invalid Args");
-		if( h->req_client == EXbox )
-			ObjectId = malloc(1);
+		if( h->reqflags & FLAG_MS_PFS )
+			ObjectId = sqlite3_malloc(1);
 		goto browse_error;
 	}
 	if( !ObjectId )
@@ -902,8 +922,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		if( !(ObjectId = GetValueFromNameValueList(&data, "ContainerID")) )
 		{
 			SoapError(h, 701, "No such object error");
-			if( h->req_client == EXbox )
-				ObjectId = malloc(1);
+			if( h->reqflags & FLAG_MS_PFS )
+				ObjectId = sqlite3_malloc(1);
 			goto browse_error;
 		}
 	}
@@ -928,14 +948,20 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.requested = RequestedCount;
 	args.client = h->req_client;
 	args.flags = h->reqflags;
-	if( h->req_client == EXbox )
+	if( h->reqflags & FLAG_MS_PFS )
 	{
-		if( strcmp(ObjectId, "16") == 0 )
-			ObjectId = strdup(IMAGE_DIR_ID);
-		else if( strcmp(ObjectId, "15") == 0 )
-			ObjectId = strdup(VIDEO_DIR_ID);
+		if( strchr(ObjectId, '$') || (strcmp(ObjectId, "0") == 0) )
+		{
+			ObjectId = sqlite3_mprintf("%s", ObjectId);
+		}
 		else
-			ObjectId = strdup(ObjectId);
+		{
+			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
+			                             "where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
+			                             ObjectId, ObjectId, ObjectId);
+			if( ptr )
+				ObjectId = ptr;
+		}
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
 	                         " * ObjectID: %s\n"
@@ -1023,9 +1049,9 @@ browse_error:
 	if( orderBy )
 		free(orderBy);
 	free(resp);
-	if( h->req_client == EXbox )
+	if( h->reqflags & FLAG_MS_PFS )
 	{
-		free(ObjectId);
+		sqlite3_free(ObjectId);
 	}
 }
 
@@ -1068,10 +1094,13 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		StartingIndex = atoi(ptr);
 	if( !ContainerID )
 	{
-		SoapError(h, 701, "No such object error");
-		if( h->req_client == EXbox )
-			ContainerID = malloc(1);
-		goto search_error;
+		if( !(ContainerID = GetValueFromNameValueList(&data, "ObjectID")) )
+		{
+			SoapError(h, 701, "No such object error");
+			if( h->reqflags & FLAG_MS_PFS )
+				ContainerID = sqlite3_malloc(1);
+			goto search_error;
+		}
 	}
 	memset(&args, 0, sizeof(args));
 
@@ -1094,20 +1123,22 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	args.requested = RequestedCount;
 	args.client = h->req_client;
 	args.flags = h->reqflags;
-	if( h->req_client == EXbox )
+	if( h->reqflags & FLAG_MS_PFS )
 	{
-		if( strcmp(ContainerID, "4") == 0 )
-			ContainerID = strdup("1$4");
-		else if( strcmp(ContainerID, "5") == 0 )
-			ContainerID = strdup("1$5");
-		else if( strcmp(ContainerID, "6") == 0 )
-			ContainerID = strdup("1$6");
-		else if( strcmp(ContainerID, "7") == 0 )
-			ContainerID = strdup("1$7");
-		else if( strcmp(ContainerID, "F") == 0 )
-			ContainerID = strdup(MUSIC_PLIST_ID);
+		if( strchr(ContainerID, '$') || (strcmp(ContainerID, "0") == 0) )
+		{
+			ContainerID = sqlite3_mprintf("%s", ContainerID);
+		}
 		else
-			ContainerID = strdup(ContainerID);
+		{
+			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
+			                             "where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
+			                             ContainerID, ContainerID, ContainerID);
+			if( ptr )
+				ContainerID = ptr;
+			else
+				ContainerID = sqlite3_mprintf("%s", ContainerID);
+		}
 		#if 0 // Looks like the 360 already does this
 		/* Sort by track number for some containers */
 		if( orderBy &&
@@ -1261,9 +1292,9 @@ search_error:
 	if( newSearchCriteria )
 		free(newSearchCriteria);
 	free(resp);
-	if( h->req_client == EXbox )
+	if( h->reqflags & FLAG_MS_PFS )
 	{
-		free(ContainerID);
+		sqlite3_free(ContainerID);
 	}
 }
 

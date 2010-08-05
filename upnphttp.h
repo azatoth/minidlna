@@ -54,8 +54,8 @@ struct upnphttp {
 	off_t req_RangeStart;
 	off_t req_RangeEnd;
 	long int req_chunklen;
-	u_int32_t reqflags;
-	int respflags;
+	uint32_t reqflags;
+	uint32_t respflags;
 	/* response */
 	char * res_buf;
 	int res_buflen;
@@ -87,6 +87,7 @@ struct upnphttp {
 #define FLAG_MIME_AVI_AVI       0x00400000
 #define FLAG_MIME_FLAC_FLAC     0x00800000
 #define FLAG_NO_RESIZE          0x01000000
+#define FLAG_MS_PFS		0x02000000 // Microsoft PlaysForSure client
 
 /* New_upnphttp() */
 struct upnphttp *

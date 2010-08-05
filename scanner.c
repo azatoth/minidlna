@@ -539,24 +539,27 @@ int
 CreateDatabase(void)
 {
 	int ret, i;
-	const char * containers[] = {      "0","-1", "root",
-					   "1", "0", _("Music"),
-					 "1$4", "1", _("All Music"),
-					 "1$5", "1", _("Genre"),
-					 "1$6", "1", _("Artist"),
-					 "1$7", "1", _("Album"),
-				  MUSIC_DIR_ID, "1", _("Folders"),
-				MUSIC_PLIST_ID, "1", _("Playlists"),
-					   "2", "0", _("Video"),
-					 "2$8", "2", _("All Video"),
-				  VIDEO_DIR_ID, "2", _("Folders"),
-					   "3", "0", _("Pictures"),
-					"3$11", "3", _("All Pictures"),
-					"3$12", "3", _("Date Taken"),
-					"3$13", "3", _("Camera"),
-				  IMAGE_DIR_ID, "3", _("Folders"),
-					  "64", "0", _("Browse Folders"),
-					0 };
+	const char * containers[] = { "0","-1",   "root",
+	                         MUSIC_ID, "0", _("Music"),
+	                     MUSIC_ALL_ID, "1", _("All Music"),
+	                   MUSIC_GENRE_ID, "1", _("Genre"),
+	                  MUSIC_ARTIST_ID, "1", _("Artist"),
+	                   MUSIC_ALBUM_ID, "1", _("Album"),
+	                     MUSIC_DIR_ID, "1", _("Folders"),
+	                   MUSIC_PLIST_ID, "1", _("Playlists"),
+
+	                         VIDEO_ID, "0", _("Video"),
+	                     VIDEO_ALL_ID, "2", _("All Video"),
+	                     VIDEO_DIR_ID, "2", _("Folders"),
+
+	                         IMAGE_ID, "0", _("Pictures"),
+	                     IMAGE_ALL_ID, "3", _("All Pictures"),
+	                    IMAGE_DATE_ID, "3", _("Date Taken"),
+	                  IMAGE_CAMERA_ID, "3", _("Camera"),
+	                     IMAGE_DIR_ID, "3", _("Folders"),
+
+	                     BROWSEDIR_ID, "0", _("Browse Folders"),
+			0 };
 
 	ret = sql_exec(db, "CREATE TABLE OBJECTS ( "
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "

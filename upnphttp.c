@@ -240,6 +240,7 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = EXbox;
 					h->reqflags |= FLAG_MIME_AVI_AVI;
+					h->reqflags |= FLAG_MS_PFS;
 				}
 				else if(strncmp(p, "PLAYSTATION", 11)==0)
 				{
@@ -268,6 +269,11 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = EPopcornHour;
 					h->reqflags |= FLAG_MIME_FLAC_FLAC;
+				}
+				else if(strstrc(p, "Microsoft-IPTV-Client", '\r'))
+				{
+					h->req_client = EMediaRoom;
+					h->reqflags |= FLAG_MS_PFS;
 				}
 				else if(strstrc(p, "DLNADOC/1.50", '\r'))
 				{
