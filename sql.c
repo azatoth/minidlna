@@ -124,7 +124,7 @@ sql_get_int_field(sqlite3 *db, const char *fmt, ...)
 }
 
 char *
-sql_get_text_field(void *dbh, const char *fmt, ...)
+sql_get_text_field(void *db, const char *fmt, ...)
 {
 	va_list         ap;
 	int             counter, result, len;
@@ -134,9 +134,9 @@ sql_get_text_field(void *dbh, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	if (dbh == NULL)
+	if (db == NULL)
 	{
-		DPRINTF(E_WARN, L_DB_SQL, "%s: dbh is NULL", __func__);
+		DPRINTF(E_WARN, L_DB_SQL, "%s: db is NULL", __func__);
 		return NULL;
 	}
 
@@ -144,12 +144,12 @@ sql_get_text_field(void *dbh, const char *fmt, ...)
 
 	//DPRINTF(E_DEBUG, L_DB_SQL, "sql: %s\n", sql);
 
-	switch (sqlite3_prepare_v2(dbh, sql, -1, &stmt, NULL))
+	switch (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL))
 	{
 		case SQLITE_OK:
 			break;
 		default:
-			DPRINTF(E_ERROR, L_DB_SQL, "prepare failed: %s\n%s\n", sqlite3_errmsg, sql);
+			DPRINTF(E_ERROR, L_DB_SQL, "prepare failed: %s\n%s\n", sqlite3_errmsg(db), sql);
 			sqlite3_free(sql);
 			return NULL;
 	}
@@ -190,7 +190,7 @@ sql_get_text_field(void *dbh, const char *fmt, ...)
 			break;
 
 		default:
-			DPRINTF(E_WARN, L_DB_SQL, "%s: step failed: %s", __func__, sqlite3_errmsg);
+			DPRINTF(E_WARN, L_DB_SQL, "%s: step failed: %s", __func__, sqlite3_errmsg(db));
 			str = NULL;
 			break;
 	}

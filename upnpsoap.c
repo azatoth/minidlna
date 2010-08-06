@@ -957,10 +957,12 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		else
 		{
 			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
-			                             "where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
+			                             " where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
 			                             ObjectId, ObjectId, ObjectId);
 			if( ptr )
 				ObjectId = ptr;
+			else
+				ObjectId = sqlite3_mprintf("%s", ObjectId);
 		}
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
@@ -1132,7 +1134,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		else
 		{
 			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
-			                             "where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
+			                             " where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
 			                             ContainerID, ContainerID, ContainerID);
 			if( ptr )
 				ContainerID = ptr;
