@@ -632,7 +632,7 @@ CreateDatabase(void)
 	{
 		ret = sql_exec(db, "INSERT into OBJECTS (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME)"
 		                   " values "
-		                   "('%s', '%s', %lld, 'container.storageFolder', '%s')",
+		                   "('%s', '%s', %lld, 'container.storageFolder', '%q')",
 		                   containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL, NULL, NULL, NULL), containers[i+2]);
 		if( ret != SQLITE_OK )
 			goto sql_failed;
