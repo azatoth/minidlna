@@ -957,7 +957,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		else
 		{
 			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
-			                             " where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
+			                             " where OBJECT_ID in "
+			                             "('"MUSIC_ID"$%s', '"VIDEO_ID"$%s', '"IMAGE_ID"$%s')",
 			                             ObjectId, ObjectId, ObjectId);
 			if( ptr )
 				ObjectId = ptr;
@@ -1134,7 +1135,8 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		else
 		{
 			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
-			                             " where OBJECT_ID in ('1$%s', '2$%s', '3$%s')",
+			                             " where OBJECT_ID in "
+			                             "('"MUSIC_ID"$%s', '"VIDEO_ID"$%s', '"IMAGE_ID"$%s')",
 			                             ContainerID, ContainerID, ContainerID);
 			if( ptr )
 				ContainerID = ptr;
@@ -1144,9 +1146,9 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		#if 0 // Looks like the 360 already does this
 		/* Sort by track number for some containers */
 		if( orderBy &&
-		    ((strncmp(ContainerID, "1$5", 3) == 0) ||
-		     (strncmp(ContainerID, "1$6", 3) == 0) ||
-		     (strncmp(ContainerID, "1$7", 3) == 0)) )
+		    ((strncmp(ContainerID, MUSIC_GENRE_ID, 3) == 0) ||
+		     (strncmp(ContainerID, MUSIC_ARTIST_ID, 3) == 0) ||
+		     (strncmp(ContainerID, MUSIC_ALBUM_ID, 3) == 0)) )
 		{
 			DPRINTF(E_DEBUG, L_HTTP, "Old sort order: %s\n", orderBy);
 			sprintf(str_buf, "d.TRACK, ");
@@ -1168,7 +1170,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 
 	if( strcmp(ContainerID, "0") == 0 )
 		*ContainerID = '*';
-	else if( strcmp(ContainerID, "1$4") == 0 )
+	else if( strcmp(ContainerID, MUSIC_ALL_ID) == 0 )
 		groupBy[0] = '\0';
 	if( !SearchCriteria )
 	{

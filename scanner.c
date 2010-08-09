@@ -169,8 +169,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		else
 		{
-			container = insert_container(date_taken, "3$12", NULL, "album.photoAlbum", NULL, NULL, NULL);
-			sprintf(last_date.parentID, "3$12$%llX", container>>32);
+			container = insert_container(date_taken, IMAGE_DATE_ID, NULL, "album.photoAlbum", NULL, NULL, NULL);
+			sprintf(last_date.parentID, IMAGE_DATE_ID"$%llX", container>>32);
 			last_date.objectID = (int)container;
 			strcpy(last_date.name, date_taken);
 			//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached date item: %s/%s/%X\n", last_date.name, last_date.parentID, last_date.objectID);
@@ -192,8 +192,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		}
 		if( !valid_cache || strcmp(camera, last_cam.name) != 0 )
 		{
-			container = insert_container(camera, "3$13", NULL, "storageFolder", NULL, NULL, NULL);
-			sprintf(last_cam.parentID, "3$13$%llX", container>>32);
+			container = insert_container(camera, IMAGE_CAMERA_ID, NULL, "storageFolder", NULL, NULL, NULL);
+			sprintf(last_cam.parentID, IMAGE_CAMERA_ID"$%llX", container>>32);
 			strncpy(last_cam.name, camera, 255);
 			last_camdate.name[0] = '\0';
 		}
@@ -218,12 +218,12 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		/* All Images */
 		if( !last_all_objectID )
 		{
-			last_all_objectID = get_next_available_id("OBJECTS", "3$11");
+			last_all_objectID = get_next_available_id("OBJECTS", IMAGE_ALL_ID);
 		}
 		sql_exec(db, "INSERT into OBJECTS"
 		             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 		             "VALUES"
-		             " ('3$11$%llX', '3$11', '%s', '%s', %lu, %Q)",
+		             " ('"IMAGE_ALL_ID"$%llX', '"IMAGE_ALL_ID"', '%s', '%s', %lu, %Q)",
 		             last_all_objectID++, refID, class, detailID, name);
 	}
 	else if( strstr(class, "audioItem") )
@@ -259,8 +259,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			else
 			{
 				strcpy(last_album.name, album);
-				container = insert_container(album, "1$7", NULL, "album.musicAlbum", artist, genre, album_art);
-				sprintf(last_album.parentID, "1$7$%llX", container>>32);
+				container = insert_container(album, MUSIC_ALBUM_ID, NULL, "album.musicAlbum", artist, genre, album_art);
+				sprintf(last_album.parentID, MUSIC_ALBUM_ID"$%llX", container>>32);
 				last_album.objectID = (int)container;
 				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached album item: %s/%s/%X\n", last_album.name, last_album.parentID, last_album.objectID);
 			}
@@ -274,8 +274,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		{
 			if( !valid_cache || strcmp(artist, last_artist.name) != 0 )
 			{
-				container = insert_container(artist, "1$6", NULL, "person.musicArtist", NULL, genre, NULL);
-				sprintf(last_artist.parentID, "1$6$%llX", container>>32);
+				container = insert_container(artist, MUSIC_ARTIST_ID, NULL, "person.musicArtist", NULL, genre, NULL);
+				sprintf(last_artist.parentID, MUSIC_ARTIST_ID"$%llX", container>>32);
 				strcpy(last_artist.name, artist);
 				last_artistAlbum.name[0] = '\0';
 				/* Add this file to the "- All Albums -" container as well */
@@ -315,8 +315,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		{
 			if( !valid_cache || strcmp(genre, last_genre.name) != 0 )
 			{
-				container = insert_container(genre, "1$5", NULL, "genre.musicGenre", NULL, NULL, NULL);
-				sprintf(last_genre.parentID, "1$5$%llX", container>>32);
+				container = insert_container(genre, MUSIC_GENRE_ID, NULL, "genre.musicGenre", NULL, NULL, NULL);
+				sprintf(last_genre.parentID, MUSIC_GENRE_ID"$%llX", container>>32);
 				strcpy(last_genre.name, genre);
 				last_genreArtist.name[0] = '\0';
 				/* Add this file to the "- All Artists -" container as well */
@@ -354,12 +354,12 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		/* All Music */
 		if( !last_all_objectID )
 		{
-			last_all_objectID = get_next_available_id("OBJECTS", "1$4");
+			last_all_objectID = get_next_available_id("OBJECTS", MUSIC_ALL_ID);
 		}
 		sql_exec(db, "INSERT into OBJECTS"
 		             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 		             "VALUES"
-		             " ('1$4$%llX', '1$4', '%s', '%s', %lu, %Q)",
+		             " ('"MUSIC_ALL_ID"$%llX', '"MUSIC_ALL_ID"', '%s', '%s', %lu, %Q)",
 		             last_all_objectID++, refID, class, detailID, name);
 	}
 	else if( strstr(class, "videoItem") )
@@ -369,12 +369,12 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		/* All Videos */
 		if( !last_all_objectID )
 		{
-			last_all_objectID = get_next_available_id("OBJECTS", "2$8");
+			last_all_objectID = get_next_available_id("OBJECTS", VIDEO_ALL_ID);
 		}
 		sql_exec(db, "INSERT into OBJECTS"
 		             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 		             "VALUES"
-		             " ('2$8$%llX', '2$8', '%s', '%s', %lu, %Q)",
+		             " ('"VIDEO_ALL_ID"$%llX', '"VIDEO_ALL_ID"', '%s', '%s', %lu, %Q)",
 		             last_all_objectID++, refID, class, detailID, name);
 		return;
 	}
