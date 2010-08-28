@@ -1771,17 +1771,11 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 
 	if( h->reqflags & FLAG_CAPTION )
 	{
-		sprintf(sql_buf, "SELECT 1 from CAPTIONS where ID = '%lld'", id);
-		ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
-		if( ret == SQLITE_OK )
+		if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%lld'", id) > 0 )
 		{
-			if( rows )
-			{
-				sprintf(hdr_buf, "CaptionInfo.sec: http://%s:%d/Captions/%lld.srt\r\n",
-				                 lan_addr[0].str, runtime_vars.port, id);
-				strcat(header, hdr_buf);
-			}
-			sqlite3_free_table(result);
+			sprintf(hdr_buf, "CaptionInfo.sec: http://%s:%d/Captions/%lld.srt\r\n",
+			                 lan_addr[0].str, runtime_vars.port, id);
+			strcat(header, hdr_buf);
 		}
 	}
 
