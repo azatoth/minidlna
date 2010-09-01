@@ -45,6 +45,7 @@
 #endif
 //#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
+#define MIN_BUFFER_SIZE 65536
 
 #include "icons.c"
 
@@ -1071,22 +1072,51 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 {
 	off_t send_size;
 	off_t ret;
+	char *buf = NULL;
+	int try_sendfile = 1;
 
 	while( offset < end_offset )
 	{
-		send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
-		ret = sendfile(h->socket, sendfd, &offset, send_size);
-		if( ret == -1 )
+		if( try_sendfile )
 		{
-			DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+			send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
+			ret = sendfile(h->socket, sendfd, &offset, send_size);
+			if( ret == -1 )
+			{
+				DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+				/* If sendfile isn't supported on the filesystem, don't bother trying to use it again. */
+				if( errno == EOVERFLOW )
+					try_sendfile = 0;
+				else if( errno != EAGAIN )
+					break;
+			}
+			else
+			{
+				//DPRINTF(E_DEBUG, L_HTTP, "sent %lld bytes to %d. offset is now %lld.\n", ret, h->socket, offset);
+				continue;
+			}
+		}
+		/* Fall back to regular I/O */
+		if( !buf )
+			buf = malloc(MIN_BUFFER_SIZE);
+		send_size = ( ((end_offset - offset) < MIN_BUFFER_SIZE) ? (end_offset - offset + 1) : MIN_BUFFER_SIZE);
+		lseek(sendfd, offset, SEEK_SET);
+		ret = read(sendfd, buf, send_size);
+		if( ret == -1 ) {
+			DPRINTF(E_DEBUG, L_HTTP, "read error :: error no. %d [%s]\n", errno, strerror(errno));
 			if( errno != EAGAIN )
 				break;
 		}
-		/*else
-		{
-			DPRINTF(E_DEBUG, L_HTTP, "sent %lld bytes to %d. offset is now %lld.\n", ret, h->socket, offset);
-		}*/
+		ret = write(h->socket, buf, ret);
+		if( ret == -1 ) {
+			DPRINTF(E_DEBUG, L_HTTP, "write error :: error no. %d [%s]\n", errno, strerror(errno));
+			if( errno != EAGAIN )
+				break;
+		}
+		offset+=ret;
 	}
+	if( buf )
+		free(buf);
 }
 
 void
