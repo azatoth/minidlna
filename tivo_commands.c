@@ -146,6 +146,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 			{
 				struct tm tm;
 				memset(&tm, 0, sizeof(tm));
+				tm.tm_isdst = -1; // Have libc figure out if DST is in effect or not
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
 				ret = sprintf(str_buf, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
@@ -186,6 +187,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 			{
 				struct tm tm;
 				memset(&tm, 0, sizeof(tm));
+				tm.tm_isdst = -1; // Have libc figure out if DST is in effect or not
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
 				ret = sprintf(str_buf, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
@@ -705,9 +707,11 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 			if( val )
 				detailItem = strtoll(basename(val), NULL, 10);
 		}
-		else if( strcasecmp(key, "Format") == 0 )
+		else if( strcasecmp(key, "Format") == 0 || // Only send XML
+		         strcasecmp(key, "SerialNum") == 0 || // Unused for now
+		         strcasecmp(key, "DoGenres") == 0 ) // Not sure what this is, so ignore it
 		{
-			// Only send XML
+			;;
 		}
 		else
 		{
