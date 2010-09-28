@@ -706,8 +706,12 @@ start_inotify()
 				{
 					if( stat(path_buf, &st) == 0 && st.st_size > 0 )
 					{
-						DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
-						inotify_insert_file(esc_name, path_buf);
+						if( (event->mask & IN_MOVED_TO) ||
+						    (sql_get_int_field(db, "SELECT TIMESTAMP from DETAILS where PATH = '%q'", path_buf) != st.st_mtime) )
+						{
+							DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
+							inotify_insert_file(esc_name, path_buf);
+						}
 					}
 				}
 				else if ( event->mask & IN_DELETE || event->mask & IN_MOVED_FROM )
