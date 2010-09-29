@@ -118,7 +118,7 @@ getsyshwaddr(char * buf, int len)
 			continue;
 		if( ioctl(fd, SIOCGIFHWADDR, &ifr) < 0 )
 			continue;
-		if( MACADDR_IS_ZERO(&ifr.ifr_hwaddr.sa_data) )
+		if( MACADDR_IS_ZERO(ifr.ifr_hwaddr.sa_data) )
 			continue;
 		ret = 0;
 		break;
