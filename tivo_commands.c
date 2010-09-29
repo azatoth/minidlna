@@ -46,7 +46,7 @@ SendRootContainer(struct upnphttp * h)
 			  "<Title>%s</Title>"
 			 "</Details>"
 			 "<ItemStart>0</ItemStart>"
-			 "<ItemCount>2</ItemCount>"
+			 "<ItemCount>3</ItemCount>"
 			 "<Item>"
 			  "<Details>"
 			   "<ContentType>x-container/tivo-photos</ContentType>"
