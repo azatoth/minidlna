@@ -43,6 +43,7 @@ enum client_types {
 	EFreeBox,
 	EPopcornHour,
 	EMediaRoom,
+	ESonyBDP,
 	EStandardDLNA150 = 100
 };
 

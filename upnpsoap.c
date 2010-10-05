@@ -622,6 +622,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 					strcpy(mime+8, "mkv");
 				}
 			}
+			else if( passed_args->client == ESonyBDP )
+			{
+				if( strcmp(mime+6, "x-matroska") == 0 ||
+				    strcmp(mime+6, "mpeg") == 0 )
+				{
+					strcpy(mime+6, "divx");
+				}
+			}
 		}
 		else if( *mime == 'a' )
 		{

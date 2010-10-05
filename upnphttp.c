@@ -286,16 +286,21 @@ intervening space) by either an integer or the keyword "infinite". */
 			else if(strncasecmp(line, "X-AV-Client-Info", 16)==0)
 			{
 				/* Skip client detection if we already detected it. */
-				if( h->req_client )
+				if( h->req_client && h->req_client < EStandardDLNA150 )
 					goto next_header;
 				p = colon + 1;
 				while(isspace(*p))
 					p++;
-				if(strstr(p, "PLAYSTATION 3"))
+				if(strstrc(p, "PLAYSTATION 3", '\r'))
 				{
 					h->req_client = EPS3;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
+				}
+				else if(strstrc(p, "Blu-ray Disc Player", '\r'))
+				{
+					h->req_client = ESonyBDP;
+					h->reqflags |= FLAG_DLNA;
 				}
 			}
 			else if(strncasecmp(line, "Transfer-Encoding", 17)==0)
@@ -1670,6 +1675,13 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			{
 				if( strcmp(last_file.mime+6, "x-matroska") == 0 )
 					strcpy(last_file.mime+8, "mkv");
+			}
+			/* ... and Sony BDP-S370 won't play MKV unless we pretend it's a DiVX file */
+			else if( h->req_client == ESonyBDP )
+			{
+				if( strcmp(last_file.mime+6, "x-matroska") == 0 ||
+				    strcmp(last_file.mime+6, "mpeg") == 0 )
+					strcpy(last_file.mime+6, "divx");
 			}
 		}
 		else
