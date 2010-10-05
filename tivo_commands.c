@@ -349,10 +349,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	char *sql, *item, *saveptr;
 	char *zErrMsg = NULL;
 	char **result;
-	char *title;
+	char *title = NULL;
 	char what[10], order[64]={0}, order2[64]={0}, myfilter[256]={0};
 	char str_buf[1024];
 	char *which;
+	char type[8];
 	char groupBy[19] = {0};
 	struct Response args;
 	int totalMatches = 0;
@@ -371,6 +372,22 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		if( itemCount == -100 )
 			itemCount = 1;
 		args.requested = itemCount * -1;
+	}
+
+	switch( *objectID )
+	{
+		case '1':
+			strcpy(type, "music");
+			break;
+		case '2':
+			strcpy(type, "videos");
+			break;
+		case '3':
+			strcpy(type, "photos");
+			break;
+		default:
+			strcpy(type, "server");
+			break;
 	}
 
 	if( strlen(objectID) == 1 )
@@ -395,7 +412,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	{
 		sql = sqlite3_mprintf("SELECT NAME from OBJECTS where OBJECT_ID = '%s'", objectID);
 		if( (sql_get_table(db, sql, &result, &ret, NULL) == SQLITE_OK) && ret )
-			title = strdup(result[1]);
+		{
+			title = escape_tag(result[1]);
+			if( !title )
+				title = strdup(result[1]);
+		}
 		else
 			title = strdup("UNKNOWN");
 		sqlite3_free(sql);
@@ -619,8 +640,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                         "</Details>"
 	                         "<ItemStart>%d</ItemStart>"
 	                         "<ItemCount>%d</ItemCount>",
-	                         (objectID[0]=='1' ? "music":"photos"),
-	                         totalMatches, title, args.start, args.returned);
+	                         type, totalMatches, title, args.start, args.returned);
 	args.resp = resp+1024-ret;
 	memcpy(args.resp, &str_buf, ret);
 	ret = sprintf(str_buf, "</TiVoContainer>");
