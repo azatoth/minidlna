@@ -1034,7 +1034,7 @@ SendResp_upnphttp(struct upnphttp * h)
 	n = send(h->socket, h->res_buf, h->res_buflen, 0);
 	if(n<0)
 	{
-		DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s", strerror(errno));
+		DPRINTF(E_ERROR, L_HTTP, "send(res_buf): %s\n", strerror(errno));
 	}
 	else if(n < h->res_buflen)
 	{
