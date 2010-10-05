@@ -222,6 +222,10 @@ parse_nfo(const char * path, metadata_t * m)
 	if( val )
 		m->date = strdup(val);
 
+	val = GetValueFromNameValueList(&xml, "genre");
+	if( val )
+		m->genre = strdup(val);
+
 	ClearNameValueList(&xml);
 	fclose(nfo);
 }
