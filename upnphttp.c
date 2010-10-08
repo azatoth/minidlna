@@ -297,7 +297,15 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
+				/* X-AV-Client-Info: av=5.0; cn="Sony Corporation"; mn="Blu-ray Disc Player"; mv="2.0" */
 				else if(strstrc(p, "Blu-ray Disc Player", '\r'))
+				{
+					h->req_client = ESonyBDP;
+					h->reqflags |= FLAG_DLNA;
+				}
+				/* Sony SMP-100 needs the same treatment as their BDP-S370 */
+				/* X-AV-Client-Info: av=5.0; cn="Sony Corporation"; mn="Media Player"; mv="2.0" */
+				else if(strstrc(p, "Media Player", '\r'))
 				{
 					h->req_client = ESonyBDP;
 					h->reqflags |= FLAG_DLNA;
