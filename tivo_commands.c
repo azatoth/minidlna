@@ -612,6 +612,10 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                            " where %s and (%s)",
 	                            which, myfilter);
 	totalMatches = (ret > 0) ? ret : 0;
+	if( itemCount < 0 && !args.start )
+	{
+		args.start = totalMatches + itemCount;
+	}
 
 	sql = sqlite3_mprintf("SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
 	                      " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
