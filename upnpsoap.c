@@ -298,13 +298,15 @@ mime_to_ext(const char * mime, char * buf)
 #define FILTER_UPNP_SEARCHCLASS                  0x00080000
 
 static u_int32_t
-set_filter_flags(char * filter)
+set_filter_flags(char * filter, enum client_types client)
 {
 	char *item, *saveptr = NULL;
 	u_int32_t flags = 0;
 
 	if( !filter || (strlen(filter) <= 1) )
 		return 0xFFFFFFFF;
+	if( client == ESamsungTV )
+		flags |= FILTER_DLNA_NAMESPACE;
 	item = strtok_r(filter, ",", &saveptr);
 	while( item != NULL )
 	{
@@ -343,6 +345,8 @@ set_filter_flags(char * filter)
 		else if( strcmp(item, "upnp:albumArtURI") == 0 )
 		{
 			flags |= FILTER_UPNP_ALBUMARTURI;
+			if( client == ESamsungTV )
+				flags |= FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID;
 		}
 		else if( strcmp(item, "upnp:albumArtURI@dlna:profileID") == 0 )
 		{
@@ -705,11 +709,11 @@ callback(void *args, int argc, char **argv, char **azColName)
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			} else if( passed_args->filter & FILTER_UPNP_ALBUMARTURI ) {
-				ret = sprintf(str_buf, "&lt;upnp:albumArtURI ");
+				ret = sprintf(str_buf, "&lt;upnp:albumArtURI");
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 				if( passed_args->filter & FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID ) {
-					ret = sprintf(str_buf, "dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"", "JPEG_TN");
+					ret = sprintf(str_buf, " dlna:profileID=\"%s\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"", "JPEG_TN");
 					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 					passed_args->size += ret;
 				}
@@ -938,7 +942,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
-	args.filter = set_filter_flags(Filter);
+	args.filter = set_filter_flags(Filter, h->req_client);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 	{
 		ret = sprintf(str_buf, DLNA_NAMESPACE);
@@ -1116,7 +1120,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	args.resp = resp;
 	args.size = sprintf(resp, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
-	args.filter = set_filter_flags(Filter);
+	args.filter = set_filter_flags(Filter, h->req_client);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 	{
 		ret = sprintf(str_buf, DLNA_NAMESPACE);
