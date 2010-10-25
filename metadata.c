@@ -1044,9 +1044,9 @@ GetVideoMetadata(const char * path, char * name)
 	{
 		if( strcmp(ctx->iformat->name, "avi") == 0 )
 			asprintf(&m.mime, "video/x-msvideo");
-		else if( strcmp(ctx->iformat->name, "mpegts") == 0 )
-			asprintf(&m.mime, "video/mpeg");
-		else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
+		else if( strcmp(ctx->iformat->name, "mpegts") == 0 ||
+		         strcmp(ctx->iformat->name, "mpeg") == 0 ||
+		         strcmp(ctx->iformat->name, "mpegvideo") == 0 )
 			asprintf(&m.mime, "video/mpeg");
 		else if( strcmp(ctx->iformat->name, "asf") == 0 )
 			asprintf(&m.mime, "video/x-ms-wmv");
