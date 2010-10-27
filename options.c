@@ -34,6 +34,7 @@ static const struct {
 	{ UPNPALBUMART_NAMES, "album_art_names"},
 	{ UPNPINOTIFY, "inotify" },
 	{ UPNPDBDIR, "db_dir" },
+	{ UPNPLOGDIR, "log_dir" },
 	{ ENABLE_TIVO, "enable_tivo" },
 	{ ENABLE_DLNA_STRICT, "strict_dlna" }
 };

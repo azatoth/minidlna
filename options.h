@@ -26,7 +26,8 @@ enum upnpconfigoptions {
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */
 	UPNPALBUMART_NAMES,		/* list of '/'-delimited file names to check for album art */
 	UPNPINOTIFY,			/* enable inotify on the media directories */
-	UPNPDBDIR,			/* base directory to store the database, log files, and album art cache */
+	UPNPDBDIR,			/* base directory to store the database and album art cache */
+	UPNPLOGDIR,			/* base directory to store the log file */
 	ENABLE_TIVO,			/* enable support for streaming images and music to TiVo */
 	ENABLE_DLNA_STRICT		/* strictly adhere to DLNA specs */
 };

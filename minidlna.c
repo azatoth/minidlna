@@ -410,6 +410,18 @@ init(int argc, char * * argv)
 				}
 				strncpy(db_path, path, PATH_MAX);
 				break;
+			case UPNPLOGDIR:
+				path = realpath(ary_options[i].value, real_path);
+				if( !path )
+					path = (ary_options[i].value);
+				make_dir(path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
+				if( access(path, F_OK) != 0 )
+				{
+					DPRINTF(E_FATAL, L_GENERAL, "Log path not accessible! [%s]\n", path);
+					break;
+				}
+				strncpy(log_path, path, PATH_MAX);
+				break;
 			case UPNPINOTIFY:
 				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
 					CLEARFLAG(INOTIFY_MASK);
@@ -624,7 +636,7 @@ init(int argc, char * * argv)
 		#else
 		if( access(db_path, F_OK) != 0 )
 			make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
-		sprintf(real_path, "%s/minidlna.log", db_path);
+		sprintf(real_path, "%s/minidlna.log", log_path);
 		log_init(real_path, "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
 		#endif
 	}
