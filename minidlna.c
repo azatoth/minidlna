@@ -558,7 +558,7 @@ init(int argc, char * * argv)
 			runtime_vars.port = 0; // triggers help display
 			break;
 		case 'R':
-			snprintf(real_path, sizeof(real_path), "rm -rf %s", db_path);
+			snprintf(real_path, sizeof(real_path), "rm -rf %s/*", db_path);
 			system(real_path);
 			break;
 		case 'V':
