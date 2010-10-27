@@ -73,7 +73,7 @@ char *winamp_genre[] = {
 	       "Electronic",        "Pop-Folk",         "Eurodance",         "Dream",
 	/*38*/ "Southern Rock",     "Comedy",           "Cult",              "Gangsta",
 	       "Top 40",            "Christian Rap",    "Pop/Funk",          "Jungle",
-	/*40*/ "Native American",   "Cabaret",          "New Wave",          "Psychadelic",
+	/*40*/ "Native American",   "Cabaret",          "New Wave",          "Psychedelic",
 	       "Rave",              "Showtunes",        "Trailer",           "Lo-Fi",
 	/*48*/ "Tribal",            "Acid Punk",        "Acid Jazz",         "Polka",
 	       "Retro",             "Musical",          "Rock & Roll",       "Hard Rock",
