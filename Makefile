@@ -43,7 +43,7 @@ TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 
 EXECUTABLES = minidlna testupnpdescgen
 
-.PHONY:	all clean install depend
+.PHONY:	all clean distclean install depend
 
 all:	$(EXECUTABLES)
 
@@ -51,6 +51,9 @@ clean:
 	$(RM) $(ALLOBJS)
 	$(RM) $(EXECUTABLES)
 	$(RM) testupnpdescgen.o
+
+distclean: clean
+	$(RM) config.h
 
 install:	minidlna
 	$(INSTALL) -d $(SBININSTALLDIR)
