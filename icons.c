@@ -1,3 +1,23 @@
+/* MiniDLNA media server
+ *
+ * This file is part of MiniDLNA.
+ *
+ * Penguin images are the creation of Larry Ewing (lewing@isc.tamu.edu) using The GIMP.
+ * NETGEAR images Copyright (c) 2008- NETGEAR, Inc. All Rights Reserved.
+ *
+ * MiniDLNA is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * MiniDLNA is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MiniDLNA. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifdef NETGEAR
 unsigned char
 png_sm[] =   "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x30\x00\x00\x00\x30"
