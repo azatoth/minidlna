@@ -1132,7 +1132,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 			{
 				DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
 				/* If sendfile isn't supported on the filesystem, don't bother trying to use it again. */
-				if( errno == EOVERFLOW )
+				if( errno == EOVERFLOW || errno == EINVAL )
 					try_sendfile = 0;
 				else if( errno != EAGAIN )
 					break;
