@@ -725,6 +725,15 @@ start_inotify()
 						}
 					}
 				}
+				/* Insert new or moved symlinks (e.g. the symlinks created by mythlink) */
+				else if ( event->mask & IN_CREATE || event->mask & IN_MOVED_TO )
+				{
+					if( stat(path_buf, &st) == 0 && ((st.st_mode & S_IFMT) & S_IFLNK) )
+					{
+						DPRINTF(E_DEBUG, L_INOTIFY, "The symbolic link %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
+						inotify_insert_file(esc_name, path_buf);
+					}
+				}
 				else if ( event->mask & (IN_DELETE|IN_MOVED_FROM) )
 				{
 					DPRINTF(E_DEBUG, L_INOTIFY, "The %s %s was %s.\n",
