@@ -189,11 +189,10 @@ inotify_create_watches(int fd)
 		                        "Hopefully it is enough to cover %u current directories plus any new ones added.\n", num_watches);
 	}
 
-	media_path = media_dirs;
-	while( media_path )
+	for( media_path = media_dirs; media_path != NULL; media_path = media_path->next )
 	{
+		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", result[i]);
 		add_watch(fd, media_path->path);
-		media_path = media_path->next;
 	}
 	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
 	for( i=1; i <= rows; i++ )
@@ -645,9 +644,8 @@ start_inotify()
 	pollfds[0].fd = inotify_init();
 	pollfds[0].events = POLLIN;
 
-	if ( pollfds[0].fd < 0 ) {
+	if ( pollfds[0].fd < 0 )
 		DPRINTF(E_ERROR, L_INOTIFY, "inotify_init() failed!\n");
-	}
 
 	while( scanning )
 	{
@@ -696,36 +694,41 @@ start_inotify()
 				}
 				esc_name = modifyString(strdup(event->name), "&", "&amp;amp;", 0);
 				sprintf(path_buf, "%s/%s", get_path_from_wd(event->wd), event->name);
-				if ( (event->mask & IN_CREATE && event->mask & IN_ISDIR) ||
-				     (event->mask & IN_MOVED_TO && event->mask & IN_ISDIR) )
+				if ( event->mask & IN_ISDIR && (event->mask & (IN_CREATE|IN_MOVED_TO)) )
 				{
-					DPRINTF(E_DEBUG, L_INOTIFY,  "The directory %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
+					DPRINTF(E_DEBUG, L_INOTIFY,  "The directory %s was %s.\n",
+						path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
 					inotify_insert_directory(pollfds[0].fd, esc_name, path_buf);
 				}
-				else if ( event->mask & IN_CLOSE_WRITE || event->mask & IN_MOVED_TO )
+				else if ( (event->mask & (IN_CLOSE_WRITE|IN_MOVED_TO|IN_CREATE)) &&
+				          (lstat(path_buf, &st) == 0) )
 				{
-					if( stat(path_buf, &st) == 0 && st.st_size > 0 )
+					if( S_ISLNK(st.st_mode) )
+					{
+						DPRINTF(E_DEBUG, L_INOTIFY, "The symbolic link %s was %s.\n",
+							path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
+						inotify_insert_file(esc_name, path_buf);
+					}
+					else if( event->mask & (IN_CLOSE_WRITE|IN_MOVED_TO) && st.st_size > 0 )
 					{
 						if( (event->mask & IN_MOVED_TO) ||
 						    (sql_get_int_field(db, "SELECT TIMESTAMP from DETAILS where PATH = '%q'", path_buf) != st.st_mtime) )
 						{
-							DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
+							DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n",
+								path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "changed"));
 							inotify_insert_file(esc_name, path_buf);
 						}
 					}
 				}
-				else if ( event->mask & IN_DELETE || event->mask & IN_MOVED_FROM )
+				else if ( event->mask & (IN_DELETE|IN_MOVED_FROM) )
 				{
+					DPRINTF(E_DEBUG, L_INOTIFY, "The %s %s was %s.\n",
+						(event->mask & IN_ISDIR ? "directory" : "file"),
+						path_buf, (event->mask & IN_MOVED_FROM ? "moved away" : "deleted"));
 					if ( event->mask & IN_ISDIR )
-					{
-						DPRINTF(E_DEBUG, L_INOTIFY, "The directory %s was %s.\n", path_buf, (event->mask & IN_MOVED_FROM ? "moved away" : "deleted"));
 						inotify_remove_directory(pollfds[0].fd, path_buf);
-					}
 					else
-					{
-						DPRINTF(E_DEBUG, L_INOTIFY, "The file %s was %s.\n", path_buf, (event->mask & IN_MOVED_FROM ? "moved away" : "deleted"));
 						inotify_remove_file(path_buf);
-					}
 				}
 				free(esc_name);
 			}
