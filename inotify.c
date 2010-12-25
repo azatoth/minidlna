@@ -191,7 +191,7 @@ inotify_create_watches(int fd)
 
 	for( media_path = media_dirs; media_path != NULL; media_path = media_path->next )
 	{
-		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", result[i]);
+		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", media_path->path);
 		add_watch(fd, media_path->path);
 	}
 	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
