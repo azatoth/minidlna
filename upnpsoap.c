@@ -619,7 +619,16 @@ callback(void *args, int argc, char **argv, char **azColName)
 	passed_args->returned++;
 
 	if( dlna_pn )
+	{
+		if( passed_args->client == ESonyBravia )
+		{
+			/* BRAVIA KDL-##*X### series TVs do natively support AVC/AC3 in TS, but
+			   require profile to be renamed (applies to _T and _ISO variants also) */
+			modifyString(dlna_pn, "AVC_TS_MP_SD_AC3", "AVC_TS_HD_50_AC3", 0);
+			modifyString(dlna_pn, "AVC_TS_MP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
+		}
 		sprintf(dlna_buf, "DLNA.ORG_PN=%s", dlna_pn);
+	}
 	else if( passed_args->flags & FLAG_DLNA )
 		strcpy(dlna_buf, dlna_no_conv);
 	else
