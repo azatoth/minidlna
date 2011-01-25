@@ -135,7 +135,11 @@ log_err(int level, enum _log_facility facility, char *fname, int lineno, char *f
 	// user log
 	va_start(ap, fmt);
 	//vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
-	vasprintf(&errbuf, fmt, ap);
+	if (vasprintf(&errbuf, fmt, ap) == -1)
+	{
+		va_end(ap);
+		return;
+	}
 	va_end(ap);
 
 	// timestamp
