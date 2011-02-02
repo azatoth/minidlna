@@ -1,7 +1,7 @@
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
- * Copyright (c) 2006-2007, Thomas Bernard
+ * Copyright (c) 2006-2011, Thomas Bernard
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,9 @@ ProcessSSDPRequest(int s, unsigned short port);
 
 int
 SendSSDPGoodbye(int * sockets, int n);
+
+int
+SubmitServicesToMiniSSDPD(const char * host, unsigned short port);
 
 #endif
 

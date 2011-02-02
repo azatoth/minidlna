@@ -2,7 +2,7 @@
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
- * Copyright (c) 2006, Thomas Bernard
+ * Copyright (c) 2006-2011, Thomas Bernard
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -44,14 +45,18 @@
 #include "upnphttp.h"
 #include "upnpglobalvars.h"
 #include "minissdp.h"
+#include "codelength.h"
 #include "log.h"
 
 /* SSDP ip/port */
 #define SSDP_PORT (1900)
 #define SSDP_MCAST_ADDR ("239.255.255.250")
 
+/* Prototypes */
+void ProcessSSDPData(int s, char *bufr, struct sockaddr_in sendername, int n, unsigned short port) ;
+
 static int
-AddMulticastMembership(int s, in_addr_t ifaddr/*const char * ifaddr*/)
+AddMulticastMembership(int s, in_addr_t ifaddr)
 {
 	struct ip_mreq imr;	/* Ip multicast membership */
 
@@ -69,6 +74,8 @@ AddMulticastMembership(int s, in_addr_t ifaddr/*const char * ifaddr*/)
 	return 0;
 }
 
+/* Open and configure the socket listening for
+ * SSDP udp packets sent on 239.255.255.250 port 1900 */
 int
 OpenAndConfSSDPReceiveSocket()
 {
@@ -231,9 +238,9 @@ SendSSDPAnnounce2(int s, struct sockaddr_in sockname, int st_no,
 {
 	int l, n;
 	char buf[512];
-	/* TODO :
+	/*
 	 * follow guideline from document "UPnP Device Architecture 1.0"
-	 * put in uppercase.
+	 * uppercase is recommended.
 	 * DATE: is recommended
 	 * SERVER: OS/ver UPnP/1.0 minidlna/1.0
 	 * - check what to put in the 'Cache-Control' header 
@@ -338,17 +345,12 @@ SendSSDPNotifies2(int * sockets,
  * process SSDP M-SEARCH requests and responds to them */
 void
 ProcessSSDPRequest(int s, unsigned short port)
-/*ProcessSSDPRequest(int s, struct lan_addr_s * lan_addr, int n_lan_addr,
-                   unsigned short port)*/
 {
 	int n;
 	char bufr[1500];
 	socklen_t len_r;
 	struct sockaddr_in sendername;
-	int i, l;
-	int lan_addr_index = 0;
-	char * st = NULL, * mx = NULL, * man = NULL, * mx_end = NULL;
-	int st_len = 0, mx_len = 0, man_len = 0, mx_val = 0;
+
 	len_r = sizeof(struct sockaddr_in);
 
 	n = recvfrom(s, bufr, sizeof(bufr), 0,
@@ -358,6 +360,15 @@ ProcessSSDPRequest(int s, unsigned short port)
 		DPRINTF(E_ERROR, L_SSDP, "recvfrom(udp): %s\n", strerror(errno));
 		return;
 	}
+	ProcessSSDPData(s, bufr, sendername, n, port);
+
+}
+
+void ProcessSSDPData(int s, char *bufr, struct sockaddr_in sendername, int n, unsigned short port) {
+	int i, l;
+	int lan_addr_index = 0;
+	char * st = NULL, * mx = NULL, * man = NULL, * mx_end = NULL;
+	int st_len = 0, mx_len = 0, man_len = 0, mx_val = 0;
 
 	if(memcmp(bufr, "NOTIFY", 6) == 0)
 	{
@@ -463,6 +474,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 			/* strlen("ssdp:all") == 8 */
 			if(st_len==8 && (0 == memcmp(st, "ssdp:all", 8)))
 			{
+				DPRINTF(E_INFO, L_SSDP, "ssdp:all found");
 				for(i=0; known_service_types[i]; i++)
 				{
 					l = (int)strlen(known_service_types[i]);
@@ -524,5 +536,63 @@ SendSSDPGoodbye(int * sockets, int n_sockets)
 			}
 		}
 	}
+	return 0;
+}
+
+/* SubmitServicesToMiniSSDPD() :
+ * register services offered by MiniUPnPd to a running instance of
+ * MiniSSDPd */
+int
+SubmitServicesToMiniSSDPD(const char * host, unsigned short port) {
+	struct sockaddr_un addr;
+	int s;
+	unsigned char buffer[2048];
+	char strbuf[256];
+	unsigned char * p;
+	int i, l;
+
+	s = socket(AF_UNIX, SOCK_STREAM, 0);
+	if(s < 0) {
+		DPRINTF(E_ERROR, L_SSDP, "socket(unix): %s", strerror(errno));
+		return -1;
+	}
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, minissdpdsocketpath, sizeof(addr.sun_path));
+	if(connect(s, (struct sockaddr *)&addr, sizeof(struct sockaddr_un)) < 0) {
+		DPRINTF(E_ERROR, L_SSDP, "connect(\"%s\"): %s",
+		        minissdpdsocketpath, strerror(errno));
+		return -1;
+	}
+	for(i = 0; known_service_types[i]; i++) {
+		buffer[0] = 4;
+		p = buffer + 1;
+		l = (int)strlen(known_service_types[i]);
+		if(i > 0)
+			l++;
+		CODELENGTH(l, p);
+		memcpy(p, known_service_types[i], l);
+		if(i > 0)
+			p[l-1] = '1';
+		p += l;
+		l = snprintf(strbuf, sizeof(strbuf), "%s::%s%s",
+		             uuidvalue, known_service_types[i], (i==0)?"":"1");
+		CODELENGTH(l, p);
+		memcpy(p, strbuf, l);
+		p += l;
+		l = (int)strlen(MINIDLNA_SERVER_STRING);
+		CODELENGTH(l, p);
+		memcpy(p, MINIDLNA_SERVER_STRING, l);
+		p += l;
+		l = snprintf(strbuf, sizeof(strbuf), "http://%s:%u" ROOTDESC_PATH,
+		             host, (unsigned int)port);
+		CODELENGTH(l, p);
+		memcpy(p, strbuf, l);
+		p += l;
+		if(write(s, buffer, p - buffer) < 0) {
+			DPRINTF(E_ERROR, L_SSDP, "write(): %s", strerror(errno));
+			return -1;
+		}
+	}
+	close(s);
 	return 0;
 }
