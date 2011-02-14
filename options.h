@@ -65,7 +65,7 @@ readoptionsfile(const char * fname);
 void
 freeoptions(void);
 
-#define MAX_OPTION_VALUE_LEN (80)
+#define MAX_OPTION_VALUE_LEN (200)
 struct option
 {
 	enum upnpconfigoptions id;

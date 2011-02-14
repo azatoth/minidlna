@@ -422,6 +422,12 @@ init(int argc, char * * argv)
 			case UPNPALBUMART_NAMES:
 				for( string = ary_options[i].value; (word = strtok(string, "/")); string = NULL ) {
 					struct album_art_name_s * this_name = calloc(1, sizeof(struct album_art_name_s));
+					int len = strlen(word);
+					if( word[len-1] == '*' )
+					{
+						word[len-1] = '\0';
+						this_name->wildcard = 1;
+					}
 					this_name->name = strdup(word);
 					if( !album_art_names )
 					{

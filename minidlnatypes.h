@@ -79,6 +79,7 @@ struct media_dir_s {
 
 struct album_art_name_s {
 	char * name;            /* Base path */
+	uint8_t wildcard;
 	struct album_art_name_s * next;
 };
 
@@ -86,7 +87,7 @@ struct client_cache_s {
 	struct in_addr addr;
 	unsigned char mac[6];
 	enum client_types type;
-	u_int32_t flags;
+	uint32_t flags;
 	time_t age;
 };
 

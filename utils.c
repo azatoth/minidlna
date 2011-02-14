@@ -28,6 +28,7 @@
 #include <errno.h>
 
 #include "minidlnatypes.h"
+#include "upnpglobalvars.h"
 #include "log.h"
 
 int
@@ -243,6 +244,29 @@ int
 is_playlist(const char * file)
 {
 	return (ends_with(file, ".m3u") || ends_with(file, ".pls"));
+}
+
+int
+is_album_art(const char * name)
+{
+	struct album_art_name_s * album_art_name;
+
+	/* Check if this file name matches one of the default album art names */
+	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
+	{
+		if( album_art_name->wildcard )
+		{
+			if( strncmp(album_art_name->name, name, strlen(album_art_name->name)) == 0 )
+				break;
+		}
+		else
+		{
+			if( strcmp(album_art_name->name, name) == 0 )
+				break;
+		}
+	}
+
+	return (album_art_name ? 1 : 0);
 }
 
 int

@@ -472,6 +472,8 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 
 	if( is_image(name) )
 	{
+		if( is_album_art(name) )
+			return -1;
 		strcpy(base, IMAGE_DIR_ID);
 		strcpy(class, "item.imageItem.photo");
 		detailID = GetImageMetadata(path, name);

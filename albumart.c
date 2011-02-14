@@ -107,7 +107,7 @@ update_if_album_art(const char * path)
 	char * match = NULL;
 	char * file = NULL;
 	int ncmp = 0;
-	struct album_art_name_s * album_art_name;
+	int album_art;
 	DIR * dh;
 	struct dirent *dp;
 	enum file_types type = TYPE_UNKNOWN;
@@ -121,14 +121,10 @@ update_if_album_art(const char * path)
 	}
 	else
 	{
-		ncmp = strrchr(match, '.')-match;
+		ncmp = strrchr(match, '.') - match;
 	}
 	/* Check if this file name matches one of the default album art names */
-	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
-	{
-		if( strcmp(album_art_name->name, match) == 0 )
-			break;
-	}
+	album_art = is_album_art(match);
 
 	dir = dirname(strdup(path));
 	dh = opendir(dir);
@@ -155,7 +151,7 @@ update_if_album_art(const char * path)
 			continue;
 		if( (*(dp->d_name) != '.') &&
 		    (is_video(dp->d_name) || is_audio(dp->d_name)) &&
-		    (album_art_name || strncmp(dp->d_name, match, ncmp) == 0) )
+		    (album_art || strncmp(dp->d_name, match, ncmp) == 0) )
 		{
 			DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like cover art for %s\n", path, dp->d_name);
 			asprintf(&file, "%s/%s", dir, dp->d_name);
@@ -249,6 +245,7 @@ check_embedded_art(const char * path, const char * image_data, int image_size)
 		fclose(dstfile);
 		if( nwritten != image_size )
 		{
+			DPRINTF(E_WARN, L_METADATA, "Embedded art error: wrote %d/%d bytes\n", nwritten, image_size);
 			remove(art_path);
 			free(art_path);
 			art_path = NULL;
