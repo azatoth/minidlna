@@ -186,9 +186,17 @@ static void
 GetSearchCapabilities(struct upnphttp * h, const char * action)
 {
 	static const char resp[] =
-		"<u:%sResponse "
-		"xmlns:u=\"%s\">"
-		"<SearchCaps>dc:title,dc:creator,upnp:class,upnp:artist,upnp:album,@refID</SearchCaps>"
+		"<u:%sResponse xmlns:u=\"%s\">"
+		"<SearchCaps>"
+		  "dc:creator,"
+		  "dc:title,"
+		  "upnp:album,"
+		  "upnp:actor,"
+		  "upnp:artist,"
+		  "upnp:class,"
+		  "upnp:genre,"
+		  "@refID"
+		"</SearchCaps>"
 		"</u:%sResponse>";
 
 	char body[512];
@@ -265,6 +273,10 @@ mime_to_ext(const char * mime, char * buf)
 				strcpy(buf, "wav");
 			else if( strncmp(mime+6, "L16", 3) == 0 )
 				strcpy(buf, "pcm");
+			else if( strcmp(mime+6, "3gpp") == 0 )
+				strcpy(buf, "3gp");
+			else if( strcmp(mime, "application/ogg") == 0 )
+				strcpy(buf, "ogg");
 			else
 				strcpy(buf, "dat");
 			break;
@@ -325,13 +337,14 @@ mime_to_ext(const char * mime, char * buf)
 #define FILTER_RES_RESOLUTION                    0x00000400
 #define FILTER_RES_SAMPLEFREQUENCY               0x00000800
 #define FILTER_RES_SIZE                          0x00001000
-#define FILTER_UPNP_ALBUM                        0x00002000
-#define FILTER_UPNP_ALBUMARTURI                  0x00004000
-#define FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID   0x00008000
-#define FILTER_UPNP_ARTIST                       0x00010000
-#define FILTER_UPNP_GENRE                        0x00020000
-#define FILTER_UPNP_ORIGINALTRACKNUMBER          0x00040000
-#define FILTER_UPNP_SEARCHCLASS                  0x00080000
+#define FILTER_UPNP_ACTOR                        0x00002000
+#define FILTER_UPNP_ALBUM                        0x00004000
+#define FILTER_UPNP_ALBUMARTURI                  0x00008000
+#define FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID   0x00010000
+#define FILTER_UPNP_ARTIST                       0x00020000
+#define FILTER_UPNP_GENRE                        0x00040000
+#define FILTER_UPNP_ORIGINALTRACKNUMBER          0x00080000
+#define FILTER_UPNP_SEARCHCLASS                  0x00100000
 
 static u_int32_t
 set_filter_flags(char * filter, enum client_types client)
@@ -392,6 +405,10 @@ set_filter_flags(char * filter, enum client_types client)
 		else if( strcmp(item, "upnp:artist") == 0 )
 		{
 			flags |= FILTER_UPNP_ARTIST;
+		}
+		else if( strcmp(item, "upnp:actor") == 0 )
+		{
+			flags |= FILTER_UPNP_ACTOR;
 		}
 		else if( strcmp(item, "upnp:genre") == 0 )
 		{
@@ -619,16 +636,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	passed_args->returned++;
 
 	if( dlna_pn )
-	{
-		if( passed_args->client == ESonyBravia )
-		{
-			/* BRAVIA KDL-##*X### series TVs do natively support AVC/AC3 in TS, but
-			   require profile to be renamed (applies to _T and _ISO variants also) */
-			modifyString(dlna_pn, "AVC_TS_MP_SD_AC3", "AVC_TS_HD_50_AC3", 0);
-			modifyString(dlna_pn, "AVC_TS_MP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
-		}
 		sprintf(dlna_buf, "DLNA.ORG_PN=%s", dlna_pn);
-	}
 	else if( passed_args->flags & FLAG_DLNA )
 		strcpy(dlna_buf, dlna_no_conv);
 	else
@@ -671,13 +679,18 @@ callback(void *args, int argc, char **argv, char **azColName)
 					strcpy(mime+8, "mkv");
 				}
 			}
-			else if( passed_args->client == ESonyBDP )
+			else if( passed_args->client == ESonyBDP || passed_args->client == ESonyBravia )
 			{
-				if( strcmp(mime+6, "x-matroska") == 0 ||
-				    strcmp(mime+6, "mpeg") == 0 )
+				if( passed_args->client == ESonyBDP &&
+				    (strcmp(mime+6, "x-matroska") == 0 ||
+				     strcmp(mime+6, "mpeg") == 0) )
 				{
 					strcpy(mime+6, "divx");
 				}
+				/* BRAVIA KDL-##*X### series TVs do natively support AVC/AC3 in TS, but
+				   require profile to be renamed (applies to _T and _ISO variants also) */
+				modifyString(dlna_pn, "AVC_TS_MP_SD_AC3", "AVC_TS_HD_50_AC3", 0);
+				modifyString(dlna_pn, "AVC_TS_MP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
 			}
 		}
 		else if( *mime == 'a' )
@@ -720,7 +733,17 @@ callback(void *args, int argc, char **argv, char **azColName)
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
-		if( artist && (passed_args->filter & FILTER_UPNP_ARTIST) ) {
+		if( artist ) {
+			if( (*mime == 'a') && (passed_args->filter & FILTER_UPNP_ARTIST) ) {
+				ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
+			else if( (*mime == 'v') && (passed_args->filter & FILTER_UPNP_ACTOR) ) {
+				ret = snprintf(str_buf, 512, "&lt;upnp:actor&gt;%s&lt;/upnp:actor&gt;", artist);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
 			ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
@@ -1241,8 +1264,10 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "dc:title", "d.TITLE", 0);
 		SearchCriteria = modifyString(SearchCriteria, "dc:creator", "d.CREATOR", 0);
 		SearchCriteria = modifyString(SearchCriteria, "upnp:class", "o.CLASS", 0);
+		SearchCriteria = modifyString(SearchCriteria, "upnp:actor", "d.ARTIST", 0);
 		SearchCriteria = modifyString(SearchCriteria, "upnp:artist", "d.ARTIST", 0);
 		SearchCriteria = modifyString(SearchCriteria, "upnp:album", "d.ALBUM", 0);
+		SearchCriteria = modifyString(SearchCriteria, "upnp:genre", "d.GENRE", 0);
 		SearchCriteria = modifyString(SearchCriteria, "exists true", "is not NULL", 0);
 		SearchCriteria = modifyString(SearchCriteria, "exists false", "is NULL", 0);
 		SearchCriteria = modifyString(SearchCriteria, "@refID", "REF_ID", 0);
