@@ -511,7 +511,7 @@ parse_sort_criteria(char * sortCriteria, int * error)
 		}
 		else if( strcasecmp(item, "dc:title") == 0 )
 		{
-			strcat(order, "d.TITLE");
+			strcat(order, "d.TITLE COLLATE naturalsort");
 			title_sorted = 1;
 		}
 		else if( strcasecmp(item, "dc:date") == 0 )
@@ -547,7 +547,7 @@ parse_sort_criteria(char * sortCriteria, int * error)
 	}
 	/* Add a "tiebreaker" sort order */
 	if( !title_sorted )
-		strcat(order, ", TITLE ASC");
+		strcat(order, ", d.TITLE COLLATE naturalsort ASC");
 
 	return order;
 }
@@ -1088,7 +1088,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			if( strncmp(ObjectID, MUSIC_PLIST_ID, strlen(MUSIC_PLIST_ID)) == 0 )
 			{
 				if( strcmp(ObjectID, MUSIC_PLIST_ID) == 0 )
-					asprintf(&orderBy, "order by d.TITLE");
+					asprintf(&orderBy, "order by d.TITLE COLLATE naturalsort");
 				else
 					asprintf(&orderBy, "order by length(OBJECT_ID), OBJECT_ID");
 			}
@@ -1097,7 +1097,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 #ifdef __sparc__
 				if( totalMatches < 10000 )
 #endif
-				asprintf(&orderBy, "order by o.CLASS, d.DISC, d.TRACK, d.TITLE");
+				asprintf(&orderBy, "order by o.CLASS, d.DISC, d.TRACK, d.TITLE COLLATE naturalsort");
 			}
 		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
@@ -1324,7 +1324,11 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	ret = 0;
 	if( totalMatches < 10000 )
 #endif
-		orderBy = parse_sort_criteria(SortCriteria, &ret);
+		if ( SortCriteria )
+			orderBy = parse_sort_criteria(SortCriteria, &ret);
+		else
+			asprintf(&orderBy, "order by d.TITLE COLLATE naturalsort");
+
 	/* If it's a DLNA client, return an error for bad sort criteria */
 	if( (args.flags & FLAG_DLNA) && ret )
 	{
