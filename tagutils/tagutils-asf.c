@@ -244,6 +244,9 @@ _asf_load_string(FILE *fp, int type, int size, char *buf, int len)
 	unsigned char data[2048];
 	__u16 wc;
 	int i, j;
+	__s32 *wd32;
+	__s64 *wd64;
+	__s16 *wd16;
 
 	i = 0;
 	if(size && (size <= sizeof(data)) && (size == fread(data, 1, size, fp)))
@@ -269,7 +272,10 @@ _asf_load_string(FILE *fp, int type, int size, char *buf, int len)
 		case ASF_VT_BOOL:
 		case ASF_VT_DWORD:
 			if(size >= 4)
-				i = snprintf(buf, len, "%d", le32_to_cpu(*(__s32*)&data[0]));
+			{
+				wd32 = (__s32 *) &data[0];
+				i = snprintf(buf, len, "%d", le32_to_cpu(*wd32));
+			}
 			break;
 		case ASF_VT_QWORD:
 			if(size >= 8)
@@ -277,13 +283,17 @@ _asf_load_string(FILE *fp, int type, int size, char *buf, int len)
 #if __WORDSIZE == 64
 				i = snprintf(buf, len, "%ld", le64_to_cpu(*(__s64*)&data[0]));
 #else
-				i = snprintf(buf, len, "%lld", le64_to_cpu(*(__s64*)&data[0]));
+				wd64 = (__s64 *) &data[0];
+				i = snprintf(buf, len, "%lld", le64_to_cpu(*wd64));
 #endif
 			}
 			break;
 		case ASF_VT_WORD:
 			if(size >= 2)
-				i = snprintf(buf, len, "%d", le16_to_cpu(*(__s16*)&data[0]));
+			{
+				wd16 = (__s16 *) &data[0];
+				i = snprintf(buf, len, "%d", le16_to_cpu(*wd16));
+			}
 			break;
 		}
 
