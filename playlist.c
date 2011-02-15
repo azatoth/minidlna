@@ -169,7 +169,7 @@ retry:
 				             " (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, NAME, REF_ID) "
 				             "SELECT"
 				             " '%s$%llX$%d', '%s$%llX', CLASS, DETAIL_ID, NAME, OBJECT_ID from OBJECTS"
-				             " where DETAIL_ID = %lld and OBJECT_ID glob '64$*'",
+				             " where DETAIL_ID = %lld and OBJECT_ID glob '" BROWSEDIR_ID "$*'",
 				             MUSIC_PLIST_ID, plID, plist.track,
 				             MUSIC_PLIST_ID, plID,
 				             detailID);

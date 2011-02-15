@@ -228,7 +228,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		asprintf(&sql, "SELECT ALBUM, CREATOR, GENRE, ALBUM_ART from DETAILS where ID = %lu", detailID);
+		asprintf(&sql, "SELECT ALBUM, ARTIST, GENRE, ALBUM_ART from DETAILS where ID = %lu", detailID);
 		ret = sql_get_table(db, sql, &result, &row, &cols);
 		free(sql);
 		if( ret != SQLITE_OK )
@@ -543,22 +543,22 @@ CreateDatabase(void)
 	int ret, i;
 	const char * containers[] = { "0","-1",   "root",
 	                         MUSIC_ID, "0", _("Music"),
-	                     MUSIC_ALL_ID, "1", _("All Music"),
-	                   MUSIC_GENRE_ID, "1", _("Genre"),
-	                  MUSIC_ARTIST_ID, "1", _("Artist"),
-	                   MUSIC_ALBUM_ID, "1", _("Album"),
-	                     MUSIC_DIR_ID, "1", _("Folders"),
-	                   MUSIC_PLIST_ID, "1", _("Playlists"),
+	                     MUSIC_ALL_ID, MUSIC_ID, _("All Music"),
+	                   MUSIC_GENRE_ID, MUSIC_ID, _("Genre"),
+	                  MUSIC_ARTIST_ID, MUSIC_ID, _("Artist"),
+	                   MUSIC_ALBUM_ID, MUSIC_ID, _("Album"),
+	                     MUSIC_DIR_ID, MUSIC_ID, _("Folders"),
+	                   MUSIC_PLIST_ID, MUSIC_ID, _("Playlists"),
 
 	                         VIDEO_ID, "0", _("Video"),
-	                     VIDEO_ALL_ID, "2", _("All Video"),
-	                     VIDEO_DIR_ID, "2", _("Folders"),
+	                     VIDEO_ALL_ID, VIDEO_ID, _("All Video"),
+	                     VIDEO_DIR_ID, VIDEO_ID, _("Folders"),
 
 	                         IMAGE_ID, "0", _("Pictures"),
-	                     IMAGE_ALL_ID, "3", _("All Pictures"),
-	                    IMAGE_DATE_ID, "3", _("Date Taken"),
-	                  IMAGE_CAMERA_ID, "3", _("Camera"),
-	                     IMAGE_DIR_ID, "3", _("Folders"),
+	                     IMAGE_ALL_ID, IMAGE_ID, _("All Pictures"),
+	                    IMAGE_DATE_ID, IMAGE_ID, _("Date Taken"),
+	                  IMAGE_CAMERA_ID, IMAGE_ID, _("Camera"),
+	                     IMAGE_DIR_ID, IMAGE_ID, _("Folders"),
 
 	                     BROWSEDIR_ID, "0", _("Browse Folders"),
 			0 };
