@@ -1035,13 +1035,6 @@ GetVideoMetadata(const char * path, char * name)
 				}
 				else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
 				{
-					if( ends_with(path, ".mov") )
-					{
-						DPRINTF(E_DEBUG, L_METADATA, "Skipping DLNA parsing for .mov file %s\n", path);
-						free(m.dlna_pn);
-						m.dlna_pn = NULL;
-						break;
-					}
 					off += sprintf(m.dlna_pn+off, "MP4_");
 
 					switch( ctx->streams[video_stream]->codec->profile ) {
@@ -1271,6 +1264,11 @@ GetVideoMetadata(const char * path, char * name)
 						ctx->streams[video_stream]->codec->profile = 0;
 				}
 			case CODEC_ID_VC1:
+				if( strcmp(ctx->iformat->name, "asf") != 0 )
+				{
+					DPRINTF(E_DEBUG, L_METADATA, "Skipping DLNA parsing for non-ASF VC1 file %s\n", path);
+					break;
+				}
 				m.dlna_pn = malloc(64);
 				off = sprintf(m.dlna_pn, "WMV");
 				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is VC1\n", video_stream, basename(path));
