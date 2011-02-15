@@ -62,7 +62,7 @@ _asf_read_audio_stream(FILE *fp, struct song_metadata *psong, int size)
 		case WMAV2:
 			if( (psong->bitrate/1000+1) >= 385 || psong->samplerate > 48000 )
 				asprintf(&(psong->dlna_pn), "WMAPRO");
-			else if( (psong->bitrate / 1000)+1 < 192 )
+			else if( ((psong->bitrate+1) / 1000) <= 192 )
 				asprintf(&(psong->dlna_pn), "WMABASE");
 			else
 				asprintf(&(psong->dlna_pn), "WMAFULL");
@@ -140,7 +140,7 @@ _asf_read_stream_object(FILE *fp, struct song_metadata *psong, __u32 size)
 		_asf_read_audio_stream(fp, psong, s.TypeSpecificSize);
 	else if(IsEqualGUID(&s.StreamType, &ASF_StreamBufferStream))
 		_asf_read_media_stream(fp, psong, s.TypeSpecificSize);
-	else
+	else if(!IsEqualGUID(&s.StreamType, &ASF_VideoStream))
 	{
 		DPRINTF(E_ERROR, L_SCANNER, "Unknown asf stream type.\n");
 	}
@@ -520,6 +520,12 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 					if(_asf_load_string(fp, ValueType, ValueLength, buf, sizeof(buf)))
 						if(buf[0])
 							psong->contributor[ROLE_CONDUCTOR] = strdup(buf);
+				}
+				else if(!strcasecmp(buf, "WM/Composer"))
+				{
+					if(_asf_load_string(fp, ValueType, ValueLength, buf, sizeof(buf)))
+						if(buf[0])
+							psong->contributor[ROLE_COMPOSER] = strdup(buf);
 				}
 				else if(!strcasecmp(buf, "WM/Picture") && (ValueType == ASF_VT_BYTEARRAY))
 				{

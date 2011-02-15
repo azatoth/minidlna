@@ -34,11 +34,11 @@
 #define ROLE_NOUSE 0
 #define ROLE_START 1
 #define ROLE_ARTIST 1
-#define ROLE_COMPOSER 2
-#define ROLE_CONDUCTOR 3
+#define ROLE_TRACKARTIST 2
+#define ROLE_ALBUMARTIST 3
 #define ROLE_BAND 4
-#define ROLE_ALBUMARTIST 5
-#define ROLE_TRACKARTIST 6
+#define ROLE_CONDUCTOR 5
+#define ROLE_COMPOSER 6
 #define ROLE_LAST 6
 #define N_ROLE 7
 
