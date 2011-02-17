@@ -43,6 +43,7 @@ enum upnpconfigoptions {
 	UPNPSYSTEM_UPTIME,		/* system_uptime */
 	UPNPUUID,			/* uuid */
 	UPNPSERIAL,			/* serial */
+	UPNPMODEL_NAME,			/* model_name */
 	UPNPMODEL_NUMBER,		/* model_number */
 	UPNPFRIENDLYNAME,		/* how the system should show up to DLNA clients */
 	UPNPMEDIADIR,			/* directory to search for UPnP-A/V content */

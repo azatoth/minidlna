@@ -57,7 +57,13 @@
 
 #include <sqlite3.h>
 
-#define MINIDLNA_VERSION "1.0.18.2"
+#define MINIDLNA_VERSION "1.0.19"
+
+#ifdef NETGEAR
+# define SERVER_NAME "ReadyDLNA"
+#else
+# define SERVER_NAME "MiniDLNA"
+#endif
 
 #define CLIENT_CACHE_SLOTS 20
 #define USE_FORK 1
@@ -67,6 +73,10 @@
 #define _(string) gettext(string)
 #else
 #define _(string) (string)
+#endif
+
+#ifndef PNPX
+#define PNPX 0
 #endif
 
 #if 0 // Add these once the newer ffmpeg libs that can detect WMAPRO are more widely used
@@ -137,14 +147,21 @@ extern const char * pidfilename;
 
 extern char uuidvalue[];
 
-#define SERIALNUMBER_MAX_LEN (10)
-extern char serialnumber[];
+#define MODELNAME_MAX_LEN (64)
+extern char modelname[];
 
-#define MODELNUMBER_MAX_LEN (48)
+#define MODELNUMBER_MAX_LEN (16)
 extern char modelnumber[];
+
+#define SERIALNUMBER_MAX_LEN (16)
+extern char serialnumber[];
 
 #define PRESENTATIONURL_MAX_LEN (64)
 extern char presentationurl[];
+
+#if PNPX
+extern char pnpx_hwid[];
+#endif
 
 /* lan addresses */
 /* MAX_LAN_ADDR : maximum number of interfaces

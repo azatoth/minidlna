@@ -50,6 +50,7 @@ static const struct {
 	{ UPNPSYSTEM_UPTIME, "system_uptime" },
 	{ UPNPUUID, "uuid"},
 	{ UPNPSERIAL, "serial"},
+	{ UPNPMODEL_NAME, "model_name"},
 	{ UPNPMODEL_NUMBER, "model_number"},
 	{ UPNPFRIENDLYNAME, "friendly_name"},
 	{ UPNPMEDIADIR, "media_dir"},

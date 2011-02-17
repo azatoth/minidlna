@@ -117,37 +117,46 @@ static const char xmlver[] =
 static const char root_service[] =
 	"scpd xmlns=\"urn:schemas-upnp-org:service-1-0\"";
 static const char root_device[] = 
-	"root xmlns=\"urn:schemas-upnp-org:device-1-0\"";
+	"root xmlns=\"urn:schemas-upnp-org:device-1-0\""
+#if PNPX
+	" xmlns:pnpx=\"http://schemas.microsoft.com/windows/pnpx/2005/11\""
+	" xmlns:df=\"http://schemas.microsoft.com/windows/2008/09/devicefoundation\""
+#endif
+	;
 
-/* root Description of the UPnP Device 
- * fixed to match UPnP_IGD_InternetGatewayDevice 1.0.pdf 
- * presentationURL is only "recommended" but the router doesn't appears
- * in "Network connections" in Windows XP if it is not present. */
+/* root Description of the UPnP Device */
 static const struct XMLElt rootDesc[] =
 {
 	{root_device, INITHELPER(1,2)},
 	{"specVersion", INITHELPER(3,2)},
-	{"device", INITHELPER(5,14)},
+	{"device", INITHELPER(5,(14+PNPX))},
 	{"/major", "1"},
 	{"/minor", "0"},
 	{"/deviceType", "urn:schemas-upnp-org:device:MediaServer:1"},
+#if PNPX == 5
+	{"/pnpx:X_hardwareId", pnpx_hwid},
+	{"/pnpx:X_compatibleId", "MS_DigitalMediaDeviceClass_DMS_V001"},
+	{"/pnpx:X_deviceCategory", "MediaDevices"},
+	{"/df:X_deviceCategory", "Multimedia.DMS"},
+	{"/microsoft:magicPacketWakeSupported xmlns:microsoft=\"urn:schemas-microsoft-com:WMPNSS-1-0\"", "0"},
+#endif
 	{"/friendlyName", friendly_name},	/* required */
 	{"/manufacturer", ROOTDEV_MANUFACTURER},		/* required */
 	{"/manufacturerURL", ROOTDEV_MANUFACTURERURL},	/* optional */
 	{"/modelDescription", ROOTDEV_MODELDESCRIPTION}, /* recommended */
-	{"/modelName", ROOTDEV_MODELNAME},	/* required */
+	{"/modelName", modelname},	/* required */
 	{"/modelNumber", modelnumber},
 	{"/modelURL", ROOTDEV_MODELURL},
 	{"/serialNumber", serialnumber},
 	{"/UDN", uuidvalue},	/* required */
 	{"/dlna:X_DLNADOC xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\"", "DMS-1.50"},
 	{"/presentationURL", presentationurl},	/* recommended */
-	{"iconList", INITHELPER(19,4)},
-	{"serviceList", INITHELPER(43,3)},
-	{"icon", INITHELPER(23,5)},
-	{"icon", INITHELPER(28,5)},
-	{"icon", INITHELPER(33,5)},
-	{"icon", INITHELPER(38,5)},
+	{"iconList", INITHELPER((19+PNPX),4)},
+	{"serviceList", INITHELPER((43+PNPX),3)},
+	{"icon", INITHELPER((23+PNPX),5)},
+	{"icon", INITHELPER((28+PNPX),5)},
+	{"icon", INITHELPER((33+PNPX),5)},
+	{"icon", INITHELPER((38+PNPX),5)},
 	{"/mimetype", "image/png"},
 	{"/width", "48"},
 	{"/height", "48"},
@@ -168,9 +177,9 @@ static const struct XMLElt rootDesc[] =
 	{"/height", "120"},
 	{"/depth", "24"},
 	{"/url", "/icons/lrg.jpg"},
-	{"service", INITHELPER(46,5)},
-	{"service", INITHELPER(51,5)},
-	{"service", INITHELPER(56,5)},
+	{"service", INITHELPER((46+PNPX),5)},
+	{"service", INITHELPER((51+PNPX),5)},
+	{"service", INITHELPER((56+PNPX),5)},
 	{"/serviceType", "urn:schemas-upnp-org:service:ContentDirectory:1"},
 	{"/serviceId", "urn:upnp-org:serviceId:ContentDirectory"},
 	{"/controlURL", CONTENTDIRECTORY_CONTROLURL},

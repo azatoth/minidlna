@@ -35,6 +35,7 @@ OS_VERSION=`uname -r`
 TIVO="/*#define TIVO_SUPPORT*/"
 NETGEAR="/*#define NETGEAR*/"
 READYNAS="/*#define READYNAS*/"
+PNPX="#define PNPX 0"
 
 ${RM} ${CONFIGFILE}
 
@@ -123,10 +124,12 @@ case $OS_NAME in
 			OS_NAME=$(awk -F'!!|=' '{ print $1 }' /etc/raidiator_version)
 			OS_VERSION=$(awk -F'!!|[=,.]' '{ print $3"."$4 }' /etc/raidiator_version)
 			OS_URL="http://www.readynas.com/"
+			LOG_PATH="/var/log"
 			DB_PATH="/var/cache/minidlna"
 			TIVO="#define TIVO_SUPPORT"
 			NETGEAR="#define NETGEAR"
 			READYNAS="#define READYNAS"
+			PNPX="#define PNPX 5"
 		# Debian GNU/Linux special case
 		elif [ -f /etc/debian_version ]; then
 			OS_NAME=Debian
@@ -154,13 +157,13 @@ case $OS_NAME in
 		;;
 esac
 
-echo "#define OS_NAME		\"$OS_NAME\"" >> ${CONFIGFILE}
-echo "#define OS_VERSION	\"$OS_NAME/$OS_VERSION\"" >> ${CONFIGFILE}
-echo "#define OS_URL		\"${OS_URL}\"" >> ${CONFIGFILE}
+echo "#define OS_NAME			\"$OS_NAME\"" >> ${CONFIGFILE}
+echo "#define OS_VERSION		\"$OS_NAME/$OS_VERSION\"" >> ${CONFIGFILE}
+echo "#define OS_URL			\"${OS_URL}\"" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* full path of the file database */" >> ${CONFIGFILE}
-echo "#define DEFAULT_DB_PATH	\"${DB_PATH}\"" >> ${CONFIGFILE}
+echo "#define DEFAULT_DB_PATH		\"${DB_PATH}\"" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "/* full path of the log directory */" >> ${CONFIGFILE}
@@ -203,6 +206,8 @@ echo "/* Enable ReadyNAS-specific tweaks. */" >> ${CONFIGFILE}
 echo "${READYNAS}" >> ${CONFIGFILE}
 echo "/* Compile in TiVo support. */" >> ${CONFIGFILE}
 echo "${TIVO}" >> ${CONFIGFILE}
+echo "/* Enable PnPX support. */" >> ${CONFIGFILE}
+echo "${PNPX}" >> ${CONFIGFILE}
 echo "" >> ${CONFIGFILE}
 
 echo "#endif" >> ${CONFIGFILE}

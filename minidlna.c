@@ -206,11 +206,13 @@ getfriendlyname(char * buf, int len)
 {
 	char * dot = NULL;
 	char * hn = calloc(1, 256);
+	int off;
+
 	if( gethostname(hn, 256) == 0 )
 	{
 		strncpy(buf, hn, len-1);
 		buf[len] = '\0';
-		dot = index(buf, '.');
+		dot = strchr(buf, '.');
 		if( dot )
 			*dot = '\0';
 	}
@@ -219,13 +221,70 @@ getfriendlyname(char * buf, int len)
 		strcpy(buf, "Unknown");
 	}
 	free(hn);
-	strcat(buf, ": ");
-	#ifdef READYNAS
-	strncat(buf, "ReadyNAS", len-strlen(buf)-1);
-	#else
+
+	off = strlen(buf);
+	off += snprintf(buf+off, len-off, ": ");
+#ifdef READYNAS
+	FILE * info;
+	char ibuf[64], *key, *val;
+	info = fopen("/proc/sys/dev/boot/info", "r");
+	if( !info )
+	{
+		snprintf(buf+off, len-off, "ReadyNAS");
+		return;
+	}
+	while( (val = fgets(ibuf, 64, info)) != NULL )
+	{
+		key = strsep(&val, ": \t");
+		val = trim(val);
+		if( strcmp(key, "model") == 0 )
+		{
+			key = strchr(val, ' ');
+			if( key )
+			{
+				strncpy(modelnumber, key+1, MODELNUMBER_MAX_LEN);
+				modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
+				*key = '\0';
+			}
+			snprintf(modelname, MODELNAME_MAX_LEN,
+				"Windows Media Connect compatible (%s)", val);
+		}
+		else if( strcmp(key, "serial") == 0 )
+		{
+			strncpy(serialnumber, val, SERIALNUMBER_MAX_LEN);
+			serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
+			if( serialnumber[0] == '\0' )
+			{
+				char mac_str[13];
+				if( getsyshwaddr(mac_str, sizeof(mac_str)) == 0 )
+					strcpy(serialnumber, mac_str);
+				else
+					strcpy(serialnumber, "0");
+			}
+			break;
+		}
+	}
+	fclose(info);
+	if( strcmp(modelnumber, "NVX") == 0 )
+		memcpy(pnpx_hwid+4, "01F2&amp;DEV_0101", 17);
+	else if( strcmp(modelnumber, "Pro") == 0 ||
+	         strcmp(modelnumber, "Pro 6") == 0 ||
+	         strncmp(modelnumber, "Ultra 6", 7) == 0 )
+		memcpy(pnpx_hwid+4, "01F2&amp;DEV_0102", 17);
+	else if( strcmp(modelnumber, "Pro 2") == 0 ||
+	         strncmp(modelnumber, "Ultra 2", 7) == 0 )
+		memcpy(pnpx_hwid+4, "01F2&amp;DEV_0103", 17);
+	else if( strcmp(modelnumber, "Pro 4") == 0 ||
+	         strncmp(modelnumber, "Ultra 4", 7) == 0 )
+		memcpy(pnpx_hwid+4, "01F2&amp;DEV_0104", 17);
+	else if( strcmp(modelnumber+1, "100") == 0 )
+		memcpy(pnpx_hwid+4, "01F2&amp;DEV_0105", 17);
+	else if( strcmp(modelnumber+1, "200") == 0 )
+		memcpy(pnpx_hwid+4, "01F2&amp;DEV_0106", 17);
+#else
 	char * logname;
 	logname = getenv("LOGNAME");
-#if 1 // Disable for static linking
+#ifndef STATIC // Disable for static linking
 	if( !logname )
 	{
 		struct passwd * pwent;
@@ -234,8 +293,8 @@ getfriendlyname(char * buf, int len)
 			logname = pwent->pw_name;
 	}
 #endif
-	strncat(buf, logname?logname:"Unknown", len-strlen(buf)-1);
-	#endif
+	snprintf(buf+off, len-off, "%s", logname?logname:"Unknown");
+#endif
 }
 
 int
@@ -362,6 +421,10 @@ init(int argc, char * * argv)
 				strncpy(serialnumber, ary_options[i].value, SERIALNUMBER_MAX_LEN);
 				serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
 				break;				
+			case UPNPMODEL_NAME:
+				strncpy(modelname, ary_options[i].value, MODELNAME_MAX_LEN);
+				modelname[MODELNAME_MAX_LEN-1] = '\0';
+				break;
 			case UPNPMODEL_NUMBER:
 				strncpy(modelnumber, ary_options[i].value, MODELNUMBER_MAX_LEN);
 				modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
@@ -770,10 +833,10 @@ main(int argc, char * * argv)
 		return 1;
 
 #ifdef READYNAS
-	DPRINTF(E_WARN, L_GENERAL, "Starting ReadyDLNA version " MINIDLNA_VERSION ".\n");
+	DPRINTF(E_WARN, L_GENERAL, "Starting " SERVER_NAME " version " MINIDLNA_VERSION ".\n");
 	unlink("/ramfs/.upnp-av_scan");
 #else
-	DPRINTF(E_WARN, L_GENERAL, "Starting MiniDLNA version " MINIDLNA_VERSION " [SQLite %s].\n", sqlite3_libversion());
+	DPRINTF(E_WARN, L_GENERAL, "Starting " SERVER_NAME " version " MINIDLNA_VERSION " [SQLite %s].\n", sqlite3_libversion());
 	if( !sqlite3_threadsafe() )
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "SQLite library is not threadsafe!  "

@@ -16,6 +16,7 @@ CFLAGS = -Wall -g -O3 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 \
 	 -I/usr/include/ffmpeg \
 	 -I/usr/include/libavutil -I/usr/include/libavcodec -I/usr/include/libavformat \
 	 -I/usr/include/ffmpeg/libavutil -I/usr/include/ffmpeg/libavcodec -I/usr/include/ffmpeg/libavformat
+#STATIC_LINKING: CFLAGS += -DSTATIC
 #STATIC_LINKING: LDFLAGS = -static
 CC = gcc
 RM = rm -f

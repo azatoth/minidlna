@@ -85,12 +85,6 @@ char *
 genX_MS_MediaReceiverRegistrar(int * len);
 
 char *
-genWANIPCn(int * len);
-
-char *
-genWANCfg(int * len);
-
-char *
 getVarsContentDirectory(int * len);
 
 char *
