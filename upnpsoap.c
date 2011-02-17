@@ -744,9 +744,6 @@ callback(void *args, int argc, char **argv, char **azColName)
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
-			ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
 		}
 		if( album && (passed_args->filter & FILTER_UPNP_ALBUM) ) {
 			ret = snprintf(str_buf, 512, "&lt;upnp:album&gt;%s&lt;/upnp:album&gt;", album);
