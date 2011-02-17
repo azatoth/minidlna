@@ -28,14 +28,12 @@
  *   */
 struct aBeacon
 {
-   time_t               lastSeen;
-   char*                machine;
-   char*                identity;
-   char*                platform;
-   char*                swversion;
-   char*                method;
-   char*                services;
-   struct aBeacon*      next;
+#ifdef DEBUG
+   time_t lastSeen;
+#endif
+   char * machine;
+   char * identity;
+   struct aBeacon *next;
 };
 
 uint32_t
@@ -46,4 +44,7 @@ OpenAndConfTivoBeaconSocket();
 
 void
 sendBeaconMessage(int fd, struct sockaddr_in * client, int len, int broadcast);
+
+void
+ProcessTiVoBeacon(int fd);
 #endif

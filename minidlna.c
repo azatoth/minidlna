@@ -983,7 +983,13 @@ main(int argc, char * * argv)
 			FD_SET(shttpl, &readset);
 			max_fd = MAX( max_fd, shttpl);
 		}
-
+#ifdef TIVO_SUPPORT
+		if (sbeacon >= 0) 
+		{
+			FD_SET(sbeacon, &readset);
+			max_fd = MAX(max_fd, sbeacon);
+		}
+#endif
 		i = 0;	/* active HTTP connections count */
 		for(e = upnphttphead.lh_first; e != NULL; e = e->entries.le_next)
 		{
@@ -994,14 +1000,13 @@ main(int argc, char * * argv)
 				i++;
 			}
 		}
-		/* for debug */
 #ifdef DEBUG
+		/* for debug */
 		if(i > 1)
 		{
 			DPRINTF(E_DEBUG, L_GENERAL, "%d active incoming HTTP connections\n", i);
 		}
 #endif
-
 		FD_ZERO(&writeset);
 		upnpevents_selectfds(&readset, &writeset, &max_fd);
 
@@ -1018,6 +1023,13 @@ main(int argc, char * * argv)
 			/*DPRINTF(E_DEBUG, L_GENERAL, "Received UDP Packet\n");*/
 			ProcessSSDPRequest(sudp, (unsigned short)runtime_vars.port);
 		}
+#ifdef TIVO_SUPPORT
+		if(sbeacon >= 0 && FD_ISSET(sbeacon, &readset))
+		{
+			/*DPRINTF(E_DEBUG, L_GENERAL, "Received UDP Packet\n");*/
+			ProcessTiVoBeacon(sbeacon);
+		}
+#endif
 		/* increment SystemUpdateID if the content database has changed,
 		 * and if there is an active HTTP connection, at most once every 2 seconds */
 		if( i && (time(NULL) >= (lastupdatetime.tv_sec + 2)) )
