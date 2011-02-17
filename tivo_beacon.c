@@ -120,12 +120,13 @@ getBcastAddress(void)
 			rval = ioctl(s, SIOCGIFBRDADDR, &ifr);
 			if( rval < 0 )
 			{
+				DPRINTF(E_ERROR, L_TIVO, "Failed to get broadcast addr on %s [%s]\n", ifr.ifr_name, strerror(errno));
 				close(s);
 				return INADDR_BROADCAST;
 			}
 			memcpy(&sin, &ifr.ifr_broadaddr, sizeof(sin));
 			close(s);
-			DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s \n", ifr.ifr_name, inet_ntoa(sin.sin_addr));
+			DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s\n", ifr.ifr_name, inet_ntoa(sin.sin_addr));
 			return ntohl((uint32_t)(sin.sin_addr.s_addr));
 		}
 	}
