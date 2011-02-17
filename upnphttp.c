@@ -797,9 +797,10 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			/* If it's a Xbox360, we might need a special friendly_name to be recognized */
 			if( (h->req_client == EXbox) && !strchr(friendly_name, ':') )
 			{
-				strncat(friendly_name, ": 1", FRIENDLYNAME_MAX_LEN-4);
+				i = strlen(friendly_name);
+				snprintf(friendly_name+i, FRIENDLYNAME_MAX_LEN-i, ": 1");
 				sendXMLdesc(h, genRootDesc);
-				friendly_name[strlen(friendly_name)-3] = '\0';
+				friendly_name[i] = '\0';
 			}
 			else
 			{
