@@ -707,7 +707,10 @@ start_inotify()
 					{
 						DPRINTF(E_DEBUG, L_INOTIFY, "The symbolic link %s was %s.\n",
 							path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
-						inotify_insert_file(esc_name, path_buf);
+						if( stat(path_buf, &st) == 0 && S_ISDIR(st.st_mode) )
+							inotify_insert_directory(pollfds[0].fd, esc_name, path_buf);
+						else
+							inotify_insert_file(esc_name, path_buf);
 					}
 					else if( event->mask & (IN_CLOSE_WRITE|IN_MOVED_TO) && st.st_size > 0 )
 					{
