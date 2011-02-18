@@ -227,18 +227,17 @@ getfriendlyname(char * buf, int len)
 #ifdef READYNAS
 	FILE * info;
 	char ibuf[64], *key, *val;
+	snprintf(buf+off, len-off, "ReadyNAS");
 	info = fopen("/proc/sys/dev/boot/info", "r");
 	if( !info )
-	{
-		snprintf(buf+off, len-off, "ReadyNAS");
 		return;
-	}
 	while( (val = fgets(ibuf, 64, info)) != NULL )
 	{
 		key = strsep(&val, ": \t");
 		val = trim(val);
 		if( strcmp(key, "model") == 0 )
 		{
+			snprintf(buf+off, len-off, "%s", val);
 			key = strchr(val, ' ');
 			if( key )
 			{
