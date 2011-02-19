@@ -960,6 +960,24 @@ GetVideoMetadata(const char * path, char * name)
 								m.dlna_pn = NULL;
 							}
 							break;
+						case FF_PROFILE_H264_HIGH:
+							off += sprintf(m.dlna_pn+off, "HP_");
+							if( ctx->streams[video_stream]->codec->width  <= 1920 &&
+							    ctx->streams[video_stream]->codec->height <= 1152 &&
+							    ctx->streams[video_stream]->codec->bit_rate <= 30000000 &&
+							    audio_profile == PROFILE_AUDIO_AC3 )
+							{
+								off += sprintf(m.dlna_pn+off, "HD_");
+							}
+							else
+							{
+								DPRINTF(E_DEBUG, L_METADATA, "Unsupported h.264 HP video profile! [%dbps, %d audio : %s]\n",
+									ctx->streams[video_stream]->codec->bit_rate,
+									audio_profile, basename(path));
+								free(m.dlna_pn);
+								m.dlna_pn = NULL;
+							}
+							break;
 						default:
 							DPRINTF(E_DEBUG, L_METADATA, "Unknown AVC profile %d; assuming MP. [%s]\n",
 								ctx->streams[video_stream]->codec->profile, basename(path));
@@ -1130,21 +1148,14 @@ GetVideoMetadata(const char * path, char * name)
 						    ctx->streams[video_stream]->codec->bit_rate <= 10000000 )
 						{
 							sprintf(m.dlna_pn+off, "SD_");
-							switch( audio_profile )
-							{
-								case PROFILE_AUDIO_AC3:
-									off += sprintf(m.dlna_pn+off, "AC3");
-									break;
-								case PROFILE_AUDIO_AAC_MULT5:
-									off += sprintf(m.dlna_pn+off, "AAC_MULT5");
-									break;
-								default:
-									DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for MP4/AVC/SD file %s\n",
-										basename(path));
-									free(m.dlna_pn);
-									m.dlna_pn = NULL;
-									break;
-							}
+							if( audio_profile == PROFILE_AUDIO_AC3 )
+								off += sprintf(m.dlna_pn+off, "AC3");
+							else if( audio_profile == PROFILE_AUDIO_AAC_MULT5 )
+								off += sprintf(m.dlna_pn+off, "AAC_MULT5");
+							else if( audio_profile == PROFILE_AUDIO_MP3 )
+								off += sprintf(m.dlna_pn+off, "MPEG1_L3");
+							else
+								m.dlna_pn[10] = '\0';
 						}
 						else if( ctx->streams[video_stream]->codec->width  <= 1280 &&
 						         ctx->streams[video_stream]->codec->height <= 720 &&
