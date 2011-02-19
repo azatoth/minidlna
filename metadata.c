@@ -1432,8 +1432,13 @@ video_no_dlna:
 #ifdef TIVO_SUPPORT
 	if( ends_with(path, ".TiVo") && is_tivo_file(path) )
 	{
-		free(m.mime);
-		asprintf(&m.mime, "video/x-tivo-mpeg");
+		if( m.dlna_pn )
+		{
+			free(m.dlna_pn);
+			m.dlna_pn = NULL;
+		}
+		m.mime = realloc(m.mime, 18);
+		strcpy(m.mime, "video/x-tivo-mpeg");
 	}
 #endif
 	if( !m.title )
