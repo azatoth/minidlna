@@ -102,31 +102,39 @@ uint32_t
 getBcastAddress(void)
 {
 	int i, rval;
-	int s = socket(PF_INET, SOCK_STREAM, 0);
+	int s;
 	struct sockaddr_in sin;
 	struct sockaddr_in addr;
-	struct ifreq ifr;
+	struct ifreq ifr[16];
+	struct ifconf ifc;
+	int count = 0;
 
-	for (i=1; i > 0; i++)
+	s = socket(PF_INET, SOCK_STREAM, 0);
+	memset(&ifc, '\0', sizeof(ifc));
+	ifc.ifc_len = sizeof(ifr);
+	ifc.ifc_req = ifr;
+
+	if(ioctl(s, SIOCGIFCONF, &ifc) < 0) {
+		DPRINTF(E_ERROR, L_TIVO, "Error getting interface list [%s]\n", ifr[i].ifr_name, strerror(errno));
+		return INADDR_BROADCAST;
+	}
+
+	count = ifc.ifc_len / sizeof(struct ifreq);
+	for(i = 0; i < count; i++)
 	{
-		ifr.ifr_ifindex = i;
-		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
-			break;
-		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
-			continue;
-		memcpy(&addr, &ifr.ifr_addr, sizeof(addr));
+		memcpy(&addr, &ifr[i].ifr_addr, sizeof(addr));
 		if(strcmp(inet_ntoa(addr.sin_addr), lan_addr[0].str) == 0)
 		{
-			rval = ioctl(s, SIOCGIFBRDADDR, &ifr);
+			rval = ioctl(s, SIOCGIFBRDADDR, &ifr[i]);
 			if( rval < 0 )
 			{
-				DPRINTF(E_ERROR, L_TIVO, "Failed to get broadcast addr on %s [%s]\n", ifr.ifr_name, strerror(errno));
+				DPRINTF(E_ERROR, L_TIVO, "Failed to get broadcast addr on %s [%s]\n", ifr[i].ifr_name, strerror(errno));
 				close(s);
 				return INADDR_BROADCAST;
 			}
-			memcpy(&sin, &ifr.ifr_broadaddr, sizeof(sin));
+			memcpy(&sin, &ifr[i].ifr_broadaddr, sizeof(sin));
 			close(s);
-			DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s\n", ifr.ifr_name, inet_ntoa(sin.sin_addr));
+			DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s\n", ifr[i].ifr_name, inet_ntoa(sin.sin_addr));
 			return ntohl((uint32_t)(sin.sin_addr.s_addr));
 		}
 	}
