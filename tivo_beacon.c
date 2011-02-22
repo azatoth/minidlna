@@ -108,6 +108,7 @@ getBcastAddress(void)
 	struct ifreq ifr[16];
 	struct ifconf ifc;
 	int count = 0;
+	uint32_t ret = INADDR_BROADCAST;
 
 	s = socket(PF_INET, SOCK_STREAM, 0);
 	memset(&ifc, '\0', sizeof(ifc));
@@ -115,8 +116,9 @@ getBcastAddress(void)
 	ifc.ifc_req = ifr;
 
 	if(ioctl(s, SIOCGIFCONF, &ifc) < 0) {
-		DPRINTF(E_ERROR, L_TIVO, "Error getting interface list [%s]\n", ifr[i].ifr_name, strerror(errno));
-		return INADDR_BROADCAST;
+		DPRINTF(E_ERROR, L_TIVO, "Error getting interface list [%s]\n", strerror(errno));
+		close(s);
+		return ret;
 	}
 
 	count = ifc.ifc_len / sizeof(struct ifreq);
@@ -129,17 +131,17 @@ getBcastAddress(void)
 			if( rval < 0 )
 			{
 				DPRINTF(E_ERROR, L_TIVO, "Failed to get broadcast addr on %s [%s]\n", ifr[i].ifr_name, strerror(errno));
-				close(s);
-				return INADDR_BROADCAST;
+				break;
 			}
 			memcpy(&sin, &ifr[i].ifr_broadaddr, sizeof(sin));
-			close(s);
 			DPRINTF(E_DEBUG, L_TIVO, "Interface: %s broadcast addr %s\n", ifr[i].ifr_name, inet_ntoa(sin.sin_addr));
-			return ntohl((uint32_t)(sin.sin_addr.s_addr));
+			ret = ntohl((uint32_t)(sin.sin_addr.s_addr));
+			break;
 		}
 	}
+	close(s);
 
-	return INADDR_BROADCAST;
+	return ret;
 }
 
 /*
