@@ -754,6 +754,10 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 
 	for (i=0; i < n; i++)
 	{
+#if !USE_FORK
+		if( quitting )
+			break;
+#endif
 		type = TYPE_UNKNOWN;
 		sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
 		name = escape_tag(namelist[i]->d_name);
