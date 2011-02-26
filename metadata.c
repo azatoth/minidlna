@@ -398,13 +398,13 @@ GetAudioMetadata(const char * path, char * name)
 			m.creator = trim(song.contributor[i]);
 			if( strlen(m.creator) > 48 )
 			{
-				free_flags |= FLAG_ARTIST;
 				m.creator = strdup("Various Artists");
+				free_flags |= FLAG_CREATOR;
 			}
 			else if( (esc_tag = escape_tag(m.creator)) )
 			{
-				free_flags |= FLAG_ARTIST;
 				m.creator = esc_tag;
+				free_flags |= FLAG_CREATOR;
 			}
 			m.artist = m.creator;
 			break;
@@ -419,13 +419,13 @@ GetAudioMetadata(const char * path, char * name)
 			m.artist = trim(song.contributor[i]);
 			if( strlen(m.artist) > 48 )
 			{
-				free_flags |= FLAG_CREATOR;
 				m.artist = strdup("Various Artists");
+				free_flags |= FLAG_ARTIST;
 			}
 			else if( (esc_tag = escape_tag(m.artist)) )
 			{
-				free_flags |= FLAG_CREATOR;
 				m.artist = esc_tag;
+				free_flags |= FLAG_ARTIST;
 			}
 		}
 	}
