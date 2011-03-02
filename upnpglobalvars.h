@@ -50,7 +50,6 @@
 #define __UPNPGLOBALVARS_H__
 
 #include <time.h>
-#include <linux/types.h> // Defines __u32
 
 #include "minidlnatypes.h"
 #include "config.h"
@@ -203,6 +202,6 @@ extern struct album_art_name_s * album_art_names;
 extern struct client_cache_s clients[CLIENT_CACHE_SLOTS];
 extern short int scanning;
 extern volatile short int quitting;
-extern volatile __u32 updateID;
+extern volatile uint32_t updateID;
 
 #endif
