@@ -1075,29 +1075,37 @@ GetVideoMetadata(const char * path, char * name)
 								m.dlna_pn = NULL;
 								break;
 							}
-							switch( audio_profile )
+							if( audio_profile == PROFILE_AUDIO_AMR )
 							{
-								case PROFILE_AUDIO_AMR:
-									off += sprintf(m.dlna_pn+off, "AMR");
-									break;
-								case PROFILE_AUDIO_AAC:
-									off += sprintf(m.dlna_pn+off, "AAC_");
-									if( ctx->bit_rate < 540000 )
-									{
-										off += sprintf(m.dlna_pn+off, "540");
-										break;
-									}
-									else if( ctx->bit_rate < 940000 )
-									{
-										off += sprintf(m.dlna_pn+off, "940");
-										break;
-									}
-								default:
+								off += sprintf(m.dlna_pn+off, "AMR");
+							}
+							else if( audio_profile == PROFILE_AUDIO_AAC )
+							{
+								off += sprintf(m.dlna_pn+off, "AAC_");
+								if( ctx->bit_rate < 540000 )
+								{
+									off += sprintf(m.dlna_pn+off, "540");
+								}
+								else if( ctx->bit_rate < 940000 )
+								{
+									off += sprintf(m.dlna_pn+off, "940");
+								}
+								else
+								{
 									DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for %s file %s\n",
 										m.dlna_pn, basename(path));
 									free(m.dlna_pn);
 									m.dlna_pn = NULL;
 									break;
+								}
+							}
+							else
+							{
+								DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for %s file %s\n",
+									m.dlna_pn, basename(path));
+								free(m.dlna_pn);
+								m.dlna_pn = NULL;
+								break;
 							}
 						}
 						else if( ctx->streams[video_stream]->codec->width  <= 720 &&
