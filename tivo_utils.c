@@ -18,6 +18,7 @@
 #include "config.h"
 #ifdef TIVO_SUPPORT
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
 #include <sqlite3.h>
