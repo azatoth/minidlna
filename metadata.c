@@ -1204,6 +1204,11 @@ GetVideoMetadata(const char * path, char * name)
 						break;
 					}
 				}
+				else
+				{
+					free(m.dlna_pn);
+					m.dlna_pn = NULL;
+				}
 				if( m.dlna_pn )
 					sprintf(m.dlna_pn+off, ";%s", dlna_no_conv);
 				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.264\n", video_stream, basename(path));
