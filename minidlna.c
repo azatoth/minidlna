@@ -546,6 +546,15 @@ init(int argc, char * * argv)
 			}
 		}
 	}
+	if( log_path[0] == '\0' )
+	{
+		if( db_path[0] == '\0' )
+			strncpy(log_path, DEFAULT_LOG_PATH, PATH_MAX);
+		else
+			strncpy(log_path, db_path, PATH_MAX);
+	}
+	if( db_path[0] == '\0' )
+		strncpy(db_path, DEFAULT_DB_PATH, PATH_MAX);
 
 	/* command line arguments processing */
 	for(i=1; i<argc; i++)
@@ -676,7 +685,7 @@ init(int argc, char * * argv)
 			runtime_vars.port = 0; // triggers help display
 			break;
 		case 'R':
-			snprintf(real_path, sizeof(real_path), "rm -rf %s/*", db_path);
+			snprintf(real_path, sizeof(real_path), "rm -rf %s/files.db %s/art_cache", db_path, db_path);
 			system(real_path);
 			break;
 		case 'V':
