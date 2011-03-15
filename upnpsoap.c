@@ -1427,6 +1427,26 @@ QueryStateVariable(struct upnphttp * h, const char * action)
 	ClearNameValueList(&data);	
 }
 
+static void
+SamsungGetFeatureList(struct upnphttp * h, const char * action)
+{
+	static const char resp[] =
+		"<u:X_GetFeatureListResponse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">"
+		"<FeatureList>"
+		"<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n"
+		"&lt;Features xmlns=\"urn:schemas-upnp-org:av:avs\""
+		" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+		" xsi:schemaLocation=\"urn:schemas-upnp-org:av:avs http://www.upnp.org/schemas/av/avs.xsd\"&gt;"
+		"&lt;Feature name=\"samsung.com_BASICVIEW\" version=\"1\"&gt;"
+		 "&lt;container id=\"1\" type=\"object.item.audioItem\"/&gt;"
+		 "&lt;container id=\"2\" type=\"object.item.videoItem\"/&gt;"
+		 "&lt;container id=\"3\" type=\"object.item.imageItem\"/&gt;"
+		"&lt;/Feature&gt;"
+		"</FeatureList></u:X_GetFeatureListResponse>";
+
+	BuildSendAndCloseSoapResp(h, resp, sizeof(resp));
+}
+
 static const struct 
 {
 	const char * methodName; 
@@ -1445,6 +1465,7 @@ soapMethods[] =
 	{ "GetCurrentConnectionInfo", GetCurrentConnectionInfo},
 	{ "IsAuthorized", IsAuthorizedValidated},
 	{ "IsValidated", IsAuthorizedValidated},
+	{ "X_GetFeatureList", SamsungGetFeatureList},
 	{ 0, 0 }
 };
 
