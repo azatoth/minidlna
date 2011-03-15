@@ -421,10 +421,6 @@ ProcessSSDPRequest(int s, unsigned short port)
 		}
 		else if( st && (st_len > 0) )
 		{
-			DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH from %s:%d ST: %.*s, MX: %.*s, MAN: %.*s\n",
-	        	   inet_ntoa(sendername.sin_addr),
-	           	   ntohs(sendername.sin_port),
-			   st_len, st, mx_len, mx, man_len, man);
 			/* find in which sub network the client is */
 			for(i = 0; i<n_lan_addr; i++)
 			{
@@ -435,6 +431,16 @@ ProcessSSDPRequest(int s, unsigned short port)
 					break;
 				}
 			}
+			if( i == n_lan_addr )
+			{
+				DPRINTF(E_DEBUG, L_SSDP, "Ignoring SSDP M-SEARCH on other interface [%s]\n",
+					inet_ntoa(sendername.sin_addr));
+				return;
+			}
+			DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH from %s:%d ST: %.*s, MX: %.*s, MAN: %.*s\n",
+	        	   inet_ntoa(sendername.sin_addr),
+	           	   ntohs(sendername.sin_port),
+			   st_len, st, mx_len, mx, man_len, man);
 			/* Responds to request with a device as ST header */
 			for(i = 0; known_service_types[i]; i++)
 			{
