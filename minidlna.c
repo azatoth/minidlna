@@ -392,6 +392,7 @@ init(int argc, char * * argv)
 		{
 			switch(ary_options[i].id)
 			{
+#ifndef CYGWIN
 			case UPNPIFNAME:
 				if(getifaddr(ary_options[i].value, ext_ip_addr, INET_ADDRSTRLEN) >= 0)
 				{
@@ -401,6 +402,7 @@ init(int argc, char * * argv)
 				else
 					fprintf(stderr, "Interface %s not found, ignoring.\n", ary_options[i].value);
 				break;
+#endif // CYGWIN
 			case UPNPLISTENING_IP:
 				if(n_lan_addr < MAX_LAN_ADDR)
 				{
@@ -456,7 +458,13 @@ init(int argc, char * * argv)
 				case 'p':
 					if( ary_options[i].value[0] == 'P' || ary_options[i].value[0] == 'p' )
 						type = IMAGES_ONLY;
+#ifndef CYGWIN
 					myval = index(ary_options[i].value, '/');
+#else // CYGWIN
+					myval = index(ary_options[i].value, '"');
+					if (!myval)
+						myval = index(ary_options[i].value, '/');
+#endif // CYGWIN
 				case '/':
 					path = realpath(myval ? myval:ary_options[i].value, real_path);
 					if( !path )
@@ -746,7 +754,11 @@ init(int argc, char * * argv)
 	else
 	{
 #ifdef USE_DAEMON
+#ifndef CYGWIN
 		if(daemon(0, 0)<0) {
+#else
+		if(daemon(1, 0)<0) { // keep cuurend cwd
+#endif // CYGWIN
 			perror("daemon()");
 		}
 		pid = getpid();
@@ -845,6 +857,19 @@ main(int argc, char * * argv)
 	textdomain("minidlna");
 #endif
 
+#ifdef CYGWIN
+	#include <sys/cygwin.h>
+	{
+		char *localappdata;
+		if ((localappdata = getenv("LOCALAPPDATA")) == NULL) // Windows7, Vista
+			 localappdata = getenv("APPDATA");				 // Windows XP
+		if (localappdata != NULL)
+			//cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE, localappdata, db_path, PATH_MAX);
+			//strcat(db_path, "/minidlna");
+			sprintf(db_path, "%s\\minidlna", localappdata);
+	}
+#endif // CYGWIN
+
 	if(init(argc, argv) != 0)
 		return 1;
 
@@ -865,6 +890,10 @@ main(int argc, char * * argv)
 	}
 #endif
 	LIST_INIT(&upnphttphead);
+
+#ifdef CYGWIN
+	DPRINTF(E_INFO, L_GENERAL, "db_path = %s\n", db_path);
+#endif // CYGWIN
 
 	new_db = open_db();
 	if( !new_db )

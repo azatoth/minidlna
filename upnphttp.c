@@ -67,7 +67,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifndef CYGWIN
 #include <sys/sendfile.h>
+#endif // CYGWIN
 #include <arpa/inet.h>
 
 #include "upnpglobalvars.h"
@@ -314,6 +316,13 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EMediaRoom;
 					h->reqflags |= FLAG_MS_PFS;
 				}
+#if 1 // support ToshibaTV (REGZA)
+				else if(strstrc(p, "UPnP/1.0 DLNADOC/1.50 Intel_SDK_for_UPnP_devices/1.2", '\r'))
+				{
+					h->req_client = EToshibaTV;
+					h->reqflags |= FLAG_DLNA;
+				}
+#endif // support ToshibaTV (REGZA)
 				else if(strstrc(p, "DLNADOC/1.50", '\r'))
 				{
 					h->req_client = EStandardDLNA150;
@@ -456,7 +465,7 @@ next_header:
 				break;
 			}
 		}
-		else if( (n < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
+		else if( (n < EStandardDLNA150) && ( (h->req_client == EStandardDLNA150) || (h->req_client == EToshibaTV) ) )
 		{
 			/* If we know the client and our new detection is generic, use our cached info */
 			h->reqflags |= clients[n].flags;
@@ -1125,10 +1134,13 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 	off_t send_size;
 	off_t ret;
 	char *buf = NULL;
+#ifndef CYGWIN
 	int try_sendfile = 1;
+#endif // CYGWIN
 
 	while( offset < end_offset )
 	{
+#ifndef CYGWIN
 		if( try_sendfile )
 		{
 			send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
@@ -1148,6 +1160,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 				continue;
 			}
 		}
+#endif // CYGWIN
 		/* Fall back to regular I/O */
 		if( !buf )
 			buf = malloc(MIN_BUFFER_SIZE);
