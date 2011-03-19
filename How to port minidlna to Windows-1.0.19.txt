@@ -1,0 +1,111 @@
+How to port minidlna to Windows (1.0.19)
+
+use Cygwin 1.7.7
+
+at first I tried to build on MinGW, but I found it is difficult because
+a lot of Linux/posix features is not supported.
+
+pach is against "minidlna_1.0.19_src.tar.gz"
+
+
+this patch also includes ToshibaTV support,
+because I have ToshibaTV and can not test without it.
+
+this patch works on windows 32bit version of 7/Vista/XP and 64bit of 7
+
+
+--------------------------------------------------------
+In order to build minidlna, following libraries are needed.
+
+- libavcodec, libavformat, libavutil : included in ffmpeg => need to build from source
+- libid3tag => need to build from source
+
+- libsqlite3 : supported by Cygwin => needed to be installed on Cygwin
+- libjpeg :    supported by Cygwin => needed to be installed on Cygwin
+- libexif :    supported by Cygwin => needed to be installed on Cygwin
+- libogg :     supported by Cygwin => needed to be installed on Cygwin
+- libvorbis :  supported by Cygwin => needed to be installed on Cygwin
+- libflac :    supported by Cygwin => needed to be installed on Cygwin
+
+- libintl :    supported by Cygwin => this is option, better to be installed on Cygwin
+- libiconv :   supported by Cygwin => this is option, better to be installed on Cygwin
+
+
+--------------------------------------------------------
+build ffmpeg
+
+download ffmpeg-0.6.1 from http://www.videohelp.com/tools/ffmpeg
+
+in ordre to avoid some define conflicts,
+"libavutil/bswap.h" and "libavutil/x86/bswap.h" are needed to be modified.
+->see patch
+
+after patch
+
+./configure --disable-shared --enable-static --extra-cflags=-fno-reorder-functions --extra-ldflags=-static-libgcc --extra-ldflags=-static
+make
+make install
+
+
+--------------------------------------------------------
+build libid3tag
+
+
+download libid3tag-0.15.0b from http://www.underbit.com/products/mad/
+
+make
+make install
+
+
+--------------------------------------------------------
+build minidlna
+
+following is the information what I have done.
+it it enough to patch in order to build minidlna on Cygwin.
+
+
+----------
+"linux/limits.h" is not on Cygwin.
+->make directory "additional_include_for_cygwin/linux" at source directory
+  and place very simplified version of "limits.h" there.
+
+
+modify(add lines to) genconfig.sh:
+->see patch
+
+
+modify Makefile
+->see patch
+
+
+inotify.c:
+inotify feature is not supported on Cygwin.
+i tried to add equivalent function using windows API.
+it seems working well.
+
+
+upnphttp.c:
+sendfile() is not supported on Cygwin.
+disable sendfile() used portion.
+
+
+getifaddr.c
+although socket is supported on Cygwin,
+ethernet interface handling is different.
+
+
+uuid.c:
+replace "syscall(__NR_clock_gettime, CLOCK_REALTIME, &ts);"
+with    "clock_gettime(CLOCK_REALTIME, &ts);"
+
+
+minidlna.c
+change default database directory to
+LOCALAPPDATA : Windows7, Vista
+APPDATA : Windows XP
+
+
+--------------------------------------------------------
+
+
+That is all.

@@ -1,0 +1,38 @@
+Note for mindlna cygwin port
+
+--------------------
+1. running without Cygwin installed
+ minidlna.exe can be execute on no Cygwin installed environment.
+ place both "minidlna.exe" and "cygwin1.dll" in the same folder,
+ and execute mindlna.exe
+ options are same as Linux version.
+
+
+--------------------
+2. NIC
+ minidlna.exe automatically search NICs on the PC.
+ first found NIC is used. (127.0.0.0/14 and 169.0.0.0/24 are skipped)
+ to use another NIC, specify listening_ip with "-a" option
+
+
+--------------------
+3. directory/folder name
+ Cygwin style directory/folder name is used to specify folder in "minidlna.conf"
+
+following is an example
+
+ windows  : Cygwin
+ c:\DLNA    /cygdrive/d/DLNA
+
+
+--------------------
+4. default database directory/folder
+ it is as following
+
+ LOCALAPPDATA : Windows7, Vista
+ APPDATA : Windows XP
+
+ can be checked in command prompt as following
+
+ set LOCALAPPDATA
+ set APPDATA
