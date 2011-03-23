@@ -883,6 +883,117 @@ callback(void *args, int argc, char **argv, char **azColName)
 					passed_args->size += ret;
 				}
 			}
+#if 1 // add "protocolInfo" for Toshiba TV (REGZA)
+			if( (*mime == 'v') && dlna_pn && ( passed_args->client == EToshibaTV ) ) {
+				if  ((strcmp(dlna_pn, "MPEG_TS_HD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0") == 0)
+				  || (strcmp(dlna_pn, "MPEG_TS_SD_NA_ISO;DLNA.ORG_OP=01;DLNA.ORG_CI=0") == 0)
+				  || (strcmp(dlna_pn, "AVC_TS_MP_HD_AC3_T;DLNA.ORG_OP=01;DLNA.ORG_CI=0") == 0)
+				 ) {
+					sprintf(dlna_buf, "DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+
+					ret = sprintf(str_buf, "&lt;res ");
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+					if( size && (passed_args->filter & FILTER_RES_SIZE) ) {
+						ret = sprintf(str_buf, "size=\"%s\" ", size);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					if( duration && (passed_args->filter & FILTER_RES_DURATION) ) {
+						ret = sprintf(str_buf, "duration=\"%s\" ", duration);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					if( bitrate && (passed_args->filter & FILTER_RES_BITRATE) ) {
+						ret = sprintf(str_buf, "bitrate=\"%s\" ", bitrate);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					if( sampleFrequency && (passed_args->filter & FILTER_RES_SAMPLEFREQUENCY) ) {
+						ret = sprintf(str_buf, "sampleFrequency=\"%s\" ", sampleFrequency);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					if( nrAudioChannels && (passed_args->filter & FILTER_RES_NRAUDIOCHANNELS) ) {
+						ret = sprintf(str_buf, "nrAudioChannels=\"%s\" ", nrAudioChannels);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					if( resolution && (passed_args->filter & FILTER_RES_RESOLUTION) ) {
+						ret = sprintf(str_buf, "resolution=\"%s\" ", resolution);
+						memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+						passed_args->size += ret;
+					}
+					ret = sprintf(str_buf, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
+					                       "http://%s:%d/MediaItems/%s.%s"
+					                       "&lt;/res&gt;",
+					                       mime, dlna_buf, lan_addr[0].str, runtime_vars.port, detailID, ext);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+			}
+#endif // add "protocolInfo" for Toshiba TV (REGZA)
+#if 1 // support TRANSCODE : add Transcoded Video
+			if( ( strncmp(mime, "video/", 6) == 0 ) && (transcode_video != TRANSCODE_VIDEO_DISABLE) ){
+				ret = sprintf(str_buf, "&lt;res ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				if( duration && (passed_args->filter & FILTER_RES_DURATION) ) {
+					ret = sprintf(str_buf, "duration=\"%s\" ", duration);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+				if( nrAudioChannels && (passed_args->filter & FILTER_RES_NRAUDIOCHANNELS) ) {
+					ret = sprintf(str_buf, "nrAudioChannels=\"%s\" ", nrAudioChannels);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+				ret = sprintf(str_buf, "resolution=\"720x480\" ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+
+				ret = sprintf(str_buf, "protocolInfo=\"http-get:*:video/mpeg:"
+									   "DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=10;DLNA.ORG_CI=1;"
+									   "DLNA.ORG_FLAGS=01500000000000000000000000000000\"&gt;"
+				                       "http://%s:%d/MediaItems/TranscodeVideo/%s.%s"
+				                       "&lt;/res&gt;",
+				                       lan_addr[0].str, runtime_vars.port, detailID, ext);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
+#endif // support TRANSCODE : add Transcoded Video
+#if 1 // support TRANSCODE : add Transcoded Audio
+			if ( ( strncmp(mime, "audio/", 6) == 0 ) && (transcode_audio != TRANSCODE_AUDIO_DISABLE) ) {
+				ret = sprintf(str_buf, "&lt;res ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				if( duration && (passed_args->filter & FILTER_RES_DURATION) ) {
+					ret = sprintf(str_buf, "duration=\"%s\" ", duration);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				}
+
+				if( passed_args->client == EXbox )
+					ret = sprintf(str_buf, "bitrate=\"%d\" ", 1411200/1024);
+				else
+					ret = sprintf(str_buf, "bitrate=\"%d\" ", 1411200/8);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+
+				ret = sprintf(str_buf, "sampleFrequency=\"44100\" nrAudioChannels=\"2\" bitsPerSample=\"16\" ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+
+				ret = sprintf(str_buf, "protocolInfo=\"http-get:*:audio/L16;rate=44100;channels=2:"
+										"DLNA.ORG_PN=LPCM;DLNA.ORG_OP=10;DLNA.ORG_CI=1;"
+										"DLNA.ORG_FLAGS=01500000000000000000000000000000\"&gt;"
+				                       "http://%s:%d/MediaItems/TranscodeAudio/%s.%s"
+				                       "&lt;/res&gt;",
+				                       lan_addr[0].str, runtime_vars.port, detailID, ext);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
+#endif // support TRANSCODE : add Transcoded Audio
 		}
 		ret = sprintf(str_buf, "&lt;/item&gt;");
 	}

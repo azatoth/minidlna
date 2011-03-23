@@ -352,6 +352,12 @@ init(int argc, char * * argv)
 	char * path;
 	char real_path[PATH_MAX];
 	char ext_ip_addr[INET_ADDRSTRLEN] = {'\0'};
+#if 1 // support TRANSCODE
+	int transcode_video_mencoder_options_len = 0;
+	int transcode_video_ffmpeg_options_len = 0;
+	int transcode_audio_ffmpeg_options_len = 0;
+	int len;
+#endif // support TRANSCODE
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -547,11 +553,55 @@ init(int argc, char * * argv)
 				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
 					SETFLAG(DLNA_STRICT_MASK);
 				break;
+#if 1 // support TRANSCODE
+			case TRANSCODE_A_ENABLE:
+				if(strcmp(ary_options[i].value, "PCM") == 0)
+					transcode_audio = TRANSCODE_AUDIO_PCM;
+				else if(strcmp(ary_options[i].value, "DISABLE") == 0)
+					transcode_audio = TRANSCODE_AUDIO_DISABLE;
+				break;
+			case TRANSCODE_V_TRANSCODER:
+				if(strcmp(ary_options[i].value, "MENCODER") == 0)
+					transcode_video = TRANSCODE_VIDEO_MENCODER;
+				else if(strcmp(ary_options[i].value, "FFMPEG") == 0)
+					transcode_video = TRANSCODE_VIDEO_FFMPEG;
+				else if(strcmp(ary_options[i].value, "DISABLE") == 0)
+					transcode_video = TRANSCODE_VIDEO_DISABLE;
+				break;
+			case TRANSCODE_V_MENCODER_OPTIONS:
+				len = strlen(ary_options[i].value) + 1;
+				len = (transcode_video_mencoder_options_len + len) < TRANSCODE_MENCODER_VIDEO_OPTIONS_MAX_LEN ?
+						len : TRANSCODE_MENCODER_VIDEO_OPTIONS_MAX_LEN - transcode_video_mencoder_options_len - 2;
+				transcode_video_mencoder_options_len +=
+					sprintf(&transcode_video_mencoder_options[transcode_video_mencoder_options_len], "%s ", ary_options[i].value);
+				break;
+			case TRANSCODE_V_FFMPEG_OPTIONS:
+				len = strlen(ary_options[i].value) + 1;
+				len = (transcode_video_ffmpeg_options_len + len) < TRANSCODE_FFMPEG_VIDEO_OPTIONS_MAX_LEN ?
+						len : TRANSCODE_FFMPEG_VIDEO_OPTIONS_MAX_LEN - transcode_video_ffmpeg_options_len - 2;
+				transcode_video_ffmpeg_options_len +=
+					sprintf(&transcode_video_ffmpeg_options[transcode_video_ffmpeg_options_len], "%s ", ary_options[i].value);
+				break;
+			case TRANSCODE_A_FFMPEG_OPTIONS:
+				len = strlen(ary_options[i].value) + 1;
+				len = (transcode_audio_ffmpeg_options_len + len) < TRANSCODE_FFMPEG_AUDIO_OPTIONS_MAX_LEN ?
+						len : TRANSCODE_FFMPEG_AUDIO_OPTIONS_MAX_LEN - transcode_audio_ffmpeg_options_len - 2;
+				transcode_audio_ffmpeg_options_len +=
+					sprintf(&transcode_audio_ffmpeg_options[transcode_audio_ffmpeg_options_len], "%s ", ary_options[i].value);
+				break;
+#endif // support TRANSCODE
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",
 				        optionsfile);
 			}
 		}
+#if 0 // support TRANSCODE
+		fprintf(stderr, "!!!! transcode_audio : %d\n", transcode_audio);
+		fprintf(stderr, "!!!! transcode_video : %d\n", transcode_video);
+		fprintf(stderr, "!!!! transcode_video_mencoder_options : %s\n", transcode_video_mencoder_options);
+		fprintf(stderr, "!!!! transcode_video_ffmpeg_options : %s\n", transcode_video_ffmpeg_options);
+		fprintf(stderr, "!!!! transcode_audio_ffmpeg_options : %s\n", transcode_audio_ffmpeg_options);
+#endif // support TRANSCODE
 	}
 	if( log_path[0] == '\0' )
 	{

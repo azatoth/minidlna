@@ -60,6 +60,14 @@ static const struct {
 	{ UPNPLOGDIR, "log_dir" },
 	{ ENABLE_TIVO, "enable_tivo" },
 	{ ENABLE_DLNA_STRICT, "strict_dlna" }
+#if 1 // support TRANSCODE
+	,
+	{ TRANSCODE_A_ENABLE, "transcode_audio_enable" },
+	{ TRANSCODE_V_TRANSCODER, "transcode_video_transcoder" },
+	{ TRANSCODE_V_MENCODER_OPTIONS, "transcode_video_mencoder_options" },
+	{ TRANSCODE_V_FFMPEG_OPTIONS, "transcode_video_ffmpeg_options" },
+	{ TRANSCODE_A_FFMPEG_OPTIONS, "transcode_audio_ffmpeg_options" }
+#endif // support TRANSCODE
 };
 
 int

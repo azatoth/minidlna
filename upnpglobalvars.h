@@ -206,4 +206,27 @@ extern short int scanning;
 extern volatile short int quitting;
 extern volatile uint32_t updateID;
 
+#if 1 // support TRANSCODE
+/* transcode */
+#define TRANSCODE_MENCODER_VIDEO_OPTIONS_MAX_LEN (1024)
+#define TRANSCODE_FFMPEG_VIDEO_OPTIONS_MAX_LEN (1024)
+#define TRANSCODE_FFMPEG_AUDIO_OPTIONS_MAX_LEN (1024)
+
+enum transcode_audio_enable {
+	TRANSCODE_AUDIO_PCM = 0,
+	TRANSCODE_AUDIO_DISABLE
+};
+enum transcode_video_transcoder {
+	TRANSCODE_VIDEO_MENCODER = 0,
+	TRANSCODE_VIDEO_FFMPEG,
+	TRANSCODE_VIDEO_DISABLE
+};
+
+extern enum transcode_audio_enable transcode_audio;
+extern enum transcode_video_transcoder transcode_video;
+extern char transcode_video_mencoder_options[];
+extern char transcode_video_ffmpeg_options[];
+extern char transcode_audio_ffmpeg_options[];
+#endif // support TRANSCODE
+
 #endif
