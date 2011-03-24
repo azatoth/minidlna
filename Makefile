@@ -64,22 +64,19 @@ install:	minidlna
 	$(INSTALL) -d $(ETCINSTALLDIR)
 	$(INSTALL) --mode=0644 minidlna.conf $(ETCINSTALLDIR)
 
-minidlna: config.h $(BASEOBJS) $(LNXOBJS) $(LIBS)
-	@echo Linking $@
-	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(BASEOBJS) $(LNXOBJS) $(LIBS)
+minidlna: config.h $(BASEOBJS) $(LNXOBJS)
+	$(if $(findstring 1,$(V)),,@echo Linking $@;) $(CC) $(LDFLAGS) -o $@ $(BASEOBJS) $(LNXOBJS) $(LIBS)
 
 
 testupnpdescgen: config.h $(TESTUPNPDESCGENOBJS)
-	@echo Linking $@
-	@$(CC) $(CFLAGS) -o $@ $(TESTUPNPDESCGENOBJS)
+	$(if $(findstring 1,$(V)),,@echo Linking $@;) $(CC) $(LDFLAGS) -o $@ $(TESTUPNPDESCGENOBJS)
 
 config.h:	genconfig.sh
 	./genconfig.sh
 
 %.o : %.c
 	@@mkdir -p $(dir $(DEPDIR)/$*.Tpo)
-	@echo Compiling $@
-	@$(COMPILE.c) $(CFLAGS_EXTRA) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -o $@ $<
+	$(if $(findstring 1,$(V)),,@echo Compiling $@;) $(CC) -c $(CFLAGS) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -o $@ $<
 	@@mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 
 -include $(SRCS:%.cpp=$(DEPDIR)/%.Po)
