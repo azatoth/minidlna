@@ -12,10 +12,9 @@
 #
 #CFLAGS = -Wall -O -D_GNU_SOURCE -g -DDEBUG
 #CFLAGS = -Wall -g -Os -D_GNU_SOURCE
+STATIC=--static
 CFLAGS = -Wall -g -O3 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 \
-		 -I/usr/include/ffmpeg \
-		 -I/usr/include/libavutil -I/usr/include/libavcodec -I/usr/include/libavformat \
-		 -I/usr/include/ffmpeg/libavutil -I/usr/include/ffmpeg/libavcodec -I/usr/include/ffmpeg/libavformat
+		 $(shell pkg-config libavformat libavutil libavcodec sqlite3 libexif id3tag flac ogg vorbis --cflags)
 #STATIC_LINKING: CFLAGS += -DSTATIC
 #STATIC_LINKING: LDFLAGS = -static
 CC = gcc
@@ -38,11 +37,11 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 
-LIBS = -lpthread -lexif -ljpeg -lsqlite3 -lavformat -lavutil -lavcodec -lid3tag -lFLAC -logg -lvorbis
+LIBS = -lpthread -ljpeg \
+	   $(shell pkg-config libavformat libavutil libavcodec libexif sqlite3 id3tag flac ogg vorbis --libs)
 #STATIC_LINKING: LIBS = -lvorbis -logg -lm -lsqlite3 -lpthread -lexif -ljpeg -lFLAC -lm -lid3tag -lz -lavformat -lavutil -lavcodec -lm
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
-
 EXECUTABLES = minidlna testupnpdescgen
 
 .PHONY:	all clean distclean install
