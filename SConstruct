@@ -5,14 +5,55 @@
 import SCons
 import SCons.Script as scons
 from distutils import sysconfig, version
-import platform
-import os
-import re
+import os, sys, re, platform
 
 EnsurePythonVersion(2, 5)
 EnsureSConsVersion(2, 0)
 
+colors = {}
+colors['cyan']   = '\033[96m'
+colors['purple'] = '\033[95m'
+colors['blue']   = '\033[94m'
+colors['green']  = '\033[92m'
+colors['yellow'] = '\033[93m'
+colors['red']    = '\033[91m'
+colors['end']    = '\033[0m'
+
+#If the output is not a terminal, remove the colors
+if not sys.stdout.isatty():
+   for key, value in colors.iteritems():
+      colors[key] = ''
+
 env = Environment()
+
+AddOption(
+    "--verbose",
+    action="store_true",
+    dest="verbose_flag",
+    default=False,
+    help="verbose output"
+)
+
+if not GetOption("verbose_flag"):
+    env["CXXCOMSTR"] = \
+            '%(blue)sCompiling%(purple)s: %(yellow)s$SOURCE%(end)s' % colors,
+    env["CCCOMSTR"] = \
+            '%(blue)sCompiling%(purple)s: %(yellow)s$SOURCE%(end)s' % colors,
+    env["SHCCCOMSTR"] = \
+            '%(blue)sCompiling shared%(purple)s: %(yellow)s$SOURCE%(end)s' % colors,
+    env["SHCXXCOMSTR"] = \
+            '%(blue)sCompiling shared%(purple)s: %(yellow)s$SOURCE%(end)s' % colors,
+    env["ARCOMSTR"] = \
+            '%(red)sLinking Static Library%(purple)s: %(yellow)s$TARGET%(end)s' % colors,
+    env["RANLIBCOMSTR"] = \
+            '%(red)sRanlib Library%(purple)s: %(yellow)s$TARGET%(end)s' % colors,
+    env["SHLINKCOMSTR"] = \
+            '%(red)sLinking Shared Library%(purple)s: %(yellow)s$TARGET%(end)s' % colors,
+    env["LINKCOMSTR"] = \
+            '%(red)sLinking Program%(purple)s: %(yellow)s$TARGET%(end)s' % colors,
+    env["INSTALLSTR"] = \
+            '%(green)sInstalling%(purple)s: %(yellow)s$SOURCE%(purple)s => %(yellow)s$TARGET%(end)s' % colors
+
 AddOption(
     '--prefix',
     dest='prefix',
