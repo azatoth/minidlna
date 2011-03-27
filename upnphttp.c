@@ -54,7 +54,9 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <ctype.h>
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "upnphttp.h"
 #include "upnpdescgen.h"
 #include "minidlnapath.h"

@@ -1,0 +1,7 @@
+.sconsign.dblite
+.sconf_temp
+config.log
+*.o
+minidlna
+testupnpdescgen
+config.h

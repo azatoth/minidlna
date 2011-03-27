@@ -31,7 +31,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "upnpdescgen.h"
 
 char uuidvalue[] = "uuid:12345678-0000-0000-0000-00000000abcd";

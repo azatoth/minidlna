@@ -46,26 +46,33 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <time.h>
 #include <signal.h>
-#include <sys/param.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pwd.h>
 
-#include "config.h"
 
 #ifdef ENABLE_NLS
 #include <libintl.h>

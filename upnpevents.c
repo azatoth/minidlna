@@ -59,7 +59,9 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "upnpevents.h"
 #include "minidlnapath.h"
 #include "upnpglobalvars.h"

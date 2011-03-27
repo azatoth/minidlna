@@ -36,7 +36,9 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "upnpdescstrings.h"
 #include "minidlnapath.h"
 #include "upnphttp.h"

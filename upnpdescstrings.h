@@ -29,7 +29,9 @@
 #ifndef __UPNPDESCSTRINGS_H__
 #define __UPNPDESCSTRINGS_H__
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 /* strings used in the root device xml description */
 #ifdef NETGEAR

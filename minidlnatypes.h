@@ -29,7 +29,9 @@
 #ifndef __MINIDLNATYPES_H__
 #define __MINIDLNATYPES_H__
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <netinet/in.h>
 
 /* structure for storing lan addresses

@@ -14,6 +14,11 @@ Prerequisites :
 - libavformat (the ffmpeg libraries)
 - libuuid
 
+Build depends are:
+- scons
+- pkg-config
+
 To Build and install :
 
-- Just run make, and hope it works. :)
+- Just run scons, and hope it works. :)
+- To install, run "sudo scons install", or just copy the binaries

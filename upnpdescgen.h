@@ -29,7 +29,9 @@
 #ifndef __UPNPDESCGEN_H__
 #define __UPNPDESCGEN_H__
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 /* for the root description 
  * The child list reference is stored in "data" member using the

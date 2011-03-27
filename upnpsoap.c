@@ -59,7 +59,9 @@
 #include <netdb.h>
 #include <ctype.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "upnpglobalvars.h"
 #include "upnphttp.h"
 #include "upnpsoap.h"

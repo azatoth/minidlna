@@ -50,7 +50,9 @@
 #include <netinet/in.h>
 #include <linux/limits.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "upnpglobalvars.h"
 #include "upnpdescstrings.h"
 

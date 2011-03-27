@@ -33,7 +33,9 @@
 #include <sys/queue.h>
 
 #include "minidlnatypes.h"
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 /* server: HTTP header returned in all HTTP responses : */
 #define MINIDLNA_SERVER_STRING	OS_VERSION " DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.0"

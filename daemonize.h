@@ -29,7 +29,9 @@
 #ifndef __DAEMONIZE_H__
 #define __DAEMONIZE_H__
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 #ifndef USE_DAEMON
 /* daemonize()

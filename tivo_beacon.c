@@ -26,7 +26,9 @@
  * You should have received a copy of the GNU General Public License
  * along with byRequest. If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #ifdef TIVO_SUPPORT
 #include <stdlib.h>
 #include <stdio.h>
