@@ -117,6 +117,7 @@ log_path = GetOption("log_path")
 bsd_daemon = GetOption("bsd_daemon")
 # Configuration:
 
+checked_packages = dict()
 def CheckPKGConfig(context, version):
     context.Message( 'Checking for pkg-config... ' )
     ret = context.TryAction('pkg-config --atleast-pkgconfig-version=%s' % version)[0]
@@ -125,15 +126,29 @@ def CheckPKGConfig(context, version):
 
 def CheckPKG(context, name):
     context.Message( 'Checking for %s... ' % name )
+    key = re.sub(r"(\w+)(?: (?:\=|\<|\>) \S+)?",r"\1", name)
+    if key in checked_packages:
+        context.Result(checked_packages[key])
+        return checked_packages[key]
+
     ret = context.TryAction('pkg-config --exists \'%s\'' % name)[0]
+
     context.sconf.config_h_text += "\n"
     context.sconf.Define(
-        'HAVE_%s' % name.upper().replace('\W','_'), 
+        'HAVE_%s' % key.upper().replace('\W','_'),
         1, 
         "Define to 1 if you have the `%(name)s' package installed" 
         % { 'name': name }
     )
+
+    depends = os.popen('pkg-config --print-requires \'%s\'' %
+                       name).readline()
+
+    depends = re.findall(r"(\w+(?: (?:\=|\<|\>) \S+)?)", depends)
     context.Result( ret )
+    for dep in depends:
+        ret &= context.sconf.CheckPKG(dep.strip())
+    checked_packages[key] = ret
     return ret
 
 conf = Configure(
@@ -315,6 +330,7 @@ env.ParseConfig('pkg-config --cflags --libs  libavformat libavutil libavcodec sq
 
 env.Append(CPPDEFINES=['_GNU_SOURCE', ('_FILE_OFFSET_BITS','64'), '_REENTRANT',
                       'HAVE_CONFIG_H'])
+
 
 env = conf.Finish()
 # -----
