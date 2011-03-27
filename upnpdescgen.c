@@ -124,6 +124,15 @@ static const char root_device[] =
 	" xmlns:pnpx=\"http://schemas.microsoft.com/windows/pnpx/2005/11\""
 	" xmlns:df=\"http://schemas.microsoft.com/windows/2008/09/devicefoundation\""
 #endif
+        ;
+static const char root_device_samsung[] =
+	"root xmlns=\"urn:schemas-upnp-org:device-1-0\""
+	" xmlns:sec=\"http://www.sec.co.kr/dlna\""
+	" xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\""
+#if PNPX
+	" xmlns:pnpx=\"http://schemas.microsoft.com/windows/pnpx/2005/11\""
+	" xmlns:df=\"http://schemas.microsoft.com/windows/2008/09/devicefoundation\""
+#endif
 	;
 
 /* root Description of the UPnP Device */
@@ -194,6 +203,76 @@ static const struct XMLElt rootDesc[] =
 	{"/SCPDURL", CONNECTIONMGR_PATH},
 	{"/serviceType", "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1"},
 	{"/serviceId", "urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar"},
+	{"/controlURL", X_MS_MEDIARECEIVERREGISTRAR_CONTROLURL},
+	{"/eventSubURL", X_MS_MEDIARECEIVERREGISTRAR_EVENTURL},
+	{"/SCPDURL", X_MS_MEDIARECEIVERREGISTRAR_PATH},
+	{0, 0}
+};
+
+/* root Description of the UPnP Device for Samsung TV renderers */
+static const struct XMLElt rootDescSamsung[] =
+{
+/*0*/	{root_device_samsung, INITHELPER(1,2)},
+	{"specVersion", INITHELPER(3,2)},
+	{"device", INITHELPER(5,17)},
+	{"/major", "1"},
+	{"/minor", "0"},
+	{"/deviceType", "urn:schemas-upnp-org:device:MediaServer:1"},
+	{"/friendlyName", friendly_name},	/* required */
+	{"/manufacturer", ROOTDEV_MANUFACTURER},		/* required */
+	{"/manufacturerURL", ROOTDEV_MANUFACTURERURL},	/* optional */
+	{"/modelDescription", ROOTDEV_MODELDESCRIPTION}, /* recommended */
+/*10*/	{"/modelName", ROOTDEV_MODELNAME},	/* required */
+	{"/modelNumber", modelnumber},
+	{"/modelURL", ROOTDEV_MODELURL},
+	{"/serialNumber", serialnumber},
+        {"/sec:ProductCap", "smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec"},
+        {"/sec:X_ProductCap", "smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec"},
+	{"/UDN", uuidvalue},	/* required */
+	{"/dlna:X_DLNADOC xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\"", "DMS-1.50"},
+        {"/dlna:X_DLNACAP", "audio-upload,image-upload,av-upload"},
+	{"/presentationURL", presentationurl},	/* recommended */
+/*20*/	{"iconList", INITHELPER(22,4)},
+	{"serviceList", INITHELPER(46,3)},
+	{"icon", INITHELPER(26,5)},
+	{"icon", INITHELPER(31,5)},
+	{"icon", INITHELPER(36,5)},
+	{"icon", INITHELPER(41,5)},
+	{"/mimetype", "image/png"},
+	{"/width", "48"},
+	{"/height", "48"},
+	{"/depth", "24"},
+/*30*/	{"/url", "/icons/sm.png"},
+	{"/mimetype", "image/png"},
+	{"/width", "120"},
+	{"/height", "120"},
+	{"/depth", "24"},
+	{"/url", "/icons/lrg.png"},
+	{"/mimetype", "image/jpeg"},
+	{"/width", "48"},
+	{"/height", "48"},
+	{"/depth", "24"},
+/*40*/	{"/url", "/icons/sm.jpg"},
+	{"/mimetype", "image/jpeg"},
+	{"/width", "120"},
+	{"/height", "120"},
+	{"/depth", "24"},
+	{"/url", "/icons/lrg.jpg"},
+	{"service", INITHELPER(49,5)},
+	{"service", INITHELPER(54,5)},
+	{"service", INITHELPER(59,5)},
+	{"/serviceType", "urn:schemas-upnp-org:service:ContentDirectory:1"},
+/*50*/	{"/serviceId", "urn:upnp-org:serviceId:ContentDirectory"},
+	{"/controlURL", CONTENTDIRECTORY_CONTROLURL},
+	{"/eventSubURL", CONTENTDIRECTORY_EVENTURL},
+	{"/SCPDURL", CONTENTDIRECTORY_PATH},
+	{"/serviceType", "urn:schemas-upnp-org:service:ConnectionManager:1"},
+	{"/serviceId", "urn:upnp-org:serviceId:ConnectionManager"},
+	{"/controlURL", CONNECTIONMGR_CONTROLURL},
+	{"/eventSubURL", CONNECTIONMGR_EVENTURL},
+	{"/SCPDURL", CONNECTIONMGR_PATH},
+	{"/serviceType", "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1"},
+/*60*/	{"/serviceId", "urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar"},
 	{"/controlURL", X_MS_MEDIARECEIVERREGISTRAR_CONTROLURL},
 	{"/eventSubURL", X_MS_MEDIARECEIVERREGISTRAR_EVENTURL},
 	{"/SCPDURL", X_MS_MEDIARECEIVERREGISTRAR_PATH},
@@ -571,7 +650,7 @@ genXML(char * str, int * len, int * tmplen,
 	int top;
 	const char * eltname, *s;
 	char c;
-	char element[64];
+	char element[256];
 	struct {
 		unsigned short i;
 		unsigned short j;
@@ -666,6 +745,23 @@ genRootDesc(int * len)
 	/*strcpy(str, xmlver); */
 	memcpy(str, xmlver, *len + 1);
 	str = genXML(str, len, &tmplen, rootDesc);
+	str[*len] = '\0';
+	return str;
+}
+
+char *
+genRootDescSamsung(int * len)
+{
+	char * str;
+	int tmplen;
+	tmplen = 3072;
+	str = (char *)malloc(tmplen);
+	if(str == NULL)
+		return NULL;
+	* len = strlen(xmlver);
+	/*strcpy(str, xmlver); */
+	memcpy(str, xmlver, *len + 1);
+	str = genXML(str, len, &tmplen, rootDescSamsung);
 	str[*len] = '\0';
 	return str;
 }

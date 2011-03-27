@@ -77,6 +77,9 @@
 #include "log.h"
 #include "sql.h"
 #include <libexif/exif-loader.h>
+#ifdef THUMBNAIL_CREATION_SUPPORT
+#include <libffmpegthumbnailer/videothumbnailerc.h>
+#endif
 #ifdef TIVO_SUPPORT
 #include "tivo_utils.h"
 #include "tivo_commands.h"
@@ -404,6 +407,10 @@ intervening space) by either an integer or the keyword "infinite". */
 			else if(strncasecmp(line, "getCaptionInfo.sec", 18)==0)
 			{
 				h->reqflags |= FLAG_CAPTION;
+			}
+			else if(strncasecmp(line, "getMediaInfo.sec", 16)==0)
+			{
+                h->reqflags |= FLAG_MEDIA_INFO;
 			}
 		}
 next_header:
@@ -804,11 +811,11 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 				sendXMLdesc(h, genRootDesc);
 				friendly_name[i] = '\0';
 			}
+			else if (h->req_client == ESamsungTV)
+				sendXMLdesc(h, genRootDescSamsung);
 			else
-			{
 				sendXMLdesc(h, genRootDesc);
 			}
-		}
 		else if(strcmp(CONTENTDIRECTORY_PATH, HttpUrl) == 0)
 		{
 			sendXMLdesc(h, genContentDirectory);
@@ -833,6 +840,11 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		else if(strncmp(HttpUrl, "/AlbumArt/", 10) == 0)
 		{
 			SendResp_albumArt(h, HttpUrl+10);
+			CloseSocket_upnphttp(h);
+		}
+		else if((strncmp(HttpUrl, "/MTA/", 5) == 0) && (h->req_client == ESamsungTV))
+		{
+			SendResp_samsung_mta_file(h, HttpUrl+5);
 			CloseSocket_upnphttp(h);
 		}
 		#ifdef TIVO_SUPPORT
@@ -980,6 +992,7 @@ static const char httpresphead[] =
 	"Content-Type: %s\r\n"
 	"Connection: close\r\n"
 	"Content-Length: %d\r\n"
+	"EXT:\r\n"
 	"Server: " MINIDLNA_SERVER_STRING "\r\n"
 //	"Accept-Ranges: bytes\r\n"
 	;	/*"\r\n";*/
@@ -1174,7 +1187,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 void
 SendResp_icon(struct upnphttp * h, char * icon)
 {
-	char * header;
+    char * header = 0;
 	char * data;
 	int size, ret;
 	char mime[12];
@@ -1225,6 +1238,8 @@ SendResp_icon(struct upnphttp * h, char * icon)
 	                        "Date: %s\r\n"
 	                        "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
 	                        mime, size, date);
+
+	DPRINTF(E_INFO, L_HTTP, "%s", header);
 
 	if( (send_data(h, header, ret, MSG_MORE) == 0) && (h->req_command != EHead) )
 	{
@@ -1288,20 +1303,21 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 				"Connection: close\r\n"
 				"Date: %s\r\n"
 				"EXT:\r\n"
-				"realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 				"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
 				"Server: " MINIDLNA_SERVER_STRING "\r\n",
 				size, date);
 
-		if( h->reqflags & FLAG_XFERBACKGROUND )
-		{
-			strcat(header, "transferMode.dlna.org: Background\r\n\r\n");
-		}
-		else //if( h->reqflags & FLAG_XFERINTERACTIVE )
-		{
-			strcat(header, "transferMode.dlna.org: Interactive\r\n\r\n");
-		}
+		if( h->reqflags & FLAG_REALTIMEINFO )
+			strcat(header, "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n");
 
+		if( h->reqflags & FLAG_XFERBACKGROUND )
+			strcat(header, "transferMode.dlna.org: Background\r\n");
+		else //if( h->reqflags & FLAG_XFERINTERACTIVE )
+			strcat(header, "transferMode.dlna.org: Interactive\r\n");
+
+        DPRINTF(E_INFO, L_HTTP, "%s", header);
+
+        strcat(header, "\r\n");
 
 		if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 		{
@@ -1353,13 +1369,23 @@ SendResp_caption(struct upnphttp * h, char * object)
 	lseek(sendfh, 0, SEEK_SET);
 
 	ret = snprintf(header, sizeof(header), "HTTP/1.1 200 OK\r\n"
+/*	                                       "Server: Samsung HTTP streaming server\r\n" */
+	                                       "Server: " MINIDLNA_SERVER_STRING "\r\n"
 	                                       "Content-Type: smi/caption\r\n"
 	                                       "Content-Length: %jd\r\n"
-	                                       "Connection: close\r\n"
+	                                       "Cache-Control: no-cache\r\n"
+                                           "contentFeatures.dlna.org: DLNA.ORG_OP=00;DLNA.ORG_CI=0;\r\n"
+/*	                                       "Connection: close\r\n" */
 	                                       "Date: %s\r\n"
-	                                       "EXT:\r\n"
-	                                       "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
-	                                       size, date);
+	                                       "EXT:\r\n",
+                                           size, date);
+
+	if( h->reqflags & FLAG_XFERBACKGROUND )
+		strcat(header, "transferMode.dlna.org:Background\r\n");
+
+	DPRINTF(E_INFO, L_HTTP, "%s", header);
+
+	strcat(header, "\r\n");
 
 	if( (send_data(h, header, ret, MSG_MORE) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 	{
@@ -1427,19 +1453,25 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 				"Connection: close\r\n"
 				"Date: %s\r\n"
 				"EXT:\r\n"
-				"realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 			 	"contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_TN\r\n"
 				"Server: " MINIDLNA_SERVER_STRING "\r\n",
 				ed->size, date);
 
+		if( h->reqflags & FLAG_REALTIMEINFO )
+			strcat(header, "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n");
+
 		if( h->reqflags & FLAG_XFERBACKGROUND )
 		{
-			strcat(header, "transferMode.dlna.org: Background\r\n\r\n");
+			strcat(header, "transferMode.dlna.org: Background\r\n");
 		}
 		else //if( h->reqflags & FLAG_XFERINTERACTIVE )
 		{
-			strcat(header, "transferMode.dlna.org: Interactive\r\n\r\n");
+			strcat(header, "transferMode.dlna.org: Interactive\r\n");
 		}
+
+        DPRINTF(E_INFO, L_HTTP, "%s", header);
+
+        strcat(header, "\r\n");
 
 		if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && (h->req_command != EHead) )
 		{
@@ -1577,10 +1609,12 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	                                     "Connection: close\r\n"
 	                                     "Date: %s\r\n"
 	                                     "EXT:\r\n"
-	                                     "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 	                                     "contentFeatures.dlna.org: DLNA.ORG_PN=JPEG_%s;DLNA.ORG_CI=1\r\n"
 	                                     "Server: " MINIDLNA_SERVER_STRING "\r\n",
 	                                     date, dlna_pn);
+	if( h->reqflags & FLAG_REALTIMEINFO )
+		strcat(header, "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n");
+
 	if( h->reqflags & FLAG_XFERINTERACTIVE )
 	{
 		strcat(header, "transferMode.dlna.org: Interactive\r\n");
@@ -1638,6 +1672,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		strcat(header, str_buf);
 	}
 
+	DPRINTF(E_INFO, L_HTTP, "%s", header);
+
 	if( (send_data(h, header, strlen(header), 0) == 0) && (h->req_command != EHead) )
 	{
 		if( chunked )
@@ -1688,7 +1724,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	off_t total, offset, size;
 	sqlite_int64 id;
 	int sendfh;
-	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[64]; } last_file = { 0 };
+	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[128]; char duration[32]; } last_file = { 0 };
 #if USE_FORK
 	pid_t newpid = 0;
 #endif
@@ -1696,7 +1732,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	id = strtoll(object, NULL, 10);
 	if( id != last_file.id )
 	{
-		sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%lld'", id);
+		sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN, DURATION from DETAILS where ID = '%lld'", id);
 		ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
 		if( (ret != SQLITE_OK) )
 		{
@@ -1713,10 +1749,10 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		}
 		/* Cache the result */
 		last_file.id = id;
-		strncpy(last_file.path, result[3], sizeof(last_file.path)-1);
-		if( result[4] )
+		strncpy(last_file.path, result[4], sizeof(last_file.path)-1);
+		if( result[5] )
 		{
-			strncpy(last_file.mime, result[4], sizeof(last_file.mime)-1);
+			strncpy(last_file.mime, result[5], sizeof(last_file.mime)-1);
 			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
 			if( h->req_client == ESamsungTV )
 			{
@@ -1735,12 +1771,16 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		{
 			last_file.mime[0] = '\0';
 		}
-		if( result[5] )
-			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s", result[5]);
+		if( result[6] )
+			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s", result[6]);
 		else if( h->reqflags & FLAG_DLNA )
 			strcpy(last_file.dlna, dlna_no_conv);
 		else
 			last_file.dlna[0] = '\0';
+
+        if( result[7] )
+            strncpy(last_file.duration, result[7], sizeof(last_file.duration)-1);
+
 		sqlite3_free_table(result);
 	}
 #if USE_FORK
@@ -1868,15 +1908,40 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		}
 	}
 
+	if( last_file.duration && h->reqflags & FLAG_MEDIA_INFO )
+    {
+        int dur = atoi(rindex(last_file.duration, '.')+1) +
+                (1000*atoi(rindex(last_file.duration, ':')+1)) +
+                (60000*atoi(rindex(last_file.duration, ':')-2)) +
+                (3600000*atoi(last_file.duration));
+        sprintf(hdr_buf, "MediaInfo.sec: SEC_Duration=%d;\r\n", dur);
+        strcat(header, hdr_buf);
+	}
+
+    /* Special Samsung DLNA flags */
+    if( h->req_client == ESamsungTV )
+    {
+		if( strncmp(last_file.mime, "image", 5) == 0 )
+            strcat(last_file.dlna, ";DLNA.ORG_FLAGS=00D00000000000000000000000000000");
+        else if (strncmp(last_file.mime, "video", 5) == 0)
+            strcat(last_file.dlna, ";DLNA.ORG_FLAGS=01500000000000000000000000000000");
+    }
+
 	sprintf(hdr_buf, "Accept-Ranges: bytes\r\n"
 			 "Connection: close\r\n"
 			 "Date: %s\r\n"
 			 "EXT:\r\n"
-	                 "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
-			 "contentFeatures.dlna.org: %s\r\n"
-			 "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
+			 "contentFeatures.dlna.org:%s\r\n"
+			 "Server: " MINIDLNA_SERVER_STRING "\r\n",
 			 date, last_file.dlna);
 	strcat(header, hdr_buf);
+
+	if( h->reqflags & FLAG_REALTIMEINFO )
+            strcat(header, "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n");
+
+	DPRINTF(E_INFO, L_HTTP, "%s", header);
+
+	strcat(header, "\r\n");
 
 	if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && (h->req_command != EHead) && (sendfh > 0) )
 	{
@@ -1890,4 +1955,334 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		_exit(0);
 #endif
 	return;
+}
+
+/* encode 6 bit to base64 char */
+static char encode_base64(unsigned char c)
+{
+  if (c < 26)
+      return 'A' + c;
+  if (c < 52)
+      return 'a' + (c-26);
+  if (c < 62)
+      return '0' + (c-52);
+  if (c == 62)
+      return '+';
+
+  /* 63 */
+  return '/';
+}
+
+void
+adjust_buffer(char** buffer, int* length)
+{
+    *length += *length; /* double buffer size */
+    *buffer = realloc(*buffer, *length+1); /* get one for the terminating zero */
+}
+
+/* append data to buffer, if necessary get more memory and rebase current ptr */
+void
+add_to_buffer(char** buffer, int* length, char** ptr, const char* data, int datalen)
+{
+    if (*ptr - *buffer > *length) {
+        *ptr -= (int)*buffer;
+        adjust_buffer(buffer, length);
+        *ptr += (int)*buffer; /* rebase ptr */
+    }
+    memcpy(*ptr, data, datalen);
+    *ptr += datalen;
+}
+
+/*
+ * generates samsung MTA files for movies
+ * An MTA file contains XML with 5 chapter points each having an inline thumbnail
+ * in base64 encoding.
+ * The files are created with the minidlna-user (e.g. root).
+ *
+ * path         char*  IN   path and filename of movie
+ * duration     int    IN   duration of movie in seconds
+ */
+void
+generate_external_samsung_mta_file(const char* path, int duration)
+{
+    char mta_path[PATH_MAX];
+
+    snprintf(mta_path, sizeof(mta_path), "%s.mta", path);
+
+    if (ends_with(path, ".avi") || ends_with(path, ".mkv") || ends_with(path, ".mpg")) {
+        DPRINTF(E_DEBUG, L_METADATA, "Checking for external MTA file: %s\n", mta_path);
+        if (access(mta_path, F_OK) == 0)
+            return; /* already found one, ok */
+
+        /* check movie */
+        if (access(path, F_OK) == 0) {
+            int mta_size = 0;
+            char* body = generate_samsung_mta_file(path, duration);
+            mta_size = strlen(body);
+
+            FILE* mtafile = fopen(mta_path, "w");
+            if (mtafile) {
+                int size_written = fwrite((void *)body, 1, mta_size, mtafile);
+                fclose(mtafile);
+                if (size_written != mta_size) {
+                    DPRINTF(E_DEBUG, L_METADATA, "Could not write external MTA file: '%s'\n", mta_path);
+                    remove(mta_path);
+                } else
+                    DPRINTF(E_DEBUG, L_METADATA, "Could open external MTA file for writing: '%s'\n", mta_path);
+            }
+	}
+    }
+}
+
+char*
+generate_samsung_mta_file(const char* path, int duration)
+{
+    static const char mta_header[] =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+        "<SEC:SECMeta xsi:schemaLocation=\"urn:samsung:metadata:2009 Video_Metadata_v1.0.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:SEC=\"urn:samsung:metadata:2009\">\r\n"
+        "<SpecVersion>1.0</SpecVersion>\r\n"
+        "<MediaInformation>\r\n"
+        "<VideoLocator>\r\n"
+        "<MediaUri>file://samsung_content.con</MediaUri>\r\n"
+        "</VideoLocator>\r\n"
+        "</MediaInformation>\r\n"
+        "<ContentInformation>\r\n"
+        "<Chaptering>\r\n"
+        ;
+    static const char mta_chapter_header[] =
+        "<ChapterSegment>\r\n"
+        "<KeyFrame>\r\n"
+        "<InlineMedia>"
+        ;
+    static const char mta_chapter_closing[] =
+        "</InlineMedia>\r\n"
+        "</KeyFrame>\r\n"
+        "<MediaPosition>\r\n"
+        "<MediaTime timePoint=\"%d\"/>\r\n"
+        "</MediaPosition>\r\n"
+        "</ChapterSegment>\r\n"
+        ;
+    static const char mta_closing[] =
+        "</Chaptering>\r\n"
+        "</ContentInformation>\r\n"
+        "</SEC:SECMeta>\r\n"
+        ;
+
+    char* buffer = 0;
+    if (ends_with(path, ".avi") || ends_with(path, ".mkv") || ends_with(path, ".mpg"))
+    {
+#ifdef THUMBNAIL_CREATION_SUPPORT
+        video_thumbnailer* vt=0;
+#endif
+        int percentage;
+        int length = 100*1024;
+        char* ptr;
+
+        buffer = malloc(length+1); /* one for the terminating zero */
+        if (!buffer)
+            return ""; /* fail (empty string!) */
+
+        ptr = buffer;
+        add_to_buffer(&buffer, &length, &ptr, mta_header, strlen(mta_header));
+
+#ifdef THUMBNAIL_CREATION_SUPPORT
+        vt = video_thumbnailer_create();
+        vt->thumbnail_image_type = Jpeg;
+#endif
+        /* Samsung accepts exactly 5 positions nothing more, nothing less */
+        for( percentage = 16; percentage < 95; percentage+=16 )
+	{
+#ifdef THUMBNAIL_CREATION_SUPPORT
+            int rc;
+            image_data* imgdata = video_thumbnailer_create_image_data();
+#endif
+	    unsigned char* src = jpeg_chapter;
+	    int size = sizeof(jpeg_chapter)-1;
+	    int idx;
+
+            add_to_buffer(&buffer, &length, &ptr, mta_chapter_header, strlen(mta_chapter_header));
+
+#ifdef THUMBNAIL_CREATION_SUPPORT
+
+            vt->seek_percentage = percentage;
+
+            DPRINTF(E_DEBUG, L_METADATA, "generating %d%%-thumbnail for '%s'\n", percentage, path);
+            rc = video_thumbnailer_generate_thumbnail_to_buffer(vt, path, imgdata);
+            DPRINTF(E_DEBUG, L_METADATA, "rc: %d, thumbnail size=%d\n", rc, imgdata->image_data_size);
+
+            if (!rc && imgdata->image_data_size) {
+		src = imgdata->image_data_ptr;
+		size = imgdata->image_data_size;
+	    }
+#endif
+
+	    /* base 64 encoding of the image */
+	    for(idx=0; idx < size; idx += 3)
+	    {
+		unsigned char r1=0, r2=0, r3=0, b1=0, b2=0, b3=0, b4=0;
+
+		/* get 3 byte / 24 bit */
+		r1 = src[idx];
+
+		if (idx+1 < size)
+		    r2 = src[idx+1];
+
+		if (idx+2 < size)
+		    r3 = src[idx+2];
+
+		/* spread to 4 6-bit parts */
+		b1 = r1 >> 2;
+		b2 = ((r1 & 0x3) << 4) | (r2 >> 4);
+		b3 = ((r2 & 0xf) << 2) | (r3 >> 6);
+		b4 = r3 & 0x3f;
+
+		/* encode 6-bit output */
+		*ptr++ = encode_base64(b1);
+		*ptr++ = encode_base64(b2);
+
+		if (idx+1 < size)
+		    *ptr++ = encode_base64(b3);
+		else
+		    *ptr++ = '=';
+
+		if (idx+2 < size)
+		    *ptr++ = encode_base64(b4);
+		else
+		    *ptr++ = '=';
+
+		/* check buffer size, realloc if necessary */
+		if (ptr+2 > buffer+length) {
+		    ptr -= (int)buffer;
+		    adjust_buffer(&buffer, &length);
+		    ptr += (int)buffer; /* rebase ptr */
+		}
+            }
+
+#ifdef THUMBNAIL_CREATION_SUPPORT
+            video_thumbnailer_destroy_image_data(imgdata);
+#endif
+            /* add time code for this thumbnail */
+            {
+                char tmp[sizeof(mta_chapter_closing)+10];
+                int pos = (duration * percentage) / 100;
+                snprintf(tmp, sizeof(mta_chapter_closing)+10, mta_chapter_closing, pos);
+                add_to_buffer(&buffer, &length, &ptr, tmp, strlen(tmp));
+            }
+        }
+#ifdef THUMBNAIL_CREATION_SUPPORT
+        video_thumbnailer_destroy(vt);
+#endif
+        add_to_buffer(&buffer, &length, &ptr, mta_closing, strlen(mta_closing));
+        *ptr = 0; /* terminate buffer! */
+    }
+    return buffer;
+}
+
+void
+SendResp_samsung_mta_file(struct upnphttp * h, char * object)
+{
+    char header[1500];
+    char sql_buf[256];
+    char **result;
+    int rows = 0;
+    char *path;
+    int duration = 0;
+    int sendfh = -1; /* default: no accessible mta file */
+    char *dash;
+
+    dash = strchr(object, '.');
+    if( dash )
+        *dash = '\0';
+
+    /* get path and duration of video */
+    sprintf(sql_buf, "select PATH, DURATION from DETAILS where ID = '%s';", object);
+    DPRINTF(E_DEBUG, L_HTTP, "Get MTA file SQL: %s\n", sql_buf);
+    sql_get_table(db, sql_buf, &result, &rows, NULL);
+    if( !rows )
+    {
+        DPRINTF(E_WARN, L_HTTP, "Object ID %s not found, responding ERROR 404\n", object);
+        Send404(h);
+        goto error;
+    }
+    path = result[2];
+    duration = (   1 * atoi(rindex(result[3], ':')+1)) +
+               (  60 * atoi(rindex(result[3], ':')-2)) +
+               (3600 * atoi(result[3]));
+
+    /* Is video (still) accessible? */
+    if( access(path, F_OK) == 0 ) {
+        time_t curtime = time(NULL);
+        char date[30];
+        char mta_path[PATH_MAX];
+        char* body = 0;
+        int size = 0;
+
+        snprintf(mta_path, sizeof(mta_path), "%s.mta", path);
+        DPRINTF(E_DEBUG, L_HTTP, "Looking for precalculated MTA file '%s'\n", mta_path);
+        if (access(mta_path, F_OK) == 0) { /* mta file accessible ? */
+            /* read MTA file from file*/
+            sendfh = open(mta_path, O_RDONLY);
+            if( sendfh < 0 ) {
+		DPRINTF(E_ERROR, L_HTTP, "Error opening precalculated MTA file '%s'\n", mta_path);
+            } else {
+                size = lseek(sendfh, 0, SEEK_END);
+                lseek(sendfh, 0, SEEK_SET);
+                DPRINTF(E_DEBUG, L_HTTP, "Found precalculated MTA file with size %d\n", size);
+            }
+        }
+
+        if (sendfh < 0) {        /* nothing could be read ?*/
+            /* generate MTA file on-the-fly (may take some time especially on slow NAS!) */
+            DPRINTF(E_INFO, L_HTTP, "Generating MTA file on-the-fly for object (ID='%s') on [%s], duration=%d\n", object, path, duration);
+            body = generate_samsung_mta_file(path, duration);
+            if (body)
+                size = strlen(body);
+            if (!size)
+                free(body);
+        }
+
+        if (!size) { /* still no data */
+            Send404(h);
+            goto error; /* give up */
+        }
+
+        /* create corresponding HTTP header for MTA file request */
+        memset(header, 0, sizeof(header));
+        strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+        sprintf(header, "HTTP/1.1 200 OK\r\n"
+                "Content-Type: image/jpeg\r\n"
+                "Content-Length: %d\r\n"
+                "Connection: close\r\n"
+                "Date: %s\r\n"
+                "EXT:\r\n"
+                "contentFeatures.dlna.org:DLNA.ORG_OP=00;DLNA.ORG_CI=0;\r\n"
+                "Server: " MINIDLNA_SERVER_STRING "\r\n",
+                size, date);
+
+        if( h->reqflags & FLAG_REALTIMEINFO )
+            strcat(header, "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n");
+
+        if( h->reqflags & FLAG_XFERBACKGROUND )
+            strcat(header, "transferMode.dlna.org: Background\r\n");
+        else
+            strcat(header, "transferMode.dlna.org: Interactive\r\n");
+
+        DPRINTF(E_INFO, L_HTTP, "%s", header);
+
+        strcat(header, "\r\n");
+
+        /* send header and if ok and not only HEAD request, send body */
+        if( (send_data(h, header, strlen(header), MSG_MORE) == 0) && h->req_command != EHead )
+        {
+            if (sendfh < 0)
+                send_data(h, body, size, 0);
+            else {
+                send_file(h, sendfh, 0, size); /* always send complete file. No RANGEs */
+                close(sendfh);
+            }
+        }
+        free(body);
+    }
+  error:
+    sqlite3_free_table(result);
 }

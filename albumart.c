@@ -27,6 +27,10 @@
 
 #include <jpeglib.h>
 
+#ifdef THUMBNAIL_CREATION_SUPPORT
+# include <libffmpegthumbnailer/videothumbnailerc.h>
+#endif
+
 #include "upnpglobalvars.h"
 #include "albumart.h"
 #include "sql.h"
@@ -277,7 +281,8 @@ check_for_album_file(char * dir, const char * path)
 	char * art_file;
 
 	/* First look for file-specific cover art */
-	sprintf(file, "%s.cover.jpg", path);
+	//sprintf(file, "%s.cover.jpg", path);
+	sprintf(file, "%s.jpg", path);
 	if( access(file, R_OK) == 0 )
 	{
 		if( art_cache_exists(file, &art_file) )
@@ -333,6 +338,36 @@ found_file:
 	return NULL;
 }
 
+#ifdef THUMBNAIL_CREATION_SUPPORT
+
+/*
+ * generates jpegs for movies as thumbnail files. The new thumbs have the name of the movie, with an ".jpg"
+ * appended. The thumbs are created with the minidlna-user (e.g. root).
+ */
+char *
+generate_albumart(char * dir, const char * path)
+{
+    int rc;
+    char * thumbfile = malloc(PATH_MAX);
+
+    /* DPRINTF(E_DEBUG, L_METADATA, "generate_albumart - dir: %s, path: %s\n", dir, path); */
+
+    if (ends_with(path, ".avi") || ends_with(path, ".mkv") || ends_with(path, ".mpg")) {
+        video_thumbnailer* vt = video_thumbnailer_create();
+        vt->thumbnail_image_type = Jpeg;
+        /* DPRINTF(E_DEBUG, L_METADATA, "generate_albumart - movie\n"); */
+        sprintf(thumbfile, "%s.jpg", path);
+
+        rc = video_thumbnailer_generate_thumbnail_to_file(vt, path, thumbfile);
+        DPRINTF(E_DEBUG, L_METADATA, "rc: %d\n", rc);
+        video_thumbnailer_destroy(vt);
+        return thumbfile;
+    }
+    return 0;
+}
+
+#endif
+
 sqlite_int64
 find_album_art(const char * path, const char * image_data, int image_size)
 {
@@ -343,8 +378,14 @@ find_album_art(const char * path, const char * image_data, int image_size)
 	sqlite_int64 ret = 0;
 	char * mypath = strdup(path);
 
-	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
-	    (album_art = check_for_album_file(dirname(mypath), path)) )
+
+    album_art = check_embedded_art(path, image_data, image_size);
+    if (!album_art) album_art = check_for_album_file(dirname(mypath), path);
+#ifdef THUMBNAIL_CREATION_SUPPORT
+    if (!album_art) album_art = generate_albumart(dirname(mypath), path);
+#endif
+
+    if (album_art)
 	{
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
 		if( (sql_get_table(db, sql, &result, &rows, &cols) == SQLITE_OK) && rows )

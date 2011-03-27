@@ -112,6 +112,7 @@ struct upnphttp {
 #define FLAG_MIME_FLAC_FLAC     0x00800000
 #define FLAG_NO_RESIZE          0x01000000
 #define FLAG_MS_PFS		0x02000000 // Microsoft PlaysForSure client
+#define FLAG_MEDIA_INFO         0x04000000
 
 /* New_upnphttp() */
 struct upnphttp *
@@ -172,5 +173,12 @@ SendResp_thumbnail(struct upnphttp *, char * url);
  * send the actual file data for a UPnP-A/V or DLNA request. */
 void
 SendResp_dlnafile(struct upnphttp *, char * url);
+void
+SendResp_samsung_mta_file(struct upnphttp * h, char * object);
+void
+generate_external_samsung_mta_file(const char* path, int duration);
+char*
+generate_samsung_mta_file(const char* path, int duration);
+
 #endif
 

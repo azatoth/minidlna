@@ -59,7 +59,8 @@ static const struct {
 	{ UPNPDBDIR, "db_dir" },
 	{ UPNPLOGDIR, "log_dir" },
 	{ ENABLE_TIVO, "enable_tivo" },
-	{ ENABLE_DLNA_STRICT, "strict_dlna" }
+	{ ENABLE_DLNA_STRICT, "strict_dlna" },
+	{ ENABLE_EXTERNAL_MTA_FILES, "samsung_external_mta_files" }
 };
 
 int

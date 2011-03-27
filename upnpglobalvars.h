@@ -160,6 +160,7 @@ extern int runtime_flags;
 #define INOTIFY_MASK          0x0001
 #define TIVO_MASK             0x0002
 #define DLNA_STRICT_MASK      0x0004
+#define EXTERNAL_MTA_FILE_MASK      0x0008
 
 #define SETFLAG(mask)	runtime_flags |= mask
 #define GETFLAG(mask)	runtime_flags & mask

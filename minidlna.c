@@ -547,6 +547,10 @@ init(int argc, char * * argv)
 				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
 					SETFLAG(DLNA_STRICT_MASK);
 				break;
+			case ENABLE_EXTERNAL_MTA_FILES:
+				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
+					SETFLAG(EXTERNAL_MTA_FILE_MASK);
+				break;
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",
 				        optionsfile);

@@ -75,6 +75,8 @@ struct stateVar {
  * returns: NULL on error, string allocated on the heap */
 char *
 genRootDesc(int * len);
+char *
+genRootDescSamsung(int * len);
 
 /* for the two following functions */
 char *

@@ -24,9 +24,11 @@
 #define MAX_RESPONSE_SIZE 1048576
 
 #define CONTENT_DIRECTORY_SCHEMAS \
+	" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"" \
 	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"" \
-	" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"" \
-	" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
+	" xmlns:upnp= &apos;urn:schemas-upnp-org:metadata-1-0/upnp/&apos;"
+#define SEC_NAMESPACE \
+	" xmlns:sec=\"http://www.sec.co.kr/\""
 #define DLNA_NAMESPACE \
 	" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\""
 

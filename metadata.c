@@ -36,6 +36,7 @@
 #include "tagutils/tagutils.h"
 
 #include "upnpglobalvars.h"
+#include "upnphttp.h"
 #include "upnpreplyparse.h"
 #include "metadata.h"
 #include "albumart.h"
@@ -648,7 +649,7 @@ GetVideoMetadata(const char * path, char * name)
 	ts_timestamp_t ts_timestamp = NONE;
 	char fourcc[4];
 	int off;
-	int duration, hours, min, sec, ms;
+	int duration=0, hours, min, sec, ms;
 	aac_object_type_t aac_type = AAC_INVALID;
 	sqlite_int64 album_art = 0;
 	char nfo[PATH_MAX], *ext;
@@ -1501,6 +1502,10 @@ video_no_dlna:
 	{
 		ret = sqlite3_last_insert_rowid(db);
 		check_for_captions(path, ret);
+
+		/* if option is set, create suitable Samsung MTA file for this video */
+		if (duration > 0 && GETFLAG(EXTERNAL_MTA_FILE_MASK))
+			generate_external_samsung_mta_file(path, duration);
 	}
 	free_metadata(&m, free_flags);
 

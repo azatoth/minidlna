@@ -572,7 +572,8 @@ CreateDatabase(void)
 					"REF_ID TEXT DEFAULT NULL, "
 					"CLASS TEXT NOT NULL, "
 					"DETAIL_ID INTEGER DEFAULT NULL, "
-					"NAME TEXT DEFAULT NULL"
+					"NAME TEXT DEFAULT NULL, "
+                    "BOOKMARK INTEGER DEFAULT 0" /* time position in seconds [ESamsungTV] */
 					");");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
