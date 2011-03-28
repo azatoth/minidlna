@@ -301,6 +301,9 @@ if not env.GetOption('clean') and not env.GetOption('help'):
             log_path = "/var/log"
         else :
             pass # unknown linux dist
+    elif "cygwin" in os_name.lower():
+        conf.Define("MSG_MORE", 0)
+
     else :
         print("Unknown operating system '%s'" % os_name)
         Exit(2)

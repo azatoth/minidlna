@@ -87,15 +87,15 @@ getsysaddr(char * buf, int len)
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;
 	struct ifreq ifr;
-#ifdef CYGWIN
+#ifdef cygwin
 	struct ifconf  ifc;
 	char  *ptr;
 	int    result;
 	char   buffer[1024];
-#endif
+#endif /* cygwin */
 	int ret = -1;
 
-#ifdef CYGWIN
+#ifdef cygwin
 	ifc.ifc_buf = buffer;
 	ifc.ifc_len = (sizeof(buffer)/sizeof(buffer[0]));
 
@@ -108,33 +108,33 @@ getsysaddr(char * buf, int len)
 	result = ioctl(s, SIOCGIFCONF, &ifc);
 
 	ptr = buffer;
-#endif
+#endif /* cygwin */
 
-#ifndef CYGWIN
+#ifndef cygwin
 	for (i=1; i > 0; i++)
-#else // CYGWIN
+#else
 	for (i=1; i > 0; i++, ptr += sizeof(struct ifreq))
-#endif // CYGWIN
+#endif /* cygwin */
 	{
 		ifr.ifr_ifindex = i;
-#ifndef CYGWIN
+#ifndef cygwin
 		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
 			break;
 		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
 			continue;
-#else // CYGWIN
+#else
 		if (ptr >= buf + ifc.ifc_len)
 			break;
 		memcpy(&ifr, ptr, sizeof(ifr));
 		result = ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq));
 		if (ifr.ifr_addr.sa_family != AF_INET)
 			continue;
-#endif // CYGWIN
+#endif /* cygwin */
 		memcpy(&addr, &ifr.ifr_addr, sizeof(addr));
-#ifndef CYGWIN
+#ifndef cygwin
 		if(strncmp(inet_ntoa(addr.sin_addr), "127.", 4) == 0)
 			continue;
-#else // CYGWIN
+#else
 		if( (strncmp(inet_ntoa(addr.sin_addr), "127.", 4) == 0)
 		 || (strncmp(inet_ntoa(addr.sin_addr), "169.", 4) == 0) )
 		{
@@ -143,7 +143,7 @@ getsysaddr(char * buf, int len)
 		}
 		else
 			DPRINTF(E_WARN, L_GENERAL, "found address #%d= %s : used\n", i, inet_ntoa(addr.sin_addr));
-#endif // CYGWIN
+#endif /* cygwin */
 		if(!inet_ntop(AF_INET, &addr.sin_addr, buf, len))
 		{
 			DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));

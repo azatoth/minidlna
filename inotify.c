@@ -35,7 +35,7 @@
 #ifdef HAVE_INOTIFY_H
 #include <sys/inotify.h>
 #else
-#ifndef CYGWIN
+#ifndef cygwin
 #include "linux/inotify.h"
 #include "linux/inotify-syscalls.h"
 #endif
@@ -51,13 +51,13 @@
 #include "playlist.h"
 #include "log.h"
 
-#ifdef CYGWIN
+#ifdef cygwin
 
 #include <sys/cygwin.h>
 #define PATH_BUF_SIZE PATH_MAX
 static time_t next_pl_fill = 0;
 
-#else // CYGWIN
+#else /* cygwin */
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
@@ -285,7 +285,7 @@ int add_dir_watch(int fd, char * path, char * filename)
 
 	return(i);
 }
-#endif // CYGWIN
+#endif /* cygwin */
 
 int
 inotify_insert_file(char * name, const char * path)
@@ -450,9 +450,9 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	char * sql;
 	char **result;
 	char *id=NULL, *path_buf, *parent_buf, *esc_name;
-#ifndef CYGWIN
+#ifndef cygwin
 	int wd;
-#endif // CYGWIN
+#endif /* cygwin */
 	int rows;
 	enum file_types type = TYPE_UNKNOWN;
 	enum media_types dir_type = ALL_MEDIA;
@@ -471,7 +471,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	free(parent_buf);
 	sqlite3_free(sql);
 
-#ifndef CYGWIN
+#ifndef cygwin
 	wd = add_watch(fd, path);
 	if( wd == -1 )
 	{
@@ -481,7 +481,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	{
 		DPRINTF(E_INFO, L_INOTIFY, "Added watch to %s [%d]\n", path, wd);
 	}
-#endif // CYGWIN
+#endif /* cygwin */
 
 	media_path = media_dirs;
 	while( media_path )
@@ -624,9 +624,9 @@ inotify_remove_directory(int fd, const char * path)
 	sqlite_int64 detailID = 0;
 	int rows, i, ret = 1;
 
-#ifndef CYGWIN
+#ifndef cygwin
 	remove_watch(fd, path);
-#endif // CYGWIN
+#endif /* cygwin */
 	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH glob '%q/*'"
 	                      " UNION ALL SELECT ID from DETAILS where PATH = '%q'", path, path);
 	if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
@@ -650,7 +650,7 @@ inotify_remove_directory(int fd, const char * path)
 	return ret;
 }
 
-#ifndef CYGWIN
+#ifndef cygwin
 void *
 start_inotify()
 {
@@ -766,7 +766,7 @@ quitting:
 	return 0;
 }
 
-#else // CYGWIN
+#else /* cygwin */
 
 
 #include <windows.h>
@@ -876,7 +876,7 @@ insert_to_delete_from_db(int searchNo)
 			}
 		}
 		free(esc_name);
-#endif
+#endif /* 0 */
 		NextOff = m_BufferTmp->NextEntryOffset;
 		m_BufferTmp = (FILE_NOTIFY_INFORMATION *)((char *)m_BufferTmp + NextOff);
 	} while (NextOff != 0);
@@ -1083,4 +1083,4 @@ quitting:
 
 	return 0;
 }
-#endif // CYGWIN
+#endif /* cygwin */

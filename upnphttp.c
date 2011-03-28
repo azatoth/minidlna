@@ -67,9 +67,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifndef CYGWIN
+#ifndef cygwin
 #include <sys/sendfile.h>
-#endif // CYGWIN
+#endif /* cygwin */
 #include <arpa/inet.h>
 
 #include "upnpglobalvars.h"
@@ -1134,13 +1134,13 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 	off_t send_size;
 	off_t ret;
 	char *buf = NULL;
-#ifndef CYGWIN
+#ifndef cygwin
 	int try_sendfile = 1;
-#endif // CYGWIN
+#endif /* cygwin */
 
 	while( offset < end_offset )
 	{
-#ifndef CYGWIN
+#ifndef cygwin
 		if( try_sendfile )
 		{
 			send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
@@ -1160,7 +1160,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 				continue;
 			}
 		}
-#endif // CYGWIN
+#endif /* cygwin */
 		/* Fall back to regular I/O */
 		if( !buf )
 			buf = malloc(MIN_BUFFER_SIZE);
