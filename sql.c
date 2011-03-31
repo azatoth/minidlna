@@ -136,7 +136,7 @@ sql_get_text_field(void *db, const char *fmt, ...)
 
 	if (db == NULL)
 	{
-		DPRINTF(E_WARN, L_DB_SQL, "%s: db is NULL", __func__);
+		DPRINTF(E_WARN, L_DB_SQL, "db is NULL\n");
 		return NULL;
 	}
 
@@ -182,7 +182,7 @@ sql_get_text_field(void *db, const char *fmt, ...)
 			len = sqlite3_column_bytes(stmt, 0);
 			if ((str = sqlite3_malloc(len + 1)) == NULL)
 			{
-				DPRINTF(E_ERROR, L_DB_SQL, "malloc failed");
+				DPRINTF(E_ERROR, L_DB_SQL, "malloc failed\n");
 				break;
 			}
 
@@ -190,7 +190,7 @@ sql_get_text_field(void *db, const char *fmt, ...)
 			break;
 
 		default:
-			DPRINTF(E_WARN, L_DB_SQL, "%s: step failed: %s", __func__, sqlite3_errmsg(db));
+			DPRINTF(E_WARN, L_DB_SQL, "SQL step failed: %s\n", sqlite3_errmsg(db));
 			str = NULL;
 			break;
 	}
