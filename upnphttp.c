@@ -345,7 +345,9 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_DLNA;
 				}
 				/* X-AV-Client-Info: av=5.0; cn="Sony Corporation"; mn="BRAVIA KDL-40EX503"; mv="1.7"; */
-				else if(strstrc(p, "BRAVIA", '\r'))
+				/* X-AV-Client-Info: av=5.0; hn=""; cn="Sony Corporation"; mn="INTERNET TV NSX-40GT 1"; mv="0.1"; */
+				else if(strstrc(p, "BRAVIA", '\r') ||
+				        strstrc(p, "INTERNET TV", '\r'))
 				{
 					h->req_client = ESonyBravia;
 					h->reqflags |= FLAG_DLNA;
