@@ -1085,6 +1085,8 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			ObjectId = sqlite3_malloc(1);
 		goto browse_error;
 	}
+	if( GETFLAG(ONLY_BROWSEDIR_MASK) && ( strcmp(ObjectId, "0") == 0 ) )
+		ObjectId = BROWSEDIR_ID;
 	memset(&args, 0, sizeof(args));
 
 	args.alloced = 1048576;

@@ -552,6 +552,10 @@ init(int argc, char * * argv)
 				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
 					SETFLAG(DLNA_STRICT_MASK);
 				break;
+			case ENABLE_ONLY_BROWSEDIR:
+				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
+					SETFLAG(ONLY_BROWSEDIR_MASK);
+				break;
 #ifdef ENABLE_TRANSCODE
 			case TRANSCODE_A_ENABLE:
 				if(strcmp(ary_options[i].value, "PCM") == 0)

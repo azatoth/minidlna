@@ -59,7 +59,8 @@ static const struct {
 	{ UPNPDBDIR, "db_dir" },
 	{ UPNPLOGDIR, "log_dir" },
 	{ ENABLE_TIVO, "enable_tivo" },
-	{ ENABLE_DLNA_STRICT, "strict_dlna" }
+	{ ENABLE_DLNA_STRICT, "strict_dlna" },
+	{ ENABLE_ONLY_BROWSEDIR, "only_browsedir" }
 #ifdef ENABLE_TRANSCODE
 	,
 	{ TRANSCODE_A_ENABLE, "transcode_audio_enable" },
