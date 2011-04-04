@@ -883,6 +883,88 @@ callback(void *args, int argc, char **argv, char **azColName)
 					passed_args->size += ret;
 				}
 			}
+#ifdef ENABLE_TRANSCODE
+			if( ( strncmp(mime, "video/", 6) == 0 ) && (transcode_video != TRANSCODE_VIDEO_DISABLE) ){
+				char *trans_res;
+				ret = sprintf(str_buf, "&lt;res ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				if( duration && (passed_args->filter & FILTER_RES_DURATION) ) {
+					ret = sprintf(str_buf, "duration=\"%s\" ", duration);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+				if( nrAudioChannels && (passed_args->filter & FILTER_RES_NRAUDIOCHANNELS) ) {
+					ret = sprintf(str_buf, "nrAudioChannels=\"%s\" ", nrAudioChannels);
+					memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+					passed_args->size += ret;
+				}
+
+				trans_res = "480";
+#if 0
+				if( resolution && (passed_args->filter & FILTER_RES_RESOLUTION) ) {
+					if ( (strcmp(resolution, "720x480") == 0) /* these resolutions are mandatory for DLNA renderer */
+					  || (strcmp(resolution, "704x480") == 0)
+					  || (strcmp(resolution, "544x480") == 0)
+					  || (strcmp(resolution, "352x480") == 0)
+					  || (strcmp(resolution, "352x480") == 0)
+					  || (strcmp(resolution, "352x240") == 0)
+						ret = sprintf(str_buf, "resolution=\"%s\" ", resolution);
+						trans_res = "NoScale";
+					}
+					else
+						ret = sprintf(str_buf, "resolution=\"720x480\" ");
+				} else {
+					ret = sprintf(str_buf, "resolution=\"720x480\" ");
+				}
+#else
+				ret = sprintf(str_buf, "resolution=\"720x480\" ");
+#endif
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+
+				ret = sprintf(str_buf, "protocolInfo=\"http-get:*:video/mpeg:"
+									   "DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=10;DLNA.ORG_CI=1;"
+									   "DLNA.ORG_FLAGS=01500000000000000000000000000000\"&gt;"
+				                       "http://%s:%d/MediaItems/TranscodeVideo/%s/%s.%s"
+				                       "&lt;/res&gt;",
+				                       lan_addr[0].str, runtime_vars.port, trans_res, detailID, ext);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
+#endif /* ENABLE_TRANSCODE */
+#ifdef ENABLE_TRANSCODE
+			if ( ( strncmp(mime, "audio/", 6) == 0 ) && (transcode_audio != TRANSCODE_AUDIO_DISABLE) ) {
+				ret = sprintf(str_buf, "&lt;res ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				if( duration && (passed_args->filter & FILTER_RES_DURATION) ) {
+					ret = sprintf(str_buf, "duration=\"%s\" ", duration);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+				}
+
+				if( passed_args->client == EXbox )
+					ret = sprintf(str_buf, "bitrate=\"%d\" ", 1411200/1024);
+				else
+					ret = sprintf(str_buf, "bitrate=\"%d\" ", 1411200/8);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+
+				ret = sprintf(str_buf, "sampleFrequency=\"44100\" nrAudioChannels=\"2\" bitsPerSample=\"16\" ");
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+
+				ret = sprintf(str_buf, "protocolInfo=\"http-get:*:audio/L16;rate=44100;channels=2:"
+										"DLNA.ORG_PN=LPCM;DLNA.ORG_OP=10;DLNA.ORG_CI=1;"
+										"DLNA.ORG_FLAGS=01500000000000000000000000000000\"&gt;"
+				                       "http://%s:%d/MediaItems/TranscodeAudio/%s.%s"
+				                       "&lt;/res&gt;",
+				                       lan_addr[0].str, runtime_vars.port, detailID, ext);
+				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
+				passed_args->size += ret;
+			}
+#endif /* ENABLE_TRANSCODE */
 		}
 		ret = sprintf(str_buf, "&lt;/item&gt;");
 	}

@@ -55,6 +55,13 @@ enum upnpconfigoptions {
 	UPNPLOGDIR,			/* base directory to store the log file */
 	ENABLE_TIVO,			/* enable support for streaming images and music to TiVo */
 	ENABLE_DLNA_STRICT		/* strictly adhere to DLNA specs */
+#ifdef ENABLE_TRANSCODE
+	,
+	TRANSCODE_A_ENABLE,		/* audio transcode PCM / DISABLE */
+	TRANSCODE_V_TRANSCODER,	/* video transcoder MENCODER / FFMPEG / DISABLE */
+	TRANSCODE_V_OPTIONS,	/* video transcoder options */
+	TRANSCODE_A_FFMPEG_OPTIONS	/* audio ffmpeg options */
+#endif /* ENABLE_TRANSCODE */
 };
 
 /* readoptionsfile()

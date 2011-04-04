@@ -840,6 +840,10 @@ GetVideoMetadata(const char * path, char * name)
 			asprintf(&m.mime, "video/x-matroska");
 		else if( strcmp(ctx->iformat->name, "flv") == 0 )
 			asprintf(&m.mime, "video/x-flv");
+#ifdef ENABLE_TRANSCODE /* transcode can treat ogg */
+		else if(  strncmp(ctx->iformat->name, "ogg", 3 ) == 0 )
+			asprintf(&m.mime, "video/ogg");
+#endif /* ENABLE_TRANSCODE */
 		if( m.mime )
 			goto video_no_dlna;
 
@@ -915,6 +919,12 @@ GetVideoMetadata(const char * path, char * name)
 					else
 						off += sprintf(m.dlna_pn+off, "NTSC");
 					asprintf(&m.mime, "video/mpeg");
+#ifdef ENABLE_TRANSCODE /* MPEG2 video + MP2/MP3 */
+					if ( (audio_profile == PROFILE_AUDIO_MP3) || (audio_profile == PROFILE_AUDIO_MP2) ) {
+						DPRINTF(E_DEBUG, L_METADATA, "-- audio is MP3\n");
+						asprintf(&m.creator, "MP3");
+					}
+#endif /* ENABLE_TRANSCODE */
 				}
 				else
 				{
@@ -1400,14 +1410,20 @@ GetVideoMetadata(const char * path, char * name)
 		else if( strcmp(ctx->iformat->name, "asf") == 0 )
 			asprintf(&m.mime, "video/x-ms-wmv");
 		else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
+		{
 			if( ends_with(path, ".mov") )
 				asprintf(&m.mime, "video/quicktime");
 			else
 				asprintf(&m.mime, "video/mp4");
+		}
 		else if( strncmp(ctx->iformat->name, "matroska", 8) == 0 )
 			asprintf(&m.mime, "video/x-matroska");
 		else if( strcmp(ctx->iformat->name, "flv") == 0 )
 			asprintf(&m.mime, "video/x-flv");
+#ifdef ENABLE_TRANSCODE /* transcode can treat ogg */
+		else if(  strncmp(ctx->iformat->name, "ogg", 3 ) == 0 )
+			asprintf(&m.mime, "video/ogg");
+#endif /* ENABLE_TRANSCODE */
 		else
 			DPRINTF(E_WARN, L_METADATA, "%s: Unhandled format: %s\n", path, ctx->iformat->name);
 	}

@@ -112,6 +112,14 @@ AddOption(
     help="utilize BSD daemon() instead of using home brew daemonize function."
 )
 
+AddOption(
+    "--disable-transcode",
+    dest="transcode",
+    action="store_false",
+    default=True,
+    help="Disable transcoding."
+)
+
 db_path = GetOption("db_path")
 log_path = GetOption("log_path")
 bsd_daemon = GetOption("bsd_daemon")
@@ -237,6 +245,10 @@ if not env.GetOption('clean') and not env.GetOption('help'):
     if bsd_daemon:
         conf.config_h_text += "\n"
         conf.Define('USE_DAEMON', 1, "Use BSD daemon() instead of home made function")
+    
+    if GetOption('transcode'):
+        conf.config_h_text += "\n"
+        conf.Define('ENABLE_TRANSCODE', 1, "Enable transcoding")
     
     conf.config_h_text += "\n"
     conf.Define("DEFAULT_DB_PATH", '"%s"' % db_path, "Default database path")
