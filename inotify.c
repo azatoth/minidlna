@@ -458,7 +458,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	wd = add_watch(fd, path);
 	if( wd == -1 )
 	{
-		DPRINTF(E_ERROR, L_INOTIFY, "add_watch() failed");
+		DPRINTF(E_ERROR, L_INOTIFY, "add_watch() failed\n");
 	}
 	else
 	{
