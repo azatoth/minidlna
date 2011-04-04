@@ -319,6 +319,11 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EMediaRoom;
 					h->reqflags |= FLAG_MS_PFS;
 				}
+				else if(strstrc(p, "UPnP/1.0 DLNADOC/1.50 Intel_SDK_for_UPnP_devices/1.2", '\r'))
+				{
+					h->req_client = EToshibaTV;
+					h->reqflags |= FLAG_DLNA;
+				}
 				else if(strstrc(p, "DLNADOC/1.50", '\r'))
 				{
 					h->req_client = EStandardDLNA150;
@@ -496,7 +501,9 @@ next_header:
 				break;
 			}
 		}
-		else if( (n < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
+		else if( (n < EStandardDLNA150) &&
+				( (h->req_client == EStandardDLNA150) ||
+				  (h->req_client == EToshibaTV) ) )
 		{
 			/* If we know the client and our new detection is generic, use our cached info */
 			h->reqflags |= clients[n].flags;

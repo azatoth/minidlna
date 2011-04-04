@@ -70,6 +70,7 @@ enum client_types {
 	EMediaRoom,
 	ESonyBDP,
 	ESonyBravia,
+	EToshibaTV,
 	EStandardDLNA150 = 100
 };
 
