@@ -67,7 +67,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifndef cygwin
 #include <sys/sendfile.h>
+#endif /* cygwin */
 #include <arpa/inet.h>
 
 #include "upnpglobalvars.h"
@@ -81,9 +83,18 @@
 #include "tivo_utils.h"
 #include "tivo_commands.h"
 #endif
+#ifndef cygwin
 //#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 #define MIN_BUFFER_SIZE 65536
+#else
+#define MAX_BUFFER_SIZE 4194304 // 4MB for Cygwin
+#define MIN_BUFFER_SIZE 65536
+#define MSG_MORE 0
+#include <sys/cygwin.h>
+#include<io.h>
+#include <string.h>
+#endif
 
 #ifdef ENABLE_TRANSCODE
 #define MAX_BUFFER_SIZE_TRANSCODE 1048576 // 1MB
@@ -1176,10 +1187,20 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 	off_t send_size;
 	off_t ret;
 	char *buf = NULL;
+#ifndef cygwin
 	int try_sendfile = 1;
+#else /* cygwin */
+	if (EOF == setmode(sendfd, O_BINARY))
+		DPRINTF(E_INFO, L_HTTP, "cannot set BINARY mode for pipe");
+	if (EOF == setmode(h->socket, O_BINARY))
+		DPRINTF(E_INFO, L_HTTP, "cannot set BINARY mode for socket");
+
+	DPRINTF(E_INFO, L_HTTP, "start sendfile, offset=%lld, end=%lld\n", offset, end_offset);
+#endif /* cygwin */
 
 	while( offset < end_offset )
 	{
+#ifndef cygwin
 		if( try_sendfile )
 		{
 			send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
@@ -1199,6 +1220,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 				continue;
 			}
 		}
+#endif /* cygwin */
 		/* Fall back to regular I/O */
 		if( !buf )
 			buf = malloc(MIN_BUFFER_SIZE);
@@ -1224,6 +1246,12 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 
 
 #ifdef ENABLE_TRANSCODE
+
+#ifdef cygwin
+#ifdef LINK_FFMPEG
+int ffmpeg_main(int argc, char **argv);
+#endif // LINK_FFMPEG
+#endif /* cygwin */
 
 /* options for transcode specified in .conf file */
 enum transcode_audio_enable transcode_audio = TRANSCODE_AUDIO_PCM;
@@ -1266,6 +1294,15 @@ int exec_transcode(char *source_path, int *fd_r, int transcodeAV, int offset, in
 	char *pDst, *pSrc, *pTmp;
 	int options=0;
 
+#ifndef cygwin
+#else /* cygwin */
+	int numOfArg;
+	char *args[60], *ptr;
+	char source_path_win[PATH_MAX];
+	cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_ABSOLUTE, source_path, source_path_win, 1024);
+	//DPRINTF(E_INFO, L_HTTP, "filename converterd to windows path =%s\n", source_path_win);
+#endif /* cygwin */
+
 	sprintf(position, "%d.%d", offset/1000, offset%1000);
 	sprintf(duration, "%d.%d", (end_offset - offset + 1)/1000,  (end_offset - offset + 1)%1000);
 	//DPRINTF(E_DEBUG, L_HTTP, "position=%s, duration=%s\n", position, duration);
@@ -1302,8 +1339,13 @@ int exec_transcode(char *source_path, int *fd_r, int transcodeAV, int offset, in
 			options |= DURATION_DONE;
 		} else if (strncmp(pSrc, "$SOURCE", 7) == 0) {
 			pSrc += 7;
+#ifndef cygwin
 			ret = sprintf(pDst, "\"%s\" ", source_path);
 			pDst += ret;
+#else /* cygwin */
+			*pDst = '\0';
+			pDst = options_tmp2;
+#endif /* cygwin */
 			options |= SOURCE_DONE;
 		} else
 			pSrc++;
@@ -1318,8 +1360,25 @@ int exec_transcode(char *source_path, int *fd_r, int transcodeAV, int offset, in
 
 //printf("%s %s \n", transcoder, options_tmp);
 
+#ifndef cygwin
 	sprintf(cmd, "%s %s", transcoder, options_tmp);
 	DPRINTF(E_INFO, L_HTTP, "exec %s as following:\n%s\n", transcoder, cmd);
+#else
+	sprintf(cmd, "%s.exe %s", transcoder, options_tmp);
+	DPRINTF(E_INFO, L_HTTP, "exec %s as following:\n%s \"%s\" %s\n", transcoder, cmd,  strstr(transcoder, "ffmpeg") ? source_path : source_path_win, options_tmp2);
+
+	for (numOfArg= 0 ; numOfArg < 60 ; numOfArg++ ) {
+		ptr = strtok( numOfArg==0 ? cmd : NULL, " " );
+		if (ptr == NULL) break;
+		args[numOfArg] = ptr;
+	}
+	args[numOfArg++] = strstr(transcoder, "ffmpeg") ? source_path : source_path_win;
+	for ( ; numOfArg < 60 ; numOfArg++ ) {
+		ptr = strtok( ptr==NULL ? options_tmp2 : NULL, " " );
+		args[numOfArg] = ptr;
+		if (ptr == NULL) break;
+	}
+#endif /* cygwin */
 
 	/* Create a pipe. */
 	if(pipe(pipe_c2p)<0) {
@@ -1338,8 +1397,33 @@ int exec_transcode(char *source_path, int *fd_r, int transcodeAV, int offset, in
 		close(pipe_c2p[R]);
 		dup2(pipe_c2p[W],1);
 		close(pipe_c2p[W]);
+#ifndef cygwin
 		ret = execlp("sh", "sh", "-c", cmd, NULL);
 		//ret = execlp("cmd", "cmd", "/c", cmd, NULL);
+#else
+#if 0
+		for (numOfArg= 0 ; numOfArg < 60 ; numOfArg++ ) {
+			ptr = strtok( numOfArg==0 ? cmd : NULL, " " );
+			if (ptr == NULL) break;
+			args[numOfArg] = ptr;
+		}
+		args[numOfArg++] = strstr(transcoder, "ffmpeg") ? source_path : source_path_win;
+		for ( ; numOfArg < 60 ; numOfArg++ ) {
+			ptr = strtok( ptr==NULL ? options34 : NULL, " " );
+			args[numOfArg] = ptr;
+			if (ptr == NULL) break;
+		}
+#endif
+#ifdef LINK_FFMPEG
+		if (strstr(transcoder, "ffmpeg"))
+		{
+			ffmpeg_main(numOfArg, args);
+			exit(0);
+		}
+		else
+#endif // LINK_FFMPEG
+			ret = execvp(args[0], args);
+#endif
 		if (ret < 0) {
 				perror("exec_transcode");
 				close(pipe_c2p[W]);
@@ -1375,6 +1459,14 @@ send_file_transcode(struct upnphttp * h, int sendfd, int offset, int end_offset,
 	}
 
 	total_byte_read=0; total_byte_send=0;
+
+#if 0
+//#ifdef cygwin
+	if (EOF == setmode(fd_r, O_BINARY))
+		DPRINTF(E_INFO, L_HTTP, "cannot set BINARY mode for pipe");
+	if (EOF == setmode(h->socket, O_BINARY))
+		DPRINTF(E_INFO, L_HTTP, "cannot set BINARY mode for socket");
+#endif
 
 	while(1)
 	{

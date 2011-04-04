@@ -43,6 +43,7 @@
 #include <sys/sockio.h>
 #endif
 
+#include "config.h"
 #include "getifaddr.h"
 #include "log.h"
 
@@ -86,18 +87,65 @@ getsysaddr(char * buf, int len)
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;
 	struct ifreq ifr;
+#ifdef cygwin
+	struct ifconf  ifc;
+	char  *ptr;
+	int    result;
+	char   buffer[1024];
+#endif
 	int ret = -1;
 
+#ifdef cygwin
+	ifc.ifc_buf = buffer;
+	ifc.ifc_len = (sizeof(buffer)/sizeof(buffer[0]));
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		DPRINTF(E_ERROR, L_GENERAL, "Couldn't open socket\n");
+		return -1;
+	}
+
+	result = ioctl(s, SIOCGIFCONF, &ifc);
+
+	ptr = buffer;
+#endif
+
+#ifndef cygwin
 	for (i=1; i > 0; i++)
+#else /* cygwin */
+	for (i=1; i > 0; i++, ptr += sizeof(struct ifreq))
+#endif /* cygwin */
 	{
 		ifr.ifr_ifindex = i;
+#ifndef cygwin
 		if( ioctl(s, SIOCGIFNAME, &ifr) < 0 )
 			break;
 		if(ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq)) < 0)
 			continue;
+#else /* cygwin */
+		if (ptr >= buf + ifc.ifc_len)
+			break;
+		memcpy(&ifr, ptr, sizeof(ifr));
+		result = ioctl(s, SIOCGIFADDR, &ifr, sizeof(struct ifreq));
+		if (ifr.ifr_addr.sa_family != AF_INET)
+			continue;
+#endif /* cygwin */
 		memcpy(&addr, &ifr.ifr_addr, sizeof(addr));
+#ifndef cygwin
 		if(strncmp(inet_ntoa(addr.sin_addr), "127.", 4) == 0)
 			continue;
+#else /* cygwin */
+		if( (strncmp(inet_ntoa(addr.sin_addr), "127.", 4) == 0)
+		 || (strncmp(inet_ntoa(addr.sin_addr), "169.", 4) == 0) )
+		{
+			//DPRINTF(E_ERROR, L_GENERAL, "found address #%d= %s : Not used\n", i, inet_ntoa(addr.sin_addr));
+			printf("found address #%d= %s : Not used\n", i, inet_ntoa(addr.sin_addr));
+			continue;
+		}
+		else
+			//DPRINTF(E_ERROR, L_GENERAL, "found address #%d= %s : used\n", i, inet_ntoa(addr.sin_addr));
+			printf("found address #%d= %s : used\n", i, inet_ntoa(addr.sin_addr));
+#endif /* cygwin */
 		if(!inet_ntop(AF_INET, &addr.sin_addr, buf, len))
 		{
 			DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));

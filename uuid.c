@@ -28,7 +28,10 @@
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "config.h"
+#ifndef cygwin
 #include <sys/syscall.h>
+#endif /* cygwin */
 #include <string.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
@@ -51,7 +54,11 @@ monotonic_us(void)
 {
 	struct timespec ts;
 
+#ifndef cygwin
 	syscall(__NR_clock_gettime, CLOCK_MONOTONIC, &ts);
+#else
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+#endif //cygwin
 	return ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000;
 }
 
@@ -162,7 +169,11 @@ generate_uuid(unsigned char uuid_out[16])
 	 * nanosecond intervals since 00:00:00.00, 15 October 1582 (the date of
 	 * Gregorian reform to the Christian calendar).
 	 */
+#ifndef cygwin
 	syscall(__NR_clock_gettime, CLOCK_REALTIME, &ts);
+#else
+	clock_gettime(CLOCK_REALTIME, &ts);
+#endif //cygwin
 	time_all = ((u_int64_t)ts.tv_sec) * (NSEC_PER_SEC / 100);
 	time_all += ts.tv_nsec / 100;
 

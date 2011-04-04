@@ -19,7 +19,12 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include "config.h"
+#ifndef cygwin
 #include <linux/limits.h>
+#else
+#include <sys/cygwin.h>
+#endif /* cygwin */
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/types.h>

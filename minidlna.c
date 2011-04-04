@@ -98,6 +98,9 @@
 #include "tivo_beacon.h"
 #include "tivo_utils.h"
 #endif
+#ifdef cygwin
+#include <sys/cygwin.h>
+#endif /* cygwin */
 
 #if SQLITE_VERSION_NUMBER < 3005001
 # warning "Your SQLite3 library appears to be too old!  Please use 3.5.1 or newer."
@@ -352,6 +355,10 @@ init(int argc, char * * argv)
 	char * path;
 	char real_path[PATH_MAX];
 	char ext_ip_addr[INET_ADDRSTRLEN] = {'\0'};
+#ifdef cygwin
+	ssize_t ret;
+	char cygwin_path[PATH_MAX];
+#endif /* cygwin */
 #ifdef ENABLE_TRANSCODE
 	int transcode_video_options_len = 0;
 	int transcode_audio_ffmpeg_options_len = 0;
@@ -397,6 +404,7 @@ init(int argc, char * * argv)
 		{
 			switch(ary_options[i].id)
 			{
+#ifndef cygwin
 			case UPNPIFNAME:
 				if(getifaddr(ary_options[i].value, ext_ip_addr, INET_ADDRSTRLEN) >= 0)
 				{
@@ -406,6 +414,7 @@ init(int argc, char * * argv)
 				else
 					fprintf(stderr, "Interface %s not found, ignoring.\n", ary_options[i].value);
 				break;
+#endif /* cygwin */
 			case UPNPLISTENING_IP:
 				if(n_lan_addr < MAX_LAN_ADDR)
 				{
@@ -461,7 +470,25 @@ init(int argc, char * * argv)
 				case 'p':
 					if( ary_options[i].value[0] == 'P' || ary_options[i].value[0] == 'p' )
 						type = IMAGES_ONLY;
+#ifndef cygwin
 					myval = index(ary_options[i].value, '/');
+#else /* cygwin */
+				case 'M':
+				case 'm':
+					myval = index(ary_options[i].value, '/');
+					if (!myval) {
+						myval = index(ary_options[i].value, '\\');
+						if (myval) {
+							ret = cygwin_conv_path(CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE, &ary_options[i].value[2], cygwin_path, PATH_MAX);
+							if (ret == 0)
+								myval = cygwin_path;
+							else {
+								myval = NULL;
+								fprintf(stderr, "invalid path : %s\n", &ary_options[i].value[2]);
+							}
+						}
+					}
+#endif /* cygwin */
 				case '/':
 					path = realpath(myval ? myval:ary_options[i].value, real_path);
 					if( !path )
@@ -801,7 +828,11 @@ init(int argc, char * * argv)
 	else
 	{
 #ifdef USE_DAEMON
+#ifndef cygwin
 		if(daemon(0, 0)<0) {
+#else
+		if(daemon(1, 0)<0) { // keep cuurend cwd
+#endif /* cygwin */
 			perror("daemon()");
 		}
 		pid = getpid();
@@ -900,6 +931,18 @@ main(int argc, char * * argv)
 	textdomain("minidlna");
 #endif
 
+#ifdef cygwin
+	{
+		char *localappdata;
+		if ((localappdata = getenv("LOCALAPPDATA")) == NULL) // Windows7, Vista
+			 localappdata = getenv("APPDATA");				 // Windows XP
+		if (localappdata != NULL)
+			//cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE, localappdata, db_path, PATH_MAX);
+			//strcat(db_path, "/minidlna");
+			sprintf(db_path, "%s\\minidlna", localappdata);
+	}
+#endif /* cygwin */
+
 	if(init(argc, argv) != 0)
 		return 1;
 
@@ -920,6 +963,10 @@ main(int argc, char * * argv)
 	}
 #endif
 	LIST_INIT(&upnphttphead);
+
+#ifdef cygwin
+	DPRINTF(E_INFO, L_GENERAL, "db_path = %s\n", db_path);
+#endif /* cygwin */
 
 	new_db = open_db();
 	if( !new_db )

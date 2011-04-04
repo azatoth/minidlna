@@ -48,13 +48,18 @@
  */
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/limits.h>
+//#include <linux/limits.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include "upnpglobalvars.h"
 #include "upnpdescstrings.h"
+#ifndef cygwin
+#include <linux/limits.h>
+#else
+#include <sys/cygwin.h>
+#endif /* cygwin */
 
 /* LAN address */
 /*const char * listen_addr = 0;*/
