@@ -689,9 +689,9 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 				/* BRAVIA KDL-##*X### series TVs do natively support AVC/AC3 in TS, but
 				   require profile to be renamed (applies to _T and _ISO variants also) */
-				modifyString(dlna_pn, "AVC_TS_MP_SD_AC3", "AVC_TS_HD_50_AC3", 0);
-				modifyString(dlna_pn, "AVC_TS_MP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
-				modifyString(dlna_pn, "AVC_TS_HP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
+				modifyString(dlna_buf, "AVC_TS_MP_SD_AC3", "AVC_TS_HD_50_AC3", 0);
+				modifyString(dlna_buf, "AVC_TS_MP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
+				modifyString(dlna_buf, "AVC_TS_HP_HD_AC3", "AVC_TS_HD_50_AC3", 0);
 			}
 		}
 		else if( *mime == 'a' )
