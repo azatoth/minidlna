@@ -308,6 +308,10 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	return 0;
 }
 
+#define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE," \
+	               " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM, d.GENRE," \
+	               " d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH, d.DISC, d.TRACK "
+
 void
 SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 {
@@ -321,9 +325,7 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 	args.resp = resp;
 	args.size = sprintf(resp, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
 	args.requested = 1;
-	asprintf(&sql, "SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
-	               " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
-	               " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH, d.TRACK "
+	asprintf(&sql, SELECT_COLUMNS
 	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		       " where o.DETAIL_ID = %lld group by o.DETAIL_ID", item);
 	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
@@ -350,7 +352,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	char *zErrMsg = NULL;
 	char **result;
 	char *title = NULL;
-	char what[10], order[64]={0}, order2[64]={0}, myfilter[256]={0};
+	char what[10], order[96]={0}, order2[96]={0}, myfilter[256]={0};
 	char str_buf[1024];
 	char *which;
 	char type[8];
@@ -445,9 +447,9 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		}
 		else
 		{
-			short track_done = 0;
+			short title_state = 0;
 			item = strtok_r(sortOrder, ",", &saveptr);
-			for( i=0; item != NULL; i++ )
+			while( item != NULL )
 			{
 				int reverse=0;
 				if( *item == '!' )
@@ -463,17 +465,26 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 				else if( strcasecmp(item, "Title") == 0 )
 				{
 					/* Explicitly sort music by track then title. */
-					if( !track_done && *objectID == '1' )
+					if( title_state < 2 && *objectID == '1' )
 					{
-						strcat(order, "TRACK");
-						strcat(order2, "TRACK");
-						track_done = 1;
+						if( !title_state )
+						{
+							strcat(order, "DISC");
+							strcat(order2, "DISC");
+							title_state = 1;
+						}
+						else
+						{
+							strcat(order, "TRACK");
+							strcat(order2, "TRACK");
+							title_state = 2;
+						}
 					}
 					else
 					{
 						strcat(order, "TITLE");
 						strcat(order2, "TITLE");
-						track_done = 0;
+						title_state = -1;
 					}
 				}
 				else if( strcasecmp(item, "CreationDate") == 0 ||
@@ -507,14 +518,22 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 				strcat(order, ", ");
 				strcat(order2, ", ");
 				unhandled_order:
-				if( !track_done )
+				if( title_state <= 0 )
 					item = strtok_r(NULL, ",", &saveptr);
 			}
-			strcat(order, "TITLE ASC, DETAIL_ID ASC");
+			if( title_state != -1 )
+			{
+				strcat(order, "TITLE ASC");
+				if( itemCount >= 0 )
+					strcat(order2, "TITLE ASC");
+				else
+					strcat(order2, "TITLE DESC");
+			}
+			strcat(order, "DETAIL_ID ASC");
 			if( itemCount >= 0 )
-				strcat(order2, "TITLE ASC, DETAIL_ID ASC");
+				strcat(order2, "DETAIL_ID ASC");
 			else
-				strcat(order2, "TITLE DESC, DETAIL_ID DESC");
+				strcat(order2, "DETAIL_ID DESC");
 		}
 	}
 	else
@@ -617,9 +636,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		args.start = totalMatches + itemCount;
 	}
 
-	sql = sqlite3_mprintf("SELECT o.OBJECT_ID, o.CLASS, o.DETAIL_ID, d.SIZE, d.TITLE,"
-	                      " d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST, d.ALBUM,"
-	                      " d.GENRE, d.COMMENT, d.DATE, d.RESOLUTION, d.MIME, d.PATH, d.TRACK "
+	sql = sqlite3_mprintf(SELECT_COLUMNS
 	                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		              " where %s and (%s)"
 	                      " %s"
