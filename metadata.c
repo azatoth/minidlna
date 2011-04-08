@@ -642,7 +642,7 @@ GetVideoMetadata(const char * path, char * name)
 	int ret, i;
 	struct tm *modtime;
 	AVFormatContext *ctx;
-	AVCodecContext *ac, *vc;
+	AVCodecContext *ac = NULL, *vc = NULL;
 	int audio_stream = -1, video_stream = -1;
 	enum audio_profiles audio_profile = PROFILE_AUDIO_UNKNOWN;
 	tsinfo_t *ts;
@@ -691,7 +691,7 @@ GetVideoMetadata(const char * path, char * name)
 		}
 	}
 	/* This must not be a video file. */
-	if( video_stream == -1 )
+	if( !vc )
 	{
 		av_close_input_file(ctx);
 		if( !is_audio(path) )
@@ -717,7 +717,7 @@ GetVideoMetadata(const char * path, char * name)
 		strftime(m.date, 20, "%FT%T", modtime);
 	}
 
-	if( audio_stream >= 0 )
+	if( ac )
 	{
 		switch( ac->codec_id )
 		{
@@ -805,7 +805,7 @@ GetVideoMetadata(const char * path, char * name)
 		#endif
 		asprintf(&m.channels, "%u", ac->channels);
 	}
-	if( video_stream >= 0 )
+	if( vc )
 	{
 		DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, basename(path));
 		asprintf(&m.resolution, "%dx%d", vc->width, vc->height);
