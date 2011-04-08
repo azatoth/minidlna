@@ -443,6 +443,12 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	struct media_dir_s * media_path;
 	struct stat st;
 
+	if( access(path, R_OK|X_OK) != 0 )
+	{
+		DPRINTF(E_WARN, L_INOTIFY, "Could not access %s [%s]\n", path, strerror(errno));
+		return -1;
+	}
+
  	parent_buf = dirname(strdup(path));
 	sql = sqlite3_mprintf("SELECT OBJECT_ID from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 	                      " where d.PATH = '%q' and REF_ID is NULL", parent_buf);

@@ -773,7 +773,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 		{
 			type = resolve_unknown_type(full_path, dir_type);
 		}
-		if( type == TYPE_DIR )
+		if( (type == TYPE_DIR) && (access(full_path, R_OK|X_OK) == 0) )
 		{
 			insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i+startID);
 			sprintf(parent_id, "%s$%X", (parent ? parent:""), i+startID);
