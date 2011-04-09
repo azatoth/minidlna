@@ -110,6 +110,7 @@ struct upnphttp {
 #define FLAG_MIME_FLAC_FLAC     0x00800000
 #define FLAG_NO_RESIZE          0x01000000
 #define FLAG_MS_PFS		0x02000000 // Microsoft PlaysForSure client
+#define FLAG_AUDIO_ONLY		0x04000000
 
 /* New_upnphttp() */
 struct upnphttp *
@@ -155,6 +156,9 @@ Send501(struct upnphttp *);
 /* SendResp_upnphttp() */
 void
 SendResp_upnphttp(struct upnphttp *);
+
+int
+SearchClientCache(struct in_addr addr, int quiet);
 
 void
 SendResp_icon(struct upnphttp *, char * url);

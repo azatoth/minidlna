@@ -126,7 +126,7 @@ Delete_upnphttp(struct upnphttp * h)
 }
 
 int
-SearchClientCache(struct in_addr addr)
+SearchClientCache(struct in_addr addr, int quiet)
 {
 	int i;
 	for( i=0; i<CLIENT_CACHE_SLOTS; i++ )
@@ -150,7 +150,9 @@ SearchClientCache(struct in_addr addr)
 					return -1;
 				}
 			}
-			DPRINTF(E_DEBUG, L_HTTP, "Client found in cache. [type %d/entry %d]\n", clients[i].type, i);
+			if( !quiet )
+				DPRINTF(E_DEBUG, L_HTTP, "Client found in cache. [type %d/entry %d]\n",
+					clients[i].type, i);
 			return i;
 		}
 	}
@@ -437,7 +439,7 @@ next_header:
 	/* If the client type wasn't found, search the cache.
 	 * This is done because a lot of clients like to send a
 	 * different User-Agent with different types of requests. */
-	n = SearchClientCache(h->clientaddr);
+	n = SearchClientCache(h->clientaddr, 0);
 	if( h->req_client )
 	{
 		/* Add this client to the cache if it's not there already. */
@@ -456,7 +458,7 @@ next_header:
 				break;
 			}
 		}
-		else if( (n < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
+		else if( (clients[n].type < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
 		{
 			/* If we know the client and our new detection is generic, use our cached info */
 			h->reqflags |= clients[n].flags;
