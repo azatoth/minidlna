@@ -1082,6 +1082,14 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				else
 					asprintf(&orderBy, "order by length(OBJECT_ID), OBJECT_ID");
 			}
+			else if( strncmp(ObjectId, MUSIC_ID, strlen(MUSIC_ID)) == 0 )
+			{
+#ifdef __sparc__
+				if( totalMatches < 10000 )
+#endif
+				asprintf(&orderBy, "order by o.CLASS, d.DISC, d.TRACK, d.TITLE");
+			
+			}
 		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
 		if( (args.flags & FLAG_DLNA) && ret )
