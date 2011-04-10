@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: minissdp.c,v 1.15 2011/04/09 01:37:11 jmaggard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -43,6 +43,8 @@
 #include "minidlnapath.h"
 #include "upnphttp.h"
 #include "upnpglobalvars.h"
+#include "upnpreplyparse.h"
+#include "getifaddr.h"
 #include "minissdp.h"
 #include "log.h"
 
@@ -334,6 +336,137 @@ SendSSDPNotifies2(int * sockets,
 	}
 }
 
+void
+ParseUPnPClient(char *location)
+{
+	char buf[8192];
+	struct sockaddr_in dest;
+	int s, n, do_headers = 0, nread = 0;
+	struct timeval tv;
+	char *addr, *path, *port_str;
+	long port = 80;
+	char *off = NULL, *p;
+	int content_len = sizeof(buf);
+	struct NameValueParserData xml;
+	int client;
+	enum client_types type = -1;
+	uint32_t flags = 0;
+	char *model;
+
+	if (strncmp(location, "http://", 7) != 0)
+		return;
+	path = location + 7;
+	port_str = strsep(&path, "/");
+	if (!path)
+		return;
+	addr = strsep(&port_str, ":");
+	if (port_str)
+	{
+		port = strtol(port_str, NULL, 10);
+		if (!port)
+			port = 80;
+	}
+
+	memset(&dest, '\0', sizeof(dest));
+	if (!inet_aton(addr, &dest.sin_addr))
+		return;
+	/* Check if the client is already in cache */
+	dest.sin_family = AF_INET;
+	dest.sin_port = htons(port);
+
+	s = socket(PF_INET, SOCK_STREAM, 0);
+	if( s < 0 )
+		return;
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 500000;
+	setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+	if( connect(s, (struct sockaddr*)&dest, sizeof(struct sockaddr_in)) < 0 )
+		goto close;
+
+	n = snprintf(buf, sizeof(buf), "GET /%s HTTP/1.0\r\n"
+	                               "HOST: %s:%ld\r\n\r\n",
+	                               path, addr, port);
+	if( write(s, buf, n) < 1 )
+		goto close;
+
+	while( (n = read(s, buf+nread, sizeof(buf)-nread-1)) > 0 )
+	{
+		nread += n;
+		buf[nread] = '\0';
+		n = nread;
+		p = buf;
+
+		while( !off && n-- > 0 )
+		{
+			if(p[0]=='\r' && p[1]=='\n' && p[2]=='\r' && p[3]=='\n')
+			{
+				off = p + 4;
+				do_headers = 1;
+			}
+			p++;
+		}
+		if( !off )
+			continue;
+
+		if( do_headers )
+		{
+			p = buf;
+			if( strncmp(p, "HTTP/", 5) != 0 )
+				goto close;
+			while(*p != ' ' && *p != '\t') p++;
+			/* If we don't get a 200 status, ignore it */
+			if( strtol(p, NULL, 10) != 200 )
+				goto close;
+			if( (p = strcasestr(p, "Content-Length:")) )
+				content_len = strtol(p+15, NULL, 10);
+			do_headers = 0;
+		}
+		if( buf + nread - off >= content_len )
+			break;
+	}
+close:
+	close(s);
+	if( !off )
+		return;
+	nread -= off - buf;
+	ParseNameValue(off, nread, &xml);
+	model = GetValueFromNameValueList(&xml, "modelName");
+	if( model )
+	{
+		if (strstr(model, "Roku SoundBridge"))
+		{
+			type = ERokuSoundBridge;
+			flags |= FLAG_AUDIO_ONLY;
+		}
+	}
+
+	if( type < 0 )
+		return;
+	client = SearchClientCache(dest.sin_addr, 1);
+	/* Add this client to the cache if it's not there already. */
+	if( client < 0 )
+	{
+		for( client=0; client<CLIENT_CACHE_SLOTS; client++ )
+		{
+			if( clients[client].addr.s_addr )
+				continue;
+			get_remote_mac(dest.sin_addr, clients[client].mac);
+			clients[client].addr = dest.sin_addr;
+			DPRINTF(E_DEBUG, L_HTTP, "Added client [%d/%s/%02X:%02X:%02X:%02X:%02X:%02X] to cache slot %d.\n",
+			                         type, inet_ntoa(clients[client].addr),
+			                         clients[client].mac[0], clients[client].mac[1], clients[client].mac[2],
+			                         clients[client].mac[3], clients[client].mac[4], clients[client].mac[5], client);
+			break;
+		}
+	}
+	clients[client].type = type;
+	clients[client].flags = flags;
+	clients[client].age = time(NULL);
+}
+
 /* ProcessSSDPRequest()
  * process SSDP M-SEARCH requests and responds to them */
 void
@@ -347,26 +480,22 @@ ProcessSSDPRequest(int s, unsigned short port)
 	struct sockaddr_in sendername;
 	int i, l;
 	int lan_addr_index = 0;
-	char * st = NULL, * mx = NULL, * man = NULL, * mx_end = NULL;
-	int st_len = 0, mx_len = 0, man_len = 0, mx_val = 0;
+	char *st = NULL, *mx = NULL, *man = NULL, *mx_end = NULL, *loc = NULL, *srv = NULL;
+	int st_len = 0, mx_len = 0, man_len = 0, mx_val = 0, loc_len = 0, srv_len = 0;
 	len_r = sizeof(struct sockaddr_in);
 
-	n = recvfrom(s, bufr, sizeof(bufr), 0,
+	n = recvfrom(s, bufr, sizeof(bufr)-1, 0,
 	             (struct sockaddr *)&sendername, &len_r);
 	if(n < 0)
 	{
 		DPRINTF(E_ERROR, L_SSDP, "recvfrom(udp): %s\n", strerror(errno));
 		return;
 	}
+	bufr[n] = '\0';
 
 	if(memcmp(bufr, "NOTIFY", 6) == 0)
 	{
-		/* ignore NOTIFY packets. We could log the sender and device type */
-		return;
-	}
-	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
-	{
-		//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Received SSDP request:\n%.*s", n, bufr);
+		//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Received SSDP notify:\n%.*s", n, bufr);
 		for(i=0; i < n; i++)
 		{
 			if( bufr[i] == '*' )
@@ -378,10 +507,67 @@ ProcessSSDPRequest(int s, unsigned short port)
 		}
 		while(i < n)
 		{
-			while((i < n - 1) && (bufr[i] != '\r' || bufr[i+1] != '\n'))
+			while((i < n - 2) && (bufr[i] != '\r' || bufr[i+1] != '\n'))
 				i++;
 			i += 2;
-			if((i < n - 3) && (strncasecmp(bufr+i, "ST:", 3) == 0))
+			if(strncasecmp(bufr+i, "SERVER:", 7) == 0)
+			{
+				srv = bufr+i+7;
+				srv_len = 0;
+				while(*srv == ' ' || *srv == '\t') srv++;
+				while(srv[srv_len]!='\r' && srv[srv_len]!='\n') srv_len++;
+			}
+			else if(strncasecmp(bufr+i, "LOCATION:", 9) == 0)
+			{
+				loc = bufr+i+9;
+				loc_len = 0;
+				while(*loc == ' ' || *loc == '\t') loc++;
+				while(loc[loc_len]!='\r' && loc[loc_len]!='\n') loc_len++;
+			}
+			else if(strncasecmp(bufr+i, "NTS:", 4) == 0)
+			{
+				man = bufr+i+4;
+				man_len = 0;
+				while(*man == ' ' || *man == '\t') man++;
+				while(man[man_len]!='\r' && man[man_len]!='\n') man_len++;
+			}
+		}
+		if (!man || (strncmp(man, "ssdp:alive", man_len) != 0))
+		{
+			return;
+		}
+		loc[loc_len] = '\0';
+		if (strncmp(srv, "Allegro-Software-RomPlug", 24) == 0)
+		{
+			/* Check if the client is already in cache */
+			i = SearchClientCache(sendername.sin_addr, 1);
+			if( i >= 0 && clients[i].type < EStandardDLNA150 )
+			{
+				clients[i].age = time(NULL);
+				return;
+			}
+			ParseUPnPClient(loc);
+		}
+		return;
+	}
+	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
+	{
+		//DPRINTF(E_DEBUG, L_SSDP, "Received SSDP request:\n%.*s", n, bufr);
+		for(i=0; i < n; i++)
+		{
+			if( bufr[i] == '*' )
+				break;
+		}
+		if( !strcasestr(bufr+i, "HTTP/1.1") )
+		{
+			return;
+		}
+		while(i < n)
+		{
+			while((i < n - 2) && (bufr[i] != '\r' || bufr[i+1] != '\n'))
+				i++;
+			i += 2;
+			if(strncasecmp(bufr+i, "ST:", 3) == 0)
 			{
 				st = bufr+i+3;
 				st_len = 0;
