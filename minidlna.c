@@ -838,15 +838,15 @@ main(int argc, char * * argv)
 	struct timeval lastbeacontime = {0, 0};
 #endif
 
+	if(init(argc, argv) != 0)
+		return 1;
+
 #ifdef ENABLE_NLS
-	setlocale(LC_MESSAGES, "");
+	DPRINTF(E_DEBUG, L_GENERAL, "Using locale %s\n", setlocale(LC_MESSAGES, ""));
 	setlocale(LC_CTYPE, "en_US.utf8");
 	DPRINTF(E_DEBUG, L_GENERAL, "Using locale dir %s\n", bindtextdomain("minidlna", getenv("TEXTDOMAINDIR")));
 	textdomain("minidlna");
 #endif
-
-	if(init(argc, argv) != 0)
-		return 1;
 
 #ifdef READYNAS
 	DPRINTF(E_WARN, L_GENERAL, "Starting " SERVER_NAME " version " MINIDLNA_VERSION ".\n");

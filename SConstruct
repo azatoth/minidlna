@@ -24,7 +24,7 @@ if not sys.stdout.isatty():
    for key, value in colors.iteritems():
       colors[key] = ''
 
-env = Environment()
+env = Environment(tools = ['default', 'gettext'])
 
 AddOption(
     "--verbose",
@@ -35,6 +35,8 @@ AddOption(
 )
 
 if not GetOption("verbose_flag"):
+    env["GETTEXTSTR"] = \
+            '%(blue)sCompiling%(purple)s: %(yellow)s$SOURCE%(end)s' % colors,
     env["CXXCOMSTR"] = \
             '%(blue)sCompiling%(purple)s: %(yellow)s$SOURCE%(end)s' % colors,
     env["CCCOMSTR"] = \
@@ -110,6 +112,14 @@ AddOption(
     action="store_false",
     default=True,
     help="use home brew daemon functions instead of utilizing BSD daemon."
+)
+
+AddOption(
+    "--disable-nls",
+    dest="enable_nls",
+    action="store_false",
+    default=True,
+    help="Disable internationalization using gettext."
 )
 
 db_path = GetOption("db_path")
@@ -230,7 +240,7 @@ if not env.GetOption('clean') and not env.GetOption('help'):
     
     conf.CheckCHeader('iconv.h')
     
-    if conf.CheckCHeader('libintl.h'):
+    if GetOption("enable_nls") and conf.CheckCHeader('libintl.h'):
         conf.config_h_text += "\n"
         conf.Define('ENABLE_NLS',1)
     
@@ -334,6 +344,29 @@ env.Append(CPPDEFINES=['_GNU_SOURCE', ('_FILE_OFFSET_BITS','64'), '_REENTRANT',
 
 env = conf.Finish()
 # -----
+
+if GetOption("enable_nls"):
+    gettext_po_files = [
+        "po/da.po",
+        "po/de.po",
+        "po/es.po",
+        "po/fr.po",
+        "po/it.po",
+        "po/ja.po",
+        "po/nb.po",
+        "po/nl.po",
+        "po/ru.po",
+        "po/sl.po",
+        "po/sv.po"
+    ];
+
+    for po_file in gettext_po_files:
+        mo_file = env.Gettext(po_file)
+        localedir = "%(datadir)s/locale/%(lang)s/LC_MESSAGES" % {
+            'datadir': datadir,
+            'lang': re.sub(r"po\/(\w+)\.po", r"\1", po_file)
+        }
+        env.Alias('install', env.InstallAs("%s/minidlna.mo"%localedir, mo_file))
 
 minidlna_sources = [
     "minidlna.c", "upnphttp.c", "upnpdescgen.c", "upnpsoap.c",
