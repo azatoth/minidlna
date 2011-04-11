@@ -105,11 +105,11 @@ AddOption(
 )
 
 AddOption(
-    "--enable-bsd-daemon",
+    "--disable-bsd-daemon",
     dest="bsd_daemon",
-    action="store_true",
+    action="store_false",
     default=True,
-    help="utilize BSD daemon() instead of using home brew daemonize function."
+    help="use home brew daemon functions instead of utilizing BSD daemon."
 )
 
 db_path = GetOption("db_path")
