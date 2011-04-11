@@ -5,3 +5,5 @@ config.log
 minidlna
 testupnpdescgen
 config.h
+*.pyc
+*.mo
