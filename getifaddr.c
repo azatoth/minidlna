@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: getifaddr.c,v 1.13 2011/04/11 22:52:34 jmaggard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -54,6 +54,9 @@ getifaddr(const char * ifname, char * buf, int len)
 	struct ifreq ifr;
 	int ifrlen;
 	struct sockaddr_in * addr;
+	uint32_t mask;
+	int i;
+
 	ifrlen = sizeof(ifr);
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if(s < 0)
@@ -75,6 +78,24 @@ getifaddr(const char * ifname, char * buf, int len)
 		close(s);
 		return -1;
 	}
+	if(ioctl(s, SIOCGIFNETMASK, &ifr, &ifrlen) == 0)
+	{
+		addr = (struct sockaddr_in *)&ifr.ifr_netmask;
+		mask = ntohl(addr->sin_addr.s_addr);
+		for (i = 0; i < 32; i++)
+		{
+			if ((mask >> i) & 1)
+				break;
+		}
+		mask = 32 - i;
+		if (mask)
+		{
+			i = strlen(buf);
+			snprintf(buf+i, len-i, "/%u", mask);
+		}
+	}
+	else
+		DPRINTF(E_ERROR, L_GENERAL, "ioctl(s, SIOCGIFNETMASK, ...): %s\n", strerror(errno));
 	close(s);
 	return 0;
 }
@@ -86,6 +107,7 @@ getsysaddr(char * buf, int len)
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;
 	struct ifreq ifr;
+	uint32_t mask;
 	int ret = -1;
 
 	for (i=1; i > 0; i++)
@@ -98,6 +120,8 @@ getsysaddr(char * buf, int len)
 		memcpy(&addr, &ifr.ifr_addr, sizeof(addr));
 		if(strncmp(inet_ntoa(addr.sin_addr), "127.", 4) == 0)
 			continue;
+		if(ioctl(s, SIOCGIFNETMASK, &ifr, sizeof(struct ifreq)) < 0)
+			continue;
 		if(!inet_ntop(AF_INET, &addr.sin_addr, buf, len))
 		{
 			DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));
@@ -105,6 +129,20 @@ getsysaddr(char * buf, int len)
 			break;
 		}
 		ret = 0;
+
+		memcpy(&addr, &ifr.ifr_netmask, sizeof(addr));
+		mask = ntohl(addr.sin_addr.s_addr);
+		for (i = 0; i < 32; i++)
+		{
+			if ((mask >> i) & 1)
+				break;
+		}
+		mask = 32 - i;
+		if (mask)
+		{
+			i = strlen(buf);
+			snprintf(buf+i, len-i, "/%u", mask);
+		}
 		break;
 	}
 	close(s);

@@ -194,7 +194,7 @@ parselanaddr(struct lan_addr_s * lan_addr, const char * str)
 	lan_addr->str[n] = '\0';
 	if(!inet_aton(lan_addr->str, &lan_addr->addr))
 	{
-		DPRINTF(E_OFF, L_GENERAL, "Error parsing address/mask: %s\n", str);
+		DPRINTF(E_OFF, L_GENERAL, "Error parsing address: %s\n", str);
 		return -1;
 	}
 	lan_addr->mask.s_addr = htonl(nbits ? (0xffffffff << (32 - nbits)) : 0);
@@ -344,7 +344,7 @@ init(int argc, char * * argv)
 	enum media_types type;
 	char * path;
 	char real_path[PATH_MAX];
-	char ext_ip_addr[INET_ADDRSTRLEN] = {'\0'};
+	char ext_ip_addr[INET_ADDRSTRLEN + 3] = {'\0'};
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -386,7 +386,7 @@ init(int argc, char * * argv)
 			switch(ary_options[i].id)
 			{
 			case UPNPIFNAME:
-				if(getifaddr(ary_options[i].value, ext_ip_addr, INET_ADDRSTRLEN) >= 0)
+				if(getifaddr(ary_options[i].value, ext_ip_addr, sizeof(ext_ip_addr)) >= 0)
 				{
 					if( *ext_ip_addr && parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
 						n_lan_addr++;
@@ -649,7 +649,7 @@ init(int argc, char * * argv)
 				int address_already_there = 0;
 				int j;
 				i++;
-				if( getifaddr(argv[i], ext_ip_addr, INET_ADDRSTRLEN) < 0 )
+				if( getifaddr(argv[i], ext_ip_addr, sizeof(ext_ip_addr)) < 0 )
 				{
 					fprintf(stderr, "Network interface '%s' not found.\n",
 						argv[i]);
@@ -699,9 +699,9 @@ init(int argc, char * * argv)
 	/* If no IP was specified, try to detect one */
 	if( n_lan_addr < 1 )
 	{
-		if( (getsysaddr(ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
-		    (getifaddr("eth0", ext_ip_addr, INET_ADDRSTRLEN) < 0) &&
-		    (getifaddr("eth1", ext_ip_addr, INET_ADDRSTRLEN) < 0) )
+		if( (getsysaddr(ext_ip_addr, sizeof(ext_ip_addr)) < 0) &&
+		    (getifaddr("eth0", ext_ip_addr, sizeof(ext_ip_addr)) < 0) &&
+		    (getifaddr("eth1", ext_ip_addr, sizeof(ext_ip_addr)) < 0) )
 		{
 			DPRINTF(E_OFF, L_GENERAL, "No IP address automatically detected!\n");
 		}
