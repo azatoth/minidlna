@@ -104,4 +104,4 @@ msgstr "Analyse de %s\n"
 #: scanner.c:789
 #, c-format
 msgid "Scanning %s finished (%llu files)!\n"
-msgstr "Analyse réalisée à %s % (%llu fichiers)!\n"
+msgstr "Analyse réalisée à %s (%llu fichiers)!\n"

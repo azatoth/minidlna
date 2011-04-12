@@ -114,7 +114,7 @@ msgstr "Prebrskaj Mape"
 #: scanner.c:721
 #, c-format
 msgid "Scanning %s\n"
-msgstr "Skeniranje... \n"
+msgstr "Skeniranje %s\n"
 
 #: scanner.c:789
 #, c-format
