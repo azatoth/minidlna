@@ -1,4 +1,4 @@
-/* $Id: minissdp.c,v 1.15 2011/04/09 01:37:11 jmaggard Exp $ */
+/* $Id: minissdp.c,v 1.16 2011/04/12 20:55:32 jmaggard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -436,6 +436,7 @@ close:
 	model = GetValueFromNameValueList(&xml, "modelName");
 	if( model )
 	{
+		DPRINTF(E_DEBUG, L_SSDP, "Model: %s\n", model);
 		if (strstr(model, "Roku SoundBridge"))
 		{
 			type = ERokuSoundBridge;
@@ -455,7 +456,7 @@ close:
 				continue;
 			get_remote_mac(dest.sin_addr, clients[client].mac);
 			clients[client].addr = dest.sin_addr;
-			DPRINTF(E_DEBUG, L_HTTP, "Added client [%d/%s/%02X:%02X:%02X:%02X:%02X:%02X] to cache slot %d.\n",
+			DPRINTF(E_DEBUG, L_SSDP, "Added client [%d/%s/%02X:%02X:%02X:%02X:%02X:%02X] to cache slot %d.\n",
 			                         type, inet_ntoa(clients[client].addr),
 			                         clients[client].mac[0], clients[client].mac[1], clients[client].mac[2],
 			                         clients[client].mac[3], clients[client].mac[4], clients[client].mac[5], client);
