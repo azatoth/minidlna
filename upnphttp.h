@@ -112,6 +112,8 @@ struct upnphttp {
 #define FLAG_MS_PFS		0x02000000 // Microsoft PlaysForSure client
 #define FLAG_AUDIO_ONLY		0x04000000
 
+#define FLAG_FREE_OBJECT_ID	0x00000001
+
 /* New_upnphttp() */
 struct upnphttp *
 New_upnphttp(int);

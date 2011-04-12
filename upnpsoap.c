@@ -1023,22 +1023,19 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.requested = RequestedCount;
 	args.client = h->req_client;
 	args.flags = h->reqflags;
-	if( h->reqflags & FLAG_MS_PFS )
+	if( args.flags & FLAG_MS_PFS )
 	{
-		if( strchr(ObjectId, '$') || (strcmp(ObjectId, "0") == 0) )
-		{
-			ObjectId = sqlite3_mprintf("%s", ObjectId);
-		}
-		else
+		if( !strchr(ObjectId, '$') && (strcmp(ObjectId, "0") != 0) )
 		{
 			ptr = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
 			                             " where OBJECT_ID in "
 			                             "('"MUSIC_ID"$%s', '"VIDEO_ID"$%s', '"IMAGE_ID"$%s')",
 			                             ObjectId, ObjectId, ObjectId);
 			if( ptr )
+			{
 				ObjectId = ptr;
-			else
-				ObjectId = sqlite3_mprintf("%s", ObjectId);
+				args.flags |= FLAG_FREE_OBJECT_ID;
+			}
 		}
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Browsing ContentDirectory:\n"
@@ -1050,6 +1047,12 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	                         " * SortCriteria: %s\n",
 				ObjectId, RequestedCount, StartingIndex,
 	                        BrowseFlag, Filter, SortCriteria);
+
+	if( (args.flags & FLAG_AUDIO_ONLY) && (strcmp(ObjectId, "0") == 0) )
+	{
+		ObjectId = sqlite3_mprintf("%s", MUSIC_ID);
+		args.flags |= FLAG_FREE_OBJECT_ID;
+	}
 
 	if( strcmp(BrowseFlag+6, "Metadata") == 0 )
 	{
@@ -1082,13 +1085,12 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				else
 					asprintf(&orderBy, "order by length(OBJECT_ID), OBJECT_ID");
 			}
-			else if( strncmp(ObjectId, MUSIC_ID, strlen(MUSIC_ID)) == 0 )
+			else if( args.client == ERokuSoundBridge )
 			{
 #ifdef __sparc__
 				if( totalMatches < 10000 )
 #endif
 				asprintf(&orderBy, "order by o.CLASS, d.DISC, d.TRACK, d.TITLE");
-			
 			}
 		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
@@ -1134,11 +1136,9 @@ browse_error:
 	ClearNameValueList(&data);
 	if( orderBy )
 		free(orderBy);
-	free(resp);
-	if( h->reqflags & FLAG_MS_PFS )
-	{
+	if( args.flags & FLAG_FREE_OBJECT_ID )
 		sqlite3_free(ObjectId);
-	}
+	free(resp);
 }
 
 static void
