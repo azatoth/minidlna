@@ -314,6 +314,11 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EMediaRoom;
 					h->reqflags |= FLAG_MS_PFS;
 				}
+				else if(strstrc(p, "UPnP/1.0 DLNADOC/1.50 Intel_SDK_for_UPnP_devices/1.2", '\r'))
+				{
+					h->req_client = EToshibaTV;
+					h->reqflags |= FLAG_DLNA;
+				}
 				else if(strstrc(p, "DLNADOC/1.50", '\r'))
 				{
 					h->req_client = EStandardDLNA150;
