@@ -279,7 +279,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				strcpy(last_artist.name, artist);
 				last_artistAlbum.name[0] = '\0';
 				/* Add this file to the "- All Albums -" container as well */
-				container = insert_container(_("- All Albums -"), last_artist.parentID, NULL, "person.musicArtist", artist, genre, NULL);
+				container = insert_container(_("- All Albums -"), last_artist.parentID, NULL, "album", artist, genre, NULL);
 				sprintf(last_artistAlbumAll.parentID, "%s$%llX", last_artist.parentID, container>>32);
 				last_artistAlbumAll.objectID = (int)container;
 			}
@@ -320,7 +320,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 				strcpy(last_genre.name, genre);
 				last_genreArtist.name[0] = '\0';
 				/* Add this file to the "- All Artists -" container as well */
-				container = insert_container(_("- All Artists -"), last_genre.parentID, NULL, "person.musicArtist", NULL, genre, NULL);
+				container = insert_container(_("- All Artists -"), last_genre.parentID, NULL, "person", NULL, genre, NULL);
 				sprintf(last_genreArtistAll.parentID, "%s$%llX", last_genre.parentID, container>>32);
 				last_genreArtistAll.objectID = (int)container;
 			}
