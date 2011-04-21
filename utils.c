@@ -136,7 +136,7 @@ modifyString(char * string, const char * before, const char * after, short like)
 }
 
 char *
-escape_tag(const char *tag)
+escape_tag(const char *tag, uint8_t force_alloc)
 {
 	char *esc_tag = NULL;
 
@@ -147,6 +147,8 @@ escape_tag(const char *tag)
 		esc_tag = modifyString(esc_tag, "<", "&amp;lt;", 0);
 		esc_tag = modifyString(esc_tag, ">", "&amp;gt;", 0);
 	}
+	else if( force_alloc )
+		esc_tag = strdup(tag);
 
 	return esc_tag;
 }
