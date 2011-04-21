@@ -280,10 +280,10 @@ _asf_load_string(FILE *fp, int type, int size, char *buf, int len)
 		case ASF_VT_QWORD:
 			if(size >= 8)
 			{
-#if __WORDSIZE == 64
-				i = snprintf(buf, len, "%ld", le64_to_cpu(*(__s64*)&data[0]));
-#else
 				wd64 = (__s64 *) &data[0];
+#if __WORDSIZE == 64
+				i = snprintf(buf, len, "%ld", le64_to_cpu(*wd64));
+#else
 				i = snprintf(buf, len, "%lld", le64_to_cpu(*wd64));
 #endif
 			}
