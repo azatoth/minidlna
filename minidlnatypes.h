@@ -71,6 +71,7 @@ enum client_types {
 	ESonyBDP,
 	ESonyBravia,
 	ERokuSoundBridge,
+	EToshibaTV,
 	EStandardDLNA150 = 100
 };
 
