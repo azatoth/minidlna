@@ -256,16 +256,14 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		passed_args->size += ret;
 		if( flags & FLAG_VIDEO )
 		{
-			char *name = basename(path);
-			char *esc_name = escape_tag(name);
+			char *esc_name = escape_tag(basename(path), 1);
 			ret = sprintf(str_buf, "<CustomIcon>"
 			                         "<ContentType>video/*</ContentType>"
 			                         "<Url>urn:tivo:image:save-until-i-delete-recording</Url>"
 			                       "</CustomIcon>"
 			                       "<Push><Container>Videos</Container></Push>"
-			                       "<File>%s</File> </Links>", esc_name?esc_name:name);
-			if( esc_name )
-				free(esc_name);
+			                       "<File>%s</File> </Links>", esc_name);
+			free(esc_name);
 		}
 		else
 		{
@@ -415,9 +413,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		sql = sqlite3_mprintf("SELECT NAME from OBJECTS where OBJECT_ID = '%s'", objectID);
 		if( (sql_get_table(db, sql, &result, &ret, NULL) == SQLITE_OK) && ret )
 		{
-			title = escape_tag(result[1]);
-			if( !title )
-				title = strdup(result[1]);
+			title = escape_tag(result[1], 1);
 		}
 		else
 			title = strdup("UNKNOWN");

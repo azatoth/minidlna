@@ -381,7 +381,7 @@ GetAudioMetadata(const char * path, char * name)
 	if( song.title && *song.title )
 	{
 		m.title = trim(song.title);
-		if( (esc_tag = escape_tag(m.title)) )
+		if( (esc_tag = escape_tag(m.title, 0)) )
 		{
 			free_flags |= FLAG_TITLE;
 			m.title = esc_tag;
@@ -401,7 +401,7 @@ GetAudioMetadata(const char * path, char * name)
 				m.creator = strdup("Various Artists");
 				free_flags |= FLAG_CREATOR;
 			}
-			else if( (esc_tag = escape_tag(m.creator)) )
+			else if( (esc_tag = escape_tag(m.creator, 0)) )
 			{
 				m.creator = esc_tag;
 				free_flags |= FLAG_CREATOR;
@@ -422,7 +422,7 @@ GetAudioMetadata(const char * path, char * name)
 				m.artist = strdup("Various Artists");
 				free_flags |= FLAG_ARTIST;
 			}
-			else if( (esc_tag = escape_tag(m.artist)) )
+			else if( (esc_tag = escape_tag(m.artist, 0)) )
 			{
 				m.artist = esc_tag;
 				free_flags |= FLAG_ARTIST;
@@ -432,7 +432,7 @@ GetAudioMetadata(const char * path, char * name)
 	if( song.album && *song.album )
 	{
 		m.album = trim(song.album);
-		if( (esc_tag = escape_tag(m.album)) )
+		if( (esc_tag = escape_tag(m.album, 0)) )
 		{
 			free_flags |= FLAG_ALBUM;
 			m.album = esc_tag;
@@ -441,7 +441,7 @@ GetAudioMetadata(const char * path, char * name)
 	if( song.genre && *song.genre )
 	{
 		m.genre = trim(song.genre);
-		if( (esc_tag = escape_tag(m.genre)) )
+		if( (esc_tag = escape_tag(m.genre, 0)) )
 		{
 			free_flags |= FLAG_GENRE;
 			m.genre = esc_tag;
@@ -450,7 +450,7 @@ GetAudioMetadata(const char * path, char * name)
 	if( song.comment && *song.comment )
 	{
 		m.comment = trim(song.comment);
-		if( (esc_tag = escape_tag(m.comment)) )
+		if( (esc_tag = escape_tag(m.comment, 0)) )
 		{
 			free_flags |= FLAG_COMMENT;
 			m.comment = esc_tag;
@@ -1398,19 +1398,19 @@ GetVideoMetadata(const char * path, char * name)
 		{
 			if( video.title && *video.title )
 			{
-				m.title = strdup(trim(video.title));
+				m.title = escape_tag(trim(video.title), 1);
 			}
 			if( video.genre && *video.genre )
 			{
-				m.genre = strdup(trim(video.genre));
+				m.genre = escape_tag(trim(video.genre), 1);
 			}
 			if( video.contributor[ROLE_TRACKARTIST] && *video.contributor[ROLE_TRACKARTIST] )
 			{
-				m.artist = strdup(trim(video.contributor[ROLE_TRACKARTIST]));
+				m.artist = escape_tag(trim(video.contributor[ROLE_TRACKARTIST]), 1);
 			}
 			if( video.contributor[ROLE_ALBUMARTIST] && *video.contributor[ROLE_ALBUMARTIST] )
 			{
-				m.creator = strdup(trim(video.contributor[ROLE_ALBUMARTIST]));
+				m.creator = escape_tag(trim(video.contributor[ROLE_ALBUMARTIST]), 1);
 			}
 			else
 			{
@@ -1419,6 +1419,7 @@ GetVideoMetadata(const char * path, char * name)
 			}
 		}
 	}
+	#ifndef NETGEAR
 	#if LIBAVFORMAT_VERSION_INT >= ((52<<16)+(31<<8)+0)
 	else if( strcmp(ctx->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2") == 0 )
 	{
@@ -1431,16 +1432,17 @@ GetVideoMetadata(const char * path, char * name)
 			{
 				//DEBUG DPRINTF(E_DEBUG, L_METADATA, "  %-16s: %s\n", tag->key, tag->value);
 				if( strcmp(tag->key, "title") == 0 )
-					m.title = strdup(trim(tag->value));
+					m.title = escape_tag(trim(tag->value), 1);
 				else if( strcmp(tag->key, "genre") == 0 )
-					m.genre = strdup(trim(tag->value));
+					m.genre = escape_tag(trim(tag->value), 1);
 				else if( strcmp(tag->key, "artist") == 0 )
-					m.artist = strdup(trim(tag->value));
+					m.artist = escape_tag(trim(tag->value), 1);
 				else if( strcmp(tag->key, "comment") == 0 )
-					m.comment = strdup(trim(tag->value));
+					m.comment = escape_tag(trim(tag->value), 1);
 			}
 		}
 	}
+	#endif
 	#endif
 video_no_dlna:
 	av_close_input_file(ctx);

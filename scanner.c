@@ -760,7 +760,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 #endif
 		type = TYPE_UNKNOWN;
 		sprintf(full_path, "%s/%s", dir, namelist[i]->d_name);
-		name = escape_tag(namelist[i]->d_name);
+		name = escape_tag(namelist[i]->d_name, 1);
 		if( namelist[i]->d_type == DT_DIR )
 		{
 			type = TYPE_DIR;
@@ -775,17 +775,16 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 		}
 		if( (type == TYPE_DIR) && (access(full_path, R_OK|X_OK) == 0) )
 		{
-			insert_directory(name?name:namelist[i]->d_name, full_path, BROWSEDIR_ID, (parent ? parent:""), i+startID);
+			insert_directory(name, full_path, BROWSEDIR_ID, (parent ? parent:""), i+startID);
 			sprintf(parent_id, "%s$%X", (parent ? parent:""), i+startID);
 			ScanDirectory(full_path, parent_id, dir_type);
 		}
 		else if( type == TYPE_FILE )
 		{
-			if( insert_file(name?name:namelist[i]->d_name, full_path, (parent ? parent:""), i+startID) == 0 )
+			if( insert_file(name, full_path, (parent ? parent:""), i+startID) == 0 )
 				fileno++;
 		}
-		if( name )
-			free(name);
+		free(name);
 		free(namelist[i]);
 	}
 	free(namelist);

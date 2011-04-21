@@ -492,9 +492,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 	{
 		if( e->d_name[0] == '.' )
 			continue;
-		esc_name = escape_tag(e->d_name);
-		if( !esc_name )
-			esc_name = strdup(e->d_name);
+		esc_name = escape_tag(e->d_name, 1);
 		asprintf(&path_buf, "%s/%s", path, e->d_name);
 		switch( e->d_type )
 		{

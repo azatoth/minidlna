@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.31 2011/04/21 08:50:44 jmaggard Exp $
 # MiniDLNA project
 # http://sourceforge.net/projects/minidlna/
 # (c) 2008-2009 Justin Maggard
@@ -118,7 +118,7 @@ inotify.o: inotify.h playlist.h
 image_utils.o: image_utils.h
 tivo_utils.o: config.h tivo_utils.h
 tivo_beacon.o: config.h tivo_beacon.h tivo_utils.h
-tivo_commands.o: config.h tivo_commands.h tivo_utils.h
+tivo_commands.o: config.h tivo_commands.h tivo_utils.h utils.h
 utils.o: utils.h
 sql.o: sql.h
 log.o: log.h
