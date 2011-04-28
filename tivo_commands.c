@@ -111,10 +111,11 @@ int callback(void *args, int argc, char **argv, char **azColName)
              *bitrate = argv[6], *sampleFrequency = argv[7], *artist = argv[8], *album = argv[9], *genre = argv[10],
              *comment = argv[11], *date = argv[12], *resolution = argv[13], *mime = argv[14], *path = argv[15];
 	char str_buf[4096];
-	int ret = 0, flags = 0, count;
+	int ret = 0;
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
+		int flags = 0;
 		unescape_tag(title);
 		if( strncmp(mime, "audio", 5) == 0 )
 		{
@@ -232,7 +233,8 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		}
 		if( duration ) {
 			ret = sprintf(str_buf, "<Duration>%d</Duration>",
-			      atoi(rindex(duration, '.')+1) + (1000*atoi(rindex(duration, ':')+1)) + (60000*atoi(rindex(duration, ':')-2)) + (3600000*atoi(duration)));
+			      atoi(strrchr(duration, '.')+1) + (1000*atoi(strrchr(duration, ':')+1))
+			      + (60000*atoi(strrchr(duration, ':')-2)) + (3600000*atoi(duration)));
 			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 			passed_args->size += ret;
 		}
@@ -272,6 +274,7 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	}
 	else if( strncmp(class, "container", 9) == 0 )
 	{
+		int count;
 		/* Determine the number of children */
 #ifdef __sparc__ /* Adding filters on large containers can take a long time on slow processors */
 		count = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s'", id);
@@ -519,11 +522,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 			}
 			if( title_state != -1 )
 			{
-				strcat(order, "TITLE ASC");
+				strcat(order, "TITLE ASC, ");
 				if( itemCount >= 0 )
-					strcat(order2, "TITLE ASC");
+					strcat(order2, "TITLE ASC, ");
 				else
-					strcat(order2, "TITLE DESC");
+					strcat(order2, "TITLE DESC, ");
 			}
 			strcat(order, "DETAIL_ID ASC");
 			if( itemCount >= 0 )
@@ -590,7 +593,9 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		if( strstr(anchorItem, "QueryContainer") )
 		{
 			strcpy(what, "OBJECT_ID");
-			anchorItem = rindex(anchorItem, '=')+1;
+			saveptr = strrchr(anchorItem, '=');
+			if( saveptr )
+				anchorItem = saveptr + 1;
 		}
 		else
 		{
