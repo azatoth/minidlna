@@ -1075,9 +1075,9 @@ GetVideoMetadata(const char * path, char * name)
 							else if( audio_profile == PROFILE_AUDIO_AAC )
 							{
 								off += sprintf(m.dlna_pn+off, "AAC_");
-								if( ctx->bit_rate < 540000 )
+								if( ctx->bit_rate < 520000 )
 								{
-									off += sprintf(m.dlna_pn+off, "540");
+									off += sprintf(m.dlna_pn+off, "520");
 								}
 								else if( ctx->bit_rate < 940000 )
 								{

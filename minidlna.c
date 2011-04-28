@@ -208,7 +208,7 @@ parselanaddr(struct lan_addr_s * lan_addr, const char * str)
 	return 0;
 }
 
-void
+static void
 getfriendlyname(char * buf, int len)
 {
 	char * dot = NULL;
@@ -303,7 +303,7 @@ getfriendlyname(char * buf, int len)
 #endif
 }
 
-int
+static int
 open_db(void)
 {
 	char path[PATH_MAX];
@@ -823,7 +823,8 @@ main(int argc, char * * argv)
 	struct upnphttp * next;
 	fd_set readset;	/* for select() */
 	fd_set writeset;
-	struct timeval timeout, timeofday, lastnotifytime = {0, 0}, lastupdatetime = {0, 0};
+	struct timeval timeout, timeofday, lastnotifytime = {0, 0};
+	time_t lastupdatetime = 0;
 	int max_fd = -1;
 	int last_changecnt = 0;
 	short int new_db = 0;
@@ -1045,7 +1046,10 @@ main(int argc, char * * argv)
 		if( scanning )
 		{
 			if( !scanner_pid || kill(scanner_pid, 0) )
+			{
 				scanning = 0;
+				updateID++;
+			}
 		}
 
 		/* select open sockets (SSDP, HTTP listen, and all HTTP soap sockets) */
@@ -1054,13 +1058,13 @@ main(int argc, char * * argv)
 		if (sudp >= 0) 
 		{
 			FD_SET(sudp, &readset);
-			max_fd = MAX( max_fd, sudp);
+			max_fd = MAX(max_fd, sudp);
 		}
 		
 		if (shttpl >= 0) 
 		{
 			FD_SET(shttpl, &readset);
-			max_fd = MAX( max_fd, shttpl);
+			max_fd = MAX(max_fd, shttpl);
 		}
 #ifdef TIVO_SUPPORT
 		if (sbeacon >= 0) 
@@ -1075,7 +1079,7 @@ main(int argc, char * * argv)
 			if((e->socket >= 0) && (e->state <= 2))
 			{
 				FD_SET(e->socket, &readset);
-				max_fd = MAX( max_fd, e->socket);
+				max_fd = MAX(max_fd, e->socket);
 				i++;
 			}
 		}
@@ -1111,14 +1115,14 @@ main(int argc, char * * argv)
 #endif
 		/* increment SystemUpdateID if the content database has changed,
 		 * and if there is an active HTTP connection, at most once every 2 seconds */
-		if( i && (time(NULL) >= (lastupdatetime.tv_sec + 2)) )
+		if( i && (timeofday.tv_sec >= (lastupdatetime + 2)) )
 		{
-			if( sqlite3_total_changes(db) != last_changecnt )
+			if( scanning || sqlite3_total_changes(db) != last_changecnt )
 			{
 				updateID++;
 				last_changecnt = sqlite3_total_changes(db);
 				upnp_event_var_change_notify(EContentDirectory);
-				memcpy(&lastupdatetime, &timeofday, sizeof(struct timeval));
+				lastupdatetime = timeofday.tv_sec;
 			}
 		}
 		/* process active HTTP connections */
