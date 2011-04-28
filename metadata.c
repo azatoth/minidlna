@@ -1034,7 +1034,8 @@ GetVideoMetadata(const char * path, char * name)
 					ts = ctx->priv_data;
 					if( ts->packet_size == 192 )
 					{
-						if( dlna_timestamp_is_present(path) )
+						if( vc->profile == FF_PROFILE_H264_HIGH ||
+						    dlna_timestamp_is_present(path) )
 							ts_timestamp = VALID;
 						else
 							ts_timestamp = EMPTY;

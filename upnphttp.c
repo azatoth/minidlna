@@ -1696,7 +1696,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	off_t total, offset, size;
 	sqlite_int64 id;
 	int sendfh;
-	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[64]; } last_file = { 0 };
+	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[96]; } last_file = { 0 };
 #if USE_FORK
 	pid_t newpid = 0;
 #endif
