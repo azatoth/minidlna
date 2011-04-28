@@ -542,7 +542,7 @@ Send416(struct upnphttp * h)
 }
 
 /* very minimalistic 500 error message */
-static void
+void
 Send500(struct upnphttp * h)
 {
 	static const char body500[] = 
@@ -853,13 +853,14 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 				}
 				else
 				{
-					printf("Invalid TiVo request! %s\n", HttpUrl+12);
+					DPRINTF(E_WARN, L_HTTP, "Invalid TiVo request! %s\n", HttpUrl+12);
 					Send404(h);
 				}
 			}
 			else
 			{
-				printf("TiVo request with out TiVo support enabled! %s\n", HttpUrl+12);
+				DPRINTF(E_WARN, L_HTTP, "TiVo request with out TiVo support enabled! %s\n",
+					HttpUrl+12);
 				Send404(h);
 			}
 		}

@@ -153,6 +153,8 @@ BuildResp2_upnphttp(struct upnphttp * h, int respcode,
 
 /* Error messages */
 void
+Send500(struct upnphttp *);
+void
 Send501(struct upnphttp *);
 
 /* SendResp_upnphttp() */

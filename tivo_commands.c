@@ -348,21 +348,19 @@ void
 SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int itemCount, char * anchorItem,
               int anchorOffset, int recurse, char * sortOrder, char * filter, unsigned long int randomSeed)
 {
-	char * resp = malloc(262144);
+	char *resp = malloc(262144);
 	char *sql, *item, *saveptr;
 	char *zErrMsg = NULL;
 	char **result;
-	char *title = NULL;
+	char *title, *which;
 	char what[10], order[96]={0}, order2[96]={0}, myfilter[256]={0};
 	char str_buf[1024];
-	char *which;
 	char type[8];
 	char groupBy[19] = {0};
 	struct Response args;
 	int totalMatches = 0;
 	int i, ret;
 	memset(&args, 0, sizeof(args));
-	memset(resp, 0, sizeof(262144));
 
 	args.resp = resp;
 	args.size = 1024;
@@ -413,15 +411,14 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	}
 	else
 	{
-		sql = sqlite3_mprintf("SELECT NAME from OBJECTS where OBJECT_ID = '%s'", objectID);
-		if( (sql_get_table(db, sql, &result, &ret, NULL) == SQLITE_OK) && ret )
+		item = sql_get_text_field(db, "SELECT NAME from OBJECTS where OBJECT_ID = '%s'", objectID);
+		if( item )
 		{
-			title = escape_tag(result[1], 1);
+			title = escape_tag(item, 1);
+			sqlite3_free(item);
 		}
 		else
 			title = strdup("UNKNOWN");
-		sqlite3_free(sql);
-		sqlite3_free_table(result);
 	}
 
 	if( recurse )
@@ -650,6 +647,11 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	{
 		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
+		Send500(h);
+		free(title);
+		free(which);
+		free(resp);
+		return;
 	}
 
 	ret = sprintf(str_buf, "<?xml version='1.0' encoding='UTF-8' ?>\n"
