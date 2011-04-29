@@ -771,13 +771,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 			passed_args->size += ret;
 		}
 		if( artist ) {
-			if( (*mime == 'a') && (passed_args->filter & FILTER_UPNP_ARTIST) ) {
-				ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
+			if( (*mime == 'v') && (passed_args->filter & FILTER_UPNP_ACTOR) ) {
+				ret = snprintf(str_buf, 512, "&lt;upnp:actor&gt;%s&lt;/upnp:actor&gt;", artist);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
-			else if( (*mime == 'v') && (passed_args->filter & FILTER_UPNP_ACTOR) ) {
-				ret = snprintf(str_buf, 512, "&lt;upnp:actor&gt;%s&lt;/upnp:actor&gt;", artist);
+			if( passed_args->filter & FILTER_UPNP_ARTIST ) {
+				ret = snprintf(str_buf, 512, "&lt;upnp:artist&gt;%s&lt;/upnp:artist&gt;", artist);
 				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
 				passed_args->size += ret;
 			}
@@ -1323,13 +1323,14 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		groupBy[0] = '\0';
 	if( !SearchCriteria )
 	{
-		asprintf(&newSearchCriteria, "1 = 1");
+		newSearchCriteria = strdup("1 = 1");
 		SearchCriteria = newSearchCriteria;
 	}
 	else
 	{
 		SearchCriteria = modifyString(SearchCriteria, "&quot;", "\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&apos;", "'", 0);
+		SearchCriteria = modifyString(SearchCriteria, "\\\"", "\"\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
 		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "like", 1);
 		SearchCriteria = modifyString(SearchCriteria, "contains", "like", 2);
@@ -1345,16 +1346,14 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "@refID", "REF_ID", 0);
 		if( strstr(SearchCriteria, "@id") )
 		{
-			newSearchCriteria = modifyString(strdup(SearchCriteria), "@id", "OBJECT_ID", 0);
-			SearchCriteria = newSearchCriteria;
+			newSearchCriteria = strdup(SearchCriteria);
+			newSearchCriteria = SearchCriteria = modifyString(newSearchCriteria, "@id", "OBJECT_ID", 0);
 		}
 		if( strstr(SearchCriteria, "res is ") )
 		{
-			if( newSearchCriteria )
-				newSearchCriteria = modifyString(newSearchCriteria, "res is ", "MIME is ", 0);
-			else
-				newSearchCriteria = modifyString(strdup(SearchCriteria), "res is ", "MIME is ", 0);
-			SearchCriteria = newSearchCriteria;
+			if( !newSearchCriteria )
+				newSearchCriteria = strdup(SearchCriteria);
+			newSearchCriteria = SearchCriteria = modifyString(newSearchCriteria, "res is ", "MIME is ", 0);
 		}
 		#if 0 // Does 360 need this?
 		if( strstr(SearchCriteria, "&amp;") )
