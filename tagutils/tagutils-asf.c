@@ -310,9 +310,7 @@ _asf_load_picture(FILE *fp, int size, void *bm, int *bm_size)
 {
 	int i;
 	char buf[256];
-	char pic_type;
-	long pic_size;
-
+#if 0
 	//
 	// Picture type       $xx
 	// Data length	  $xx $xx $xx $xx
@@ -320,9 +318,15 @@ _asf_load_picture(FILE *fp, int size, void *bm, int *bm_size)
 	// Description        <text string> $00
 	// Picture data       <binary data>
 
+	char pic_type;
+	long pic_size;
+
 	pic_type = fget_byte(fp); size -= 1;
 	pic_size = fget_le32(fp); size -= 4;
-
+#else
+	fseek(fp, 5, SEEK_CUR);
+	size -= 5;
+#endif
 	for(i = 0; i < sizeof(buf) - 1; i++)
 	{
 		buf[i] = fget_le16(fp); size -= 2;
@@ -388,7 +392,6 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 	asf_object_t hdr;
 	asf_object_t tmp;
 	unsigned long NumObjects;
-	unsigned short Reserved;
 	unsigned short TitleLength;
 	unsigned short AuthorLength;
 	unsigned short CopyrightLength;
@@ -400,7 +403,6 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 	unsigned short ValueLength;
 	off_t pos;
 	char buf[2048];
-	int mask;
 	asf_file_properties_t FileProperties;
 
 	psong->vbr_scale = -1;
@@ -426,10 +428,9 @@ _get_asffileinfo(char *file, struct song_metadata *psong)
 		return -1;
 	}
 	NumObjects = fget_le32(fp);
-	Reserved = fget_le16(fp);
+	fseek(fp, 2, SEEK_CUR); // Reserved le16
 
 	pos = ftell(fp);
-	mask = 0;
 	while(NumObjects > 0)
 	{
 		if(sizeof(tmp) != fread(&tmp, 1, sizeof(tmp), fp))

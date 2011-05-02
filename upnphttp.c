@@ -1469,21 +1469,24 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char date[30];
 	char dlna_pn[4];
 	time_t curtime = time(NULL);
-	int width=640, height=480, dstw, dsth, rotation, size;
+	int width=640, height=480, dstw, dsth, size;
 	long srcw, srch;
 	unsigned char * data = NULL;
 	char *path, *file_path;
-	char *resolution, *tn;
+	char *resolution;
 	char *key, *val;
 	char *saveptr=NULL, *item=NULL;
+	/* Not implemented yet *
 	char *pixelshape=NULL;
+	int rotation; */
 	sqlite_int64 id;
 	int rows=0, chunked=0, ret;
 #ifdef __sparc__
+	char *tn;
 	ExifData *ed;
 	ExifLoader *l;
 #endif
-	image *imsrc = NULL, *imdst = NULL;
+	image_s *imsrc = NULL, *imdst = NULL;
 	int scale = 1;
 
 	id = strtoll(object, NULL, 10);
@@ -1510,7 +1513,6 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 #endif
 	file_path = result[3];
 	resolution = result[4];
-	tn = result[5];
 	srcw = strtol(resolution, &saveptr, 10);
 	srch = strtol(saveptr+1, NULL, 10);
 
@@ -1535,6 +1537,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		{
 			height = atoi(val);
 		}
+		/* Not implemented yet *
 		else if( strcasecmp(key, "rotation") == 0 )
 		{
 			rotation = atoi(val);
@@ -1542,7 +1545,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		else if( strcasecmp(key, "pixelshape") == 0 )
 		{
 			pixelshape = val;
-		}
+		} */
 		item = strtok_r(NULL, "&,", &saveptr);
 	}
 	free(path);
@@ -1600,6 +1603,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 
 	/* Resizing from a thumbnail is much faster than from a large image */
 #ifdef __sparc__
+	tn = result[5];
 	if( dstw <= 160 && dsth <= 120 && atoi(tn) )
 	{
 		l = exif_loader_new();

@@ -652,7 +652,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	char dlna_buf[96];
 	char ext[5];
 	char str_buf[512];
-	int children, ret = 0;
+	int ret = 0;
 
 	/* Make sure we have at least 4KB left of allocated memory to finish the response. */
 	if( passed_args->size > (passed_args->alloced - 4096) )
@@ -956,6 +956,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		passed_args->size += ret;
 		if( passed_args->filter & FILTER_CHILDCOUNT )
 		{
+			int children;
 			ret = sql_get_int_field(db, "SELECT count(*) from OBJECTS where PARENT_ID = '%s';", id);
 			children = (ret > 0) ? ret : 0;
 			ret = sprintf(str_buf, "childCount=\"%d\"", children);
@@ -1545,14 +1546,14 @@ void
 ExecuteSoapAction(struct upnphttp * h, const char * action, int n)
 {
 	char * p;
-	char * p2;
-	int i, len, methodlen;
 
-	i = 0;
 	p = strchr(action, '#');
-
 	if(p)
 	{
+		int i = 0;
+		int len;
+		int methodlen;
+		char * p2;
 		p++;
 		p2 = strchr(p, '"');
 		if(p2)

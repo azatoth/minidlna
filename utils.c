@@ -100,7 +100,12 @@ modifyString(char * string, const char * before, const char * after, short like)
 			chgcnt++;
 			s = p+oldlen;
 		}
-		string = realloc(string, strlen(string)+((newlen-oldlen)*chgcnt)+1+like);
+		s = realloc(string, strlen(string)+((newlen-oldlen)*chgcnt)+1+like);
+		/* If we failed to realloc, return the original alloc'd string */
+		if( s )
+			string = s;
+		else
+			return string;
 	}
 
 	s = string;
@@ -136,7 +141,7 @@ modifyString(char * string, const char * before, const char * after, short like)
 }
 
 char *
-escape_tag(const char *tag, uint8_t force_alloc)
+escape_tag(const char *tag, int force_alloc)
 {
 	char *esc_tag = NULL;
 

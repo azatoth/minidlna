@@ -25,7 +25,6 @@ _get_flctags(char *filename, struct song_metadata *psong)
 {
 	FLAC__Metadata_SimpleIterator *iterator = 0;
 	FLAC__StreamMetadata *block;
-	int block_number;
 	unsigned int sec, ms;
 	int i;
 	int err = 0;
@@ -36,7 +35,6 @@ _get_flctags(char *filename, struct song_metadata *psong)
 		return -1;
 	}
 
-	block_number = 0;
 	if(!FLAC__metadata_simple_iterator_init(iterator, filename, true, true))
 	{
 		DPRINTF(E_ERROR, L_SCANNER, "Cannot extract tag from %s\n", filename);

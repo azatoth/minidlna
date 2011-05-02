@@ -37,7 +37,7 @@ char *
 modifyString(char * string, const char * before, const char * after, short like);
 
 char *
-escape_tag(const char *tag, uint8_t force_alloc);
+escape_tag(const char *tag, int force_alloc);
 
 void
 strip_ext(char * name);

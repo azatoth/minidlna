@@ -1,4 +1,4 @@
-/* $Id: minissdp.c,v 1.16 2011/04/12 20:55:32 jmaggard Exp $ */
+/* $Id: minissdp.c,v 1.17 2011/05/02 23:50:52 jmaggard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -223,6 +223,16 @@ static const char * const known_service_types[] =
 	0
 };
 
+static void
+_usleep(long usecs)
+{
+	struct timespec sleep_time;
+
+	sleep_time.tv_sec = 0;
+	sleep_time.tv_nsec = usecs * 1000;
+	nanosleep(&sleep_time, NULL);
+}
+
 /* not really an SSDP "announce" as it is the response
  * to a SSDP "M-SEARCH" */
 static void
@@ -282,7 +292,7 @@ SendSSDPNotifies(int s, const char * host, unsigned short port,
 	for( dup=0; dup<2; dup++ )
 	{
 		if( dup )
-			usleep(200000);
+			_usleep(200000);
 		i=0;
 		while(known_service_types[i])
 		{
@@ -477,10 +487,9 @@ ProcessSSDPRequest(int s, unsigned short port)
 	char bufr[1500];
 	socklen_t len_r;
 	struct sockaddr_in sendername;
-	int i, l;
-	int lan_addr_index = 0;
+	int i;
 	char *st = NULL, *mx = NULL, *man = NULL, *mx_end = NULL, *loc = NULL, *srv = NULL;
-	int st_len = 0, mx_len = 0, man_len = 0, mx_val = 0, loc_len = 0, srv_len = 0;
+	int man_len = 0;
 	len_r = sizeof(struct sockaddr_in);
 
 	n = recvfrom(s, bufr, sizeof(bufr)-1, 0,
@@ -494,6 +503,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 
 	if(memcmp(bufr, "NOTIFY", 6) == 0)
 	{
+		int loc_len = 0, srv_len = 0;
 		//DEBUG DPRINTF(E_DEBUG, L_SSDP, "Received SSDP notify:\n%.*s", n, bufr);
 		for(i=0; i < n; i++)
 		{
@@ -551,6 +561,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 	}
 	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
 	{
+		int st_len = 0, mx_len = 0, mx_val = 0;
 		//DPRINTF(E_DEBUG, L_SSDP, "Received SSDP request:\n%.*s", n, bufr);
 		for(i=0; i < n; i++)
 		{
@@ -608,6 +619,8 @@ ProcessSSDPRequest(int s, unsigned short port)
 		}
 		else if( st && (st_len > 0) )
 		{
+			int l;
+			int lan_addr_index = 0;
 			/* find in which sub network the client is */
 			for(i = 0; i<n_lan_addr; i++)
 			{
@@ -637,7 +650,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 					/* Check version number - must always be 1 currently. */
 					if( (st[st_len-2] == ':') && (atoi(st+st_len-1) != 1) )
 						break;
-					usleep(random()>>20);
+					_usleep(random()>>20);
 					SendSSDPAnnounce2(s, sendername,
 					                  i,
 					                  lan_addr[lan_addr_index].str, port);
