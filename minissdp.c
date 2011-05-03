@@ -1,4 +1,4 @@
-/* $Id: minissdp.c,v 1.17 2011/05/02 23:50:52 jmaggard Exp $ */
+/* $Id: minissdp.c,v 1.18 2011/05/03 06:14:25 jmaggard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -532,6 +532,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 				loc_len = 0;
 				while(*loc == ' ' || *loc == '\t') loc++;
 				while(loc[loc_len]!='\r' && loc[loc_len]!='\n') loc_len++;
+				loc[loc_len] = '\0';
 			}
 			else if(strncasecmp(bufr+i, "NTS:", 4) == 0)
 			{
@@ -541,11 +542,10 @@ ProcessSSDPRequest(int s, unsigned short port)
 				while(man[man_len]!='\r' && man[man_len]!='\n') man_len++;
 			}
 		}
-		if (!man || (strncmp(man, "ssdp:alive", man_len) != 0))
+		if (!loc || !srv || !man || (strncmp(man, "ssdp:alive", man_len) != 0))
 		{
 			return;
 		}
-		loc[loc_len] = '\0';
 		if (strncmp(srv, "Allegro-Software-RomPlug", 24) == 0)
 		{
 			/* Check if the client is already in cache */
