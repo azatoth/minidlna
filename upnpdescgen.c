@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: upnpdescgen.c,v 1.18 2011/05/02 23:50:52 jmaggard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -529,6 +529,7 @@ static const struct serviceDesc scpdX_MS_MediaReceiverRegistrar =
 static char *
 strcat_str(char * str, int * len, int * tmplen, const char * s2)
 {
+	char *p;
 	int s2len;
 	s2len = (int)strlen(s2);
 	if(*tmplen <= (*len + s2len))
@@ -537,7 +538,17 @@ strcat_str(char * str, int * len, int * tmplen, const char * s2)
 			*tmplen += 256;
 		else
 			*tmplen += s2len + 1;
-		str = (char *)realloc(str, *tmplen);
+		p = realloc(str, *tmplen);
+		if (!p)
+		{
+			if(s2len < 256)
+				*tmplen -= 256;
+			else
+				*tmplen -= s2len + 1;
+			return str;
+		}
+		else
+			str = p;
 	}
 	/*strcpy(str + *len, s2); */
 	memcpy(str + *len, s2, s2len + 1);
@@ -551,10 +562,18 @@ strcat_str(char * str, int * len, int * tmplen, const char * s2)
 static char *
 strcat_char(char * str, int * len, int * tmplen, char c)
 {
+	char *p;
 	if(*tmplen <= (*len + 1))
 	{
 		*tmplen += 256;
-		str = (char *)realloc(str, *tmplen);
+		p = (char *)realloc(str, *tmplen);
+		if (!p)
+		{
+			*tmplen -= 256;
+			return str;
+		}
+		else
+			str = p;
 	}
 	str[*len] = c;
 	(*len)++;

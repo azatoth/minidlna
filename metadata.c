@@ -137,10 +137,8 @@ is_tivo_file(const char * path)
 void
 check_for_captions(const char * path, sqlite_int64 detailID)
 {
-	char * sql;
-	char * file = malloc(PATH_MAX);
-	char **result;
-	int ret, rows;
+	char *file = malloc(PATH_MAX);
+	char *id = NULL;
 
 	sprintf(file, "%s", path);
 	strip_ext(file);
@@ -148,25 +146,18 @@ check_for_captions(const char * path, sqlite_int64 detailID)
 	/* If we weren't given a detail ID, look for one. */
 	if( !detailID )
 	{
-		sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH glob '%q.*'"
-		                      " and MIME glob 'video/*' limit 1", file);
-		ret = sql_get_table(db, sql, &result, &rows, NULL);
-		if( ret == SQLITE_OK )
+		id = sql_get_text_field(db, "SELECT ID from DETAILS where PATH glob '%q.*'"
+		                            " and MIME glob 'video/*' limit 1", file);
+		if( id )
 		{
-			if( rows )
-			{
-				detailID = strtoll(result[1], NULL, 10);
-				//DEBUG DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like a caption file.\n", path);
-			}
-			/*else
-			{
-				DPRINTF(E_DEBUG, L_METADATA, "No file found for caption %s.\n", path);
-			}*/
-			sqlite3_free_table(result);
+			//DEBUG DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like a caption file.\n", path);
+			detailID = strtoll(id, NULL, 10);
 		}
-		sqlite3_free(sql);
-		if( !detailID )
+		else
+		{
+			//DPRINTF(E_DEBUG, L_METADATA, "No file found for caption %s.\n", path);
 			goto no_source_video;
+		}
 	}
 
 	strcat(file, ".srt");
@@ -178,6 +169,8 @@ check_for_captions(const char * path, sqlite_int64 detailID)
 		             " (%lld, %Q)", detailID, file);
 	}
 no_source_video:
+	if( id )
+		sqlite3_free(id);
 	free(file);
 }
 
@@ -506,7 +499,7 @@ GetImageMetadata(const char * path, char * name)
 	char b[1024];
 	struct stat file;
 	sqlite_int64 ret;
-	image * imsrc;
+	image_s * imsrc;
 	metadata_t m;
 	uint32_t free_flags = 0xFFFFFFFF;
 	memset(&m, '\0', sizeof(metadata_t));
@@ -646,11 +639,7 @@ GetVideoMetadata(const char * path, char * name)
 	int audio_stream = -1, video_stream = -1;
 	enum audio_profiles audio_profile = PROFILE_AUDIO_UNKNOWN;
 	tsinfo_t *ts;
-	ts_timestamp_t ts_timestamp = NONE;
 	char fourcc[4];
-	int off;
-	int duration, hours, min, sec, ms;
-	aac_object_type_t aac_type = AAC_INVALID;
 	sqlite_int64 album_art = 0;
 	char nfo[PATH_MAX], *ext;
 	struct song_metadata video;
@@ -719,6 +708,7 @@ GetVideoMetadata(const char * path, char * name)
 
 	if( ac )
 	{
+		aac_object_type_t aac_type = AAC_INVALID;
 		switch( ac->codec_id )
 		{
 			case CODEC_ID_MP3:
@@ -807,6 +797,9 @@ GetVideoMetadata(const char * path, char * name)
 	}
 	if( vc )
 	{
+		int off;
+		int duration, hours, min, sec, ms;
+		ts_timestamp_t ts_timestamp = NONE;
 		DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, basename(path));
 		asprintf(&m.resolution, "%dx%d", vc->width, vc->height);
 		if( ctx->bit_rate > 8 )

@@ -203,14 +203,14 @@ libjpeg_error_handler(j_common_ptr cinfo)
 }
 
 void
-image_free(image *pimage)
+image_free(image_s *pimage)
 {
 	free(pimage->buf);
 	free(pimage);
 }
 
 pix
-get_pix(image *pimage, int32_t x, int32_t y)
+get_pix(image_s *pimage, int32_t x, int32_t y)
 {
 	if((x >= 0) && (y >= 0) && (x < pimage->width) && (y < pimage->height))
 	{
@@ -224,7 +224,7 @@ get_pix(image *pimage, int32_t x, int32_t y)
 }
 
 void
-put_pix_alpha_replace(image *pimage, int32_t x, int32_t y, pix col)
+put_pix_alpha_replace(image_s *pimage, int32_t x, int32_t y, pix col)
 {
 	if((x >= 0) && (y >= 0) && (x < pimage->width) && (y < pimage->height))
 		pimage->buf[(y * pimage->width) + x] = col;
@@ -295,7 +295,7 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 {
 	FILE *img;
 	unsigned char buf[8];
-	char *data = NULL;
+	char *data = NULL, *newdata;
 	u_int16_t offset;
 	struct NameValueParserData xml;
 	char * exif;
@@ -337,7 +337,11 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 				continue;
 			}
 
-			data = realloc(data, 30);
+			newdata = realloc(data, 30);
+			if( !newdata )
+				break;
+			data = newdata;
+
 			fread(data, 29, 1, img);
 			offset -= 29;
 			if( strcmp(data, "http://ns.adobe.com/xap/1.0/") != 0 )
@@ -346,7 +350,10 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 				continue;
 			}
 
-			data = realloc(data, offset+1);
+			newdata = realloc(data, offset+1);
+			if( !newdata )
+				break;
+			data = newdata;
 			fread(data, offset, 1, img);
 
 			ParseNameValue(data, offset, &xml);
@@ -378,12 +385,12 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 	return ret;
 }
 
-image *
+image_s *
 image_new(int32_t width, int32_t height)
 {
-	image *vimage;
+	image_s *vimage;
 
-	if((vimage = (image *)malloc(sizeof(image))) == NULL)
+	if((vimage = (image_s *)malloc(sizeof(image_s))) == NULL)
 	{
 		DPRINTF(E_WARN, L_METADATA, "malloc failed\n");
 		return NULL;
@@ -399,10 +406,10 @@ image_new(int32_t width, int32_t height)
 	return(vimage);
 }
 
-image *
+image_s *
 image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, int scale)
 {
-	image *vimage;
+	image_s *vimage;
 	FILE  *file = NULL;
 	struct jpeg_decompress_struct cinfo;
 	unsigned char *line[16], *ptr;
@@ -478,6 +485,9 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 		if((ptr = (unsigned char *)malloc(w * 3 * cinfo.rec_outbuf_height + 8)) == NULL)
 		{
 			DPRINTF(E_WARN, L_METADATA, "malloc failed\n");
+			image_free(vimage);
+			if( is_file )
+				fclose(file);
 			return NULL;
 		}
 
@@ -541,7 +551,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 }
 
 void
-image_upsize(image * pdest, image * psrc, int32_t width, int32_t height)
+image_upsize(image_s * pdest, image_s * psrc, int32_t width, int32_t height)
 {
 	int32_t vx, vy;
 #if !defined __i386__ && !defined __x86_64__
@@ -604,7 +614,7 @@ image_upsize(image * pdest, image * psrc, int32_t width, int32_t height)
 }
 
 void
-image_downsize(image * pdest, image * psrc, int32_t width, int32_t height)
+image_downsize(image_s * pdest, image_s * psrc, int32_t width, int32_t height)
 {
 	int32_t vx, vy;
 	pix vcol;
@@ -747,10 +757,10 @@ image_downsize(image * pdest, image * psrc, int32_t width, int32_t height)
 	}
 }
 
-image *
-image_resize(image * src_image, int32_t width, int32_t height)
+image_s *
+image_resize(image_s * src_image, int32_t width, int32_t height)
 {
-	image * dst_image;
+	image_s * dst_image;
 
 	dst_image = image_new(width, height);
 	if( !dst_image )
@@ -765,7 +775,7 @@ image_resize(image * src_image, int32_t width, int32_t height)
 
 
 unsigned char *
-image_save_to_jpeg_buf(image * pimage, int * size)
+image_save_to_jpeg_buf(image_s * pimage, int * size)
 {
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
@@ -813,7 +823,7 @@ image_save_to_jpeg_buf(image * pimage, int * size)
 }
 
 int
-image_save_to_jpeg_file(image * pimage, const char * path)
+image_save_to_jpeg_file(image_s * pimage, const char * path)
 {
 	int nwritten, size = 0;
 	unsigned char * buf;
