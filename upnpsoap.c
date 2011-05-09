@@ -1234,7 +1234,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	char * Filter = GetValueFromNameValueList(&data, "Filter");
 	char * SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
 	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
-	char * newSearchCriteria = NULL;
 	char * orderBy = NULL;
 	char groupBy[] = "group by DETAIL_ID";
 	int RequestedCount = 0;
@@ -1324,8 +1323,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		groupBy[0] = '\0';
 	if( !SearchCriteria )
 	{
-		newSearchCriteria = strdup("1 = 1");
-		SearchCriteria = newSearchCriteria;
+		SearchCriteria = strdup("1 = 1");
 	}
 	else
 	{
@@ -1347,23 +1345,16 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "@refID", "REF_ID", 0);
 		if( strstr(SearchCriteria, "@id") )
 		{
-			newSearchCriteria = strdup(SearchCriteria);
-			newSearchCriteria = SearchCriteria = modifyString(newSearchCriteria, "@id", "OBJECT_ID", 0);
+			SearchCriteria = modifyString(SearchCriteria, "@id", "OBJECT_ID", 0);
 		}
 		if( strstr(SearchCriteria, "res is ") )
 		{
-			if( !newSearchCriteria )
-				newSearchCriteria = strdup(SearchCriteria);
-			newSearchCriteria = SearchCriteria = modifyString(newSearchCriteria, "res is ", "MIME is ", 0);
+			SearchCriteria = modifyString(SearchCriteria, "res is ", "MIME is ", 0);
 		}
 		#if 0 // Does 360 need this?
 		if( strstr(SearchCriteria, "&amp;") )
 		{
-			if( newSearchCriteria )
-				newSearchCriteria = modifyString(newSearchCriteria, "&amp;", "&amp;amp;", 0);
-			else
-				newSearchCriteria = modifyString(strdup(SearchCriteria), "&amp;", "&amp;amp;", 0);
-			SearchCriteria = newSearchCriteria;
+			SearchCriteria = modifyString(SearchCriteria, "&amp;", "&amp;amp;", 0);
 		}
 		#endif
 	}
@@ -1444,8 +1435,6 @@ search_error:
 	ClearNameValueList(&data);
 	if( orderBy )
 		free(orderBy);
-	if( newSearchCriteria )
-		free(newSearchCriteria);
 	free(resp);
 	if( h->reqflags & FLAG_MS_PFS )
 	{
