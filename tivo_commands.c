@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <time.h>
 
 #include "tivo_utils.h"
@@ -84,7 +85,8 @@ SendRootContainer(struct upnphttp * h)
 			   "</Content>"
 			  "</Links>"
 			 "</Item>"
-			"</TiVoContainer>", friendly_name, friendly_name, friendly_name, friendly_name);
+			"</TiVoContainer>",
+	                friendly_name, friendly_name, friendly_name, friendly_name);
 	BuildResp_upnphttp(h, resp, len);
 	free(resp);
 	SendResp_upnphttp(h);
@@ -110,8 +112,8 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	char *id = argv[0], *class = argv[1], *detailID = argv[2], *size = argv[3], *title = argv[4], *duration = argv[5],
              *bitrate = argv[6], *sampleFrequency = argv[7], *artist = argv[8], *album = argv[9], *genre = argv[10],
              *comment = argv[11], *date = argv[12], *resolution = argv[13], *mime = argv[14], *path = argv[15];
-	char str_buf[4096];
 	int ret = 0;
+	struct string_s *str = passed_args->str;
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
@@ -120,44 +122,34 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		if( strncmp(mime, "audio", 5) == 0 )
 		{
 			flags |= FLAG_NO_PARAMS;
-			ret = sprintf(str_buf, "<Item><Details>"
-			                       "<ContentType>audio/*</ContentType>"
-			                       "<SourceFormat>%s</SourceFormat>"
-			                       "<SourceSize>%s</SourceSize>"
-			                       "<SongTitle>%s</SongTitle>", mime, size, title);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<Item><Details>"
+			                   "<ContentType>audio/*</ContentType>"
+			                   "<SourceFormat>%s</SourceFormat>"
+			                   "<SourceSize>%s</SourceSize>"
+			                   "<SongTitle>%s</SongTitle>", mime, size, title);
 			if( date )
 			{
-				ret = sprintf(str_buf, "<AlbumYear>%.*s</AlbumYear>", 4, date);
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
+				ret = strcatf(str, "<AlbumYear>%.*s</AlbumYear>", 4, date);
 			}
 		}
 		else if( strcmp(mime, "image/jpeg") == 0 )
 		{
 			flags |= FLAG_SEND_RESIZED;
-			ret = sprintf(str_buf, "<Item><Details>"
-			                       "<ContentType>image/*</ContentType>"
-			                       "<SourceFormat>image/jpeg</SourceFormat>"
-			                       "<SourceSize>%s</SourceSize>", size);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<Item><Details>"
+			                   "<ContentType>image/*</ContentType>"
+			                   "<SourceFormat>image/jpeg</SourceFormat>"
+			                   "<SourceSize>%s</SourceSize>", size);
 			if( date )
 			{
 				struct tm tm;
 				memset(&tm, 0, sizeof(tm));
 				tm.tm_isdst = -1; // Have libc figure out if DST is in effect or not
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
-				ret = sprintf(str_buf, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
+				ret = strcatf(str, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
 			}
 			if( comment )
 			{
-				ret = sprintf(str_buf, "<Caption>%s</Caption>", comment);
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
+				ret = strcatf(str, "<Caption>%s</Caption>", comment);
 			}
 		}
 		else if( strncmp(mime, "video", 5) == 0 )
@@ -165,111 +157,85 @@ int callback(void *args, int argc, char **argv, char **azColName)
 			char *episode;
 			flags |= FLAG_NO_PARAMS;
 			flags |= FLAG_VIDEO;
-			ret = sprintf(str_buf, "<Item><Details>"
-			                       "<ContentType>video/x-tivo-mpeg</ContentType>"
-			                       "<SourceFormat>%s</SourceFormat>"
-			                       "<SourceSize>%s</SourceSize>", mime, size);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<Item><Details>"
+			                   "<ContentType>video/x-tivo-mpeg</ContentType>"
+			                   "<SourceFormat>%s</SourceFormat>"
+			                   "<SourceSize>%s</SourceSize>", mime, size);
 			episode = strstr(title, " - ");
 			if( episode )
 			{
-				ret = sprintf(str_buf, "<Title>%.*s</Title>"
-				                       "<EpisodeTitle>%s</EpisodeTitle>", 
-				                       episode-title, title, episode+3);
+				ret = strcatf(str, "<Title>%.*s</Title>"
+				                   "<EpisodeTitle>%s</EpisodeTitle>", 
+				                   (int)(episode-title), title, episode+3);
 			}
 			else
 			{
-				ret = sprintf(str_buf, "<Title>%s</Title>", title);
+				ret = strcatf(str, "<Title>%s</Title>", title);
 			}
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
 			if( date )
 			{
 				struct tm tm;
 				memset(&tm, 0, sizeof(tm));
 				tm.tm_isdst = -1; // Have libc figure out if DST is in effect or not
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
-				ret = sprintf(str_buf, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
+				ret = strcatf(str, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
 			}
 			if( comment )
 			{
-				ret = sprintf(str_buf, "<Description>%s</Description>", comment);
-				memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-				passed_args->size += ret;
+				ret = strcatf(str, "<Description>%s</Description>", comment);
 			}
 		}
 		else
 		{
 			return 0;
 		}
-		ret = sprintf(str_buf, "<Title>%s</Title>", unescape_tag(title));
-		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-		passed_args->size += ret;
+		ret = strcatf(str, "<Title>%s</Title>", unescape_tag(title));
 		if( artist ) {
-			ret = sprintf(str_buf, "<ArtistName>%s</ArtistName>", unescape_tag(artist));
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<ArtistName>%s</ArtistName>", unescape_tag(artist));
 		}
 		if( album ) {
-			ret = sprintf(str_buf, "<AlbumTitle>%s</AlbumTitle>", unescape_tag(album));
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<AlbumTitle>%s</AlbumTitle>", unescape_tag(album));
 		}
 		if( genre ) {
-			ret = sprintf(str_buf, "<MusicGenre>%s</MusicGenre>", unescape_tag(genre));
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<MusicGenre>%s</MusicGenre>", unescape_tag(genre));
 		}
 		if( resolution ) {
 			char *width = strsep(&resolution, "x");
-			ret = sprintf(str_buf, "<SourceWidth>%s</SourceWidth>"
-			                       "<SourceHeight>%s</SourceHeight>",
-			              width, resolution);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<SourceWidth>%s</SourceWidth>"
+			                   "<SourceHeight>%s</SourceHeight>",
+			                   width, resolution);
 		}
 		if( duration ) {
-			ret = sprintf(str_buf, "<Duration>%d</Duration>",
+			ret = strcatf(str, "<Duration>%d</Duration>",
 			      atoi(strrchr(duration, '.')+1) + (1000*atoi(strrchr(duration, ':')+1))
 			      + (60000*atoi(strrchr(duration, ':')-2)) + (3600000*atoi(duration)));
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
 		}
 		if( bitrate ) {
-			ret = sprintf(str_buf, "<SourceBitRate>%s</SourceBitRate>", bitrate);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<SourceBitRate>%s</SourceBitRate>", bitrate);
 		}
 		if( sampleFrequency ) {
-			ret = sprintf(str_buf, "<SourceSampleRate>%s</SourceSampleRate>", sampleFrequency);
-			memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-			passed_args->size += ret;
+			ret = strcatf(str, "<SourceSampleRate>%s</SourceSampleRate>", sampleFrequency);
 		}
-		ret = sprintf(str_buf, "</Details><Links><Content>"
-		                       "<ContentType>%s</ContentType>"
-		                       "<Url>/%s/%s.dat</Url>%s</Content>",
-		                       mime,
-		                       (flags & FLAG_SEND_RESIZED)?"Resized":"MediaItems", detailID,
-		                       (flags & FLAG_NO_PARAMS)?"<AcceptsParams>No</AcceptsParams>":"");
-		memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-		passed_args->size += ret;
+		ret = strcatf(str, "</Details><Links><Content>"
+		                   "<ContentType>%s</ContentType>"
+		                   "<Url>/%s/%s.dat</Url>%s</Content>",
+		                   mime,
+		                   (flags & FLAG_SEND_RESIZED)?"Resized":"MediaItems", detailID,
+		                   (flags & FLAG_NO_PARAMS)?"<AcceptsParams>No</AcceptsParams>":"");
 		if( flags & FLAG_VIDEO )
 		{
 			char *esc_name = escape_tag(basename(path), 1);
-			ret = sprintf(str_buf, "<CustomIcon>"
-			                         "<ContentType>video/*</ContentType>"
-			                         "<Url>urn:tivo:image:save-until-i-delete-recording</Url>"
-			                       "</CustomIcon>"
-			                       "<Push><Container>Videos</Container></Push>"
-			                       "<File>%s</File> </Links>", esc_name);
+			ret = strcatf(str, "<CustomIcon>"
+			                     "<ContentType>video/*</ContentType>"
+			                     "<Url>urn:tivo:image:save-until-i-delete-recording</Url>"
+			                   "</CustomIcon>"
+			                   "<Push><Container>Videos</Container></Push>"
+			                   "<File>%s</File> </Links>", esc_name);
 			free(esc_name);
 		}
 		else
 		{
-			ret = sprintf(str_buf, "</Links>");
+			ret = strcatf(str, "</Links>");
 		}
 	}
 	else if( strncmp(class, "container", 9) == 0 )
@@ -283,26 +249,22 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		                              " (MIME in ('image/jpeg', 'audio/mpeg', 'video/mpeg', 'video/x-tivo-mpeg')"
 		                              " or CLASS glob 'container*')", id);
 #endif
-		ret = sprintf(str_buf, "<Item>"
-		                         "<Details>"
-		                           "<ContentType>x-container/folder</ContentType>"
-		                           "<SourceFormat>x-container/folder</SourceFormat>"
-		                           "<Title>%s</Title>"
-		                           "<TotalItems>%d</TotalItems>"
-		                         "</Details>"
-		                         "<Links>"
-		                           "<Content>"
-		                             "<Url>/TiVoConnect?Command=QueryContainer&amp;Container=%s</Url>"
-		                             "<ContentType>x-tivo-container/folder</ContentType>"
-		                           "</Content>"
-		                         "</Links>",
-		                         unescape_tag(title), count, id);
+		ret = strcatf(str, "<Item>"
+		                   "<Details>"
+		                     "<ContentType>x-container/folder</ContentType>"
+		                     "<SourceFormat>x-container/folder</SourceFormat>"
+		                     "<Title>%s</Title>"
+		                     "<TotalItems>%d</TotalItems>"
+		                   "</Details>"
+		                   "<Links>"
+		                     "<Content>"
+		                       "<Url>/TiVoConnect?Command=QueryContainer&amp;Container=%s</Url>"
+		                       "<ContentType>x-tivo-container/folder</ContentType>"
+		                     "</Content>"
+		                   "</Links>",
+		                   unescape_tag(title), count, id);
 	}
-	memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-	passed_args->size += ret;
-	ret = sprintf(str_buf, "</Item>");
-	memcpy(passed_args->resp+passed_args->size, &str_buf, ret+1);
-	passed_args->size += ret;
+	ret = strcatf(str, "</Item>");
 
 	passed_args->returned++;
 
@@ -320,11 +282,13 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 	char *sql;
 	char *zErrMsg = NULL;
 	struct Response args;
+	struct string_s str;
 	int ret;
 	memset(&args, 0, sizeof(args));
+	memset(&str, 0, sizeof(str));
 
-	args.resp = resp;
-	args.size = sprintf(resp, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
+	str.data = resp;
+	ret = strcatf(&str, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
 	args.requested = 1;
 	asprintf(&sql, SELECT_COLUMNS
 	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
@@ -337,10 +301,10 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 		DPRINTF(E_ERROR, L_HTTP, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
-	strcat(resp, "</TiVoItem>");
+	strcatf(&str, "</TiVoItem>");
 
-	BuildResp_upnphttp(h, resp, strlen(resp));
-	free(resp);
+	BuildResp_upnphttp(h, str.data, str.off);
+	free(str.data);
 	SendResp_upnphttp(h);
 }
 
@@ -358,12 +322,15 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	char type[8];
 	char groupBy[19] = {0};
 	struct Response args;
+	struct string_s str;
 	int totalMatches = 0;
 	int i, ret;
 	memset(&args, 0, sizeof(args));
+	memset(&str, 0, sizeof(str));
 
-	args.resp = resp;
-	args.size = 1024;
+	args.str = &str;
+	str.data = resp+1024;
+	str.size = 262144-1024;
 	if( itemCount >= 0 )
 	{
 		args.requested = itemCount;
@@ -653,6 +620,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		free(resp);
 		return;
 	}
+	strcatf(&str, "</TiVoContainer>");
 
 	ret = sprintf(str_buf, "<?xml version='1.0' encoding='UTF-8' ?>\n"
 			       "<TiVoContainer>"
@@ -665,15 +633,12 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                         "<ItemStart>%d</ItemStart>"
 	                         "<ItemCount>%d</ItemCount>",
 	                         type, totalMatches, title, args.start, args.returned);
-	args.resp = resp+1024-ret;
-	memcpy(args.resp, &str_buf, ret);
-	ret = sprintf(str_buf, "</TiVoContainer>");
-	memcpy(resp+args.size, &str_buf, ret+1);
-	args.size += ret;
-	args.size -= args.resp-resp;
+	str.data -= ret;
+	memcpy(str.data, &str_buf, ret);
+	str.size = str.off+ret;
 	free(title);
 	free(which);
-	BuildResp_upnphttp(h, args.resp, args.size);
+	BuildResp_upnphttp(h, str.data, str.size);
 	free(resp);
 	SendResp_upnphttp(h);
 }
@@ -696,7 +661,7 @@ ProcessTiVoCommand(struct upnphttp * h, const char * orig_path)
 	item = strtok_r( path, "&", &saveptr );
 	while( item != NULL )
 	{
-		if( strlen(item) == 0 )
+		if( *item == '\0' )
 		{
 			item = strtok_r( NULL, "&", &saveptr );
 			continue;

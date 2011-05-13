@@ -44,6 +44,12 @@ struct runtime_vars_s {
 	int notify_interval;	/* seconds between SSDP announces */
 };
 
+struct string_s {
+	char *data; // ptr to start of memory area
+	int off;
+	int size;
+};
+
 enum media_types {
 	ALL_MEDIA,
 	AUDIO_ONLY,
