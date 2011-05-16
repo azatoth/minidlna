@@ -21,7 +21,8 @@
 #ifndef __UPNPSOAP_H__
 #define __UPNPSOAP_H__
 
-#define MAX_RESPONSE_SIZE 1048576
+#define DEFAULT_RESP_SIZE 131072
+#define MAX_RESPONSE_SIZE 2097152
 
 #define CONTENT_DIRECTORY_SCHEMAS \
 	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"" \
@@ -32,14 +33,12 @@
 
 struct Response
 {
-	char *resp;
+	struct string_s *str;
 	int start;
 	int returned;
 	int requested;
-	int size;
-	int alloced;
-	u_int32_t filter;
-	u_int32_t flags;
+	uint32_t filter;
+	uint32_t flags;
 	enum client_types client;
 };
 

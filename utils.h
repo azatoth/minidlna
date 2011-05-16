@@ -25,6 +25,9 @@
 #define __UTILS_H__
 
 int
+strcatf(struct string_s *str, char *fmt, ...);
+
+int
 ends_with(const char * haystack, const char * needle);
 
 char *

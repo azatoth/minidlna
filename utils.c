@@ -31,6 +31,20 @@
 #include "upnpglobalvars.h"
 #include "log.h"
 
+inline int
+strcatf(struct string_s *str, const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(str->data + str->off, str->size - str->off, fmt, ap);
+	str->off += ret;
+	va_end(ap);
+
+	return ret;
+}
+
 int
 ends_with(const char * haystack, const char * needle)
 {
