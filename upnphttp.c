@@ -314,6 +314,11 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = EMediaRoom;
 					h->reqflags |= FLAG_MS_PFS;
 				}
+				else if(strstrc(p, "LGE_DLNA_SDK", '\r'))
+				{
+					h->req_client = ELGDevice;
+					h->reqflags |= FLAG_DLNA;
+				}
 				else if(strstrc(p, "UPnP/1.0 DLNADOC/1.50 Intel_SDK_for_UPnP_devices/1.2", '\r'))
 				{
 					h->req_client = EToshibaTV;
@@ -1325,27 +1330,20 @@ void
 SendResp_caption(struct upnphttp * h, char * object)
 {
 	char header[1500];
-	char sql_buf[256];
-	char **result;
-	int rows = 0;
 	char *path;
 	char date[30];
 	time_t curtime = time(NULL);
 	off_t offset = 0, size;
 	int sendfh, ret;
 
-	memset(header, 0, 1500);
-
 	strip_ext(object);
-	sprintf(sql_buf, "SELECT PATH from CAPTIONS where ID = %s", object);
-	sql_get_table(db, sql_buf, &result, &rows, NULL);
-	if( !rows )
+	path = sql_get_text_field(db, "SELECT PATH from CAPTIONS where ID = %s", object);
+	if( !path )
 	{
 		DPRINTF(E_WARN, L_HTTP, "CAPTION ID %s not found, responding ERROR 404\n", object);
 		Send404(h);
-		goto error;
+		return;
 	}
-	path = result[1];
 	DPRINTF(E_INFO, L_HTTP, "Serving caption ID: %s [%s]\n", object, path);
 
 	if( access(path, F_OK) != 0 )
@@ -1376,7 +1374,7 @@ SendResp_caption(struct upnphttp * h, char * object)
 	close(sendfh);
 
 	error:
-	sqlite3_free_table(result);
+	sqlite3_free(path);
 }
 
 void

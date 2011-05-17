@@ -76,6 +76,7 @@ enum client_types {
 	ESonyBravia,
 	ERokuSoundBridge,
 	EToshibaTV,
+	ELGDevice,
 	EStandardDLNA150 = 100
 };
 

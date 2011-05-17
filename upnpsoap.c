@@ -880,6 +880,15 @@ callback(void *args, int argc, char **argv, char **azColName)
 						        resolution, dlna_buf, mime, detailID, ext, passed_args);
 					}
 					break;
+				case ELGDevice:
+					if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
+					{
+						ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:text/srt:*\"&gt;"
+						                     "http://%s:%d/Captions/%s.srt"
+						                   "&lt;/res&gt;",
+						                   lan_addr[0].str, runtime_vars.port, detailID);
+					}
+					break;
 				default:
 					break;
 				}
