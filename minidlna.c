@@ -344,7 +344,7 @@ init(int argc, char * * argv)
 	enum media_types type;
 	char * path;
 	char real_path[PATH_MAX];
-	char ext_ip_addr[INET_ADDRSTRLEN + 3] = {'\0'};
+	char ip_addr[INET_ADDRSTRLEN + 3] = {'\0'};
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -386,13 +386,25 @@ init(int argc, char * * argv)
 			switch(ary_options[i].id)
 			{
 			case UPNPIFNAME:
-				if(getifaddr(ary_options[i].value, ext_ip_addr, sizeof(ext_ip_addr)) >= 0)
+				for( string = ary_options[i].value; (word = strtok(string, ",")); string = NULL )
 				{
-					if( *ext_ip_addr && parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
-						n_lan_addr++;
+					if(n_lan_addr < MAX_LAN_ADDR)
+					{
+						if(getifaddr(word, ip_addr, sizeof(ip_addr)) >= 0)
+						{
+							if( *ip_addr && parselanaddr(&lan_addr[n_lan_addr], ip_addr) == 0 )
+								if(n_lan_addr < MAX_LAN_ADDR)
+									n_lan_addr++;
+						}
+						else
+							fprintf(stderr, "Interface %s not found, ignoring.\n", word);
+					}
+					else
+					{
+						fprintf(stderr, "Too many listening ips (max: %d), ignoring %s\n",
+				    		    MAX_LAN_ADDR, word);
+					}
 				}
-				else
-					fprintf(stderr, "Interface %s not found, ignoring.\n", ary_options[i].value);
 				break;
 			case UPNPLISTENING_IP:
 				if(n_lan_addr < MAX_LAN_ADDR)
@@ -482,7 +494,8 @@ init(int argc, char * * argv)
 				}
 				break;
 			case UPNPALBUMART_NAMES:
-				for( string = ary_options[i].value; (word = strtok(string, "/")); string = NULL ) {
+				for( string = ary_options[i].value; (word = strtok(string, "/")); string = NULL )
+				{
 					struct album_art_name_s * this_name = calloc(1, sizeof(struct album_art_name_s));
 					int len = strlen(word);
 					if( word[len-1] == '*' )
@@ -649,7 +662,7 @@ init(int argc, char * * argv)
 				int address_already_there = 0;
 				int j;
 				i++;
-				if( getifaddr(argv[i], ext_ip_addr, sizeof(ext_ip_addr)) < 0 )
+				if( getifaddr(argv[i], ip_addr, sizeof(ip_addr)) < 0 )
 				{
 					fprintf(stderr, "Network interface '%s' not found.\n",
 						argv[i]);
@@ -658,7 +671,7 @@ init(int argc, char * * argv)
 				for(j=0; j<n_lan_addr; j++)
 				{
 					struct lan_addr_s tmpaddr;
-					parselanaddr(&tmpaddr, ext_ip_addr);
+					parselanaddr(&tmpaddr, ip_addr);
 					if(0 == strcmp(lan_addr[j].str, tmpaddr.str))
 						address_already_there = 1;
 				}
@@ -666,7 +679,7 @@ init(int argc, char * * argv)
 					break;
 				if(n_lan_addr < MAX_LAN_ADDR)
 				{
-					if(parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0)
+					if(parselanaddr(&lan_addr[n_lan_addr], ip_addr) == 0)
 						n_lan_addr++;
 				}
 				else
@@ -699,13 +712,13 @@ init(int argc, char * * argv)
 	/* If no IP was specified, try to detect one */
 	if( n_lan_addr < 1 )
 	{
-		if( (getsysaddr(ext_ip_addr, sizeof(ext_ip_addr)) < 0) &&
-		    (getifaddr("eth0", ext_ip_addr, sizeof(ext_ip_addr)) < 0) &&
-		    (getifaddr("eth1", ext_ip_addr, sizeof(ext_ip_addr)) < 0) )
+		if( (getsysaddr(ip_addr, sizeof(ip_addr)) < 0) &&
+		    (getifaddr("eth0", ip_addr, sizeof(ip_addr)) < 0) &&
+		    (getifaddr("eth1", ip_addr, sizeof(ip_addr)) < 0) )
 		{
 			DPRINTF(E_OFF, L_GENERAL, "No IP address automatically detected!\n");
 		}
-		if( *ext_ip_addr && parselanaddr(&lan_addr[n_lan_addr], ext_ip_addr) == 0 )
+		if( *ip_addr && parselanaddr(&lan_addr[n_lan_addr], ip_addr) == 0 )
 		{
 			n_lan_addr++;
 		}

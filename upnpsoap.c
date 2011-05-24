@@ -552,16 +552,16 @@ parse_sort_criteria(char * sortCriteria, int * error)
 
 inline static void
 add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_pn,
-                char *detailID, struct Response *passed_args)
+                char *detailID, struct Response *args)
 {
 	int dstw = reqw;
 	int dsth = reqh;
 
-	if( passed_args->flags & FLAG_NO_RESIZE )
+	if( args->flags & FLAG_NO_RESIZE )
 		return;
 
-	strcatf(passed_args->str, "&lt;res ");
-	if( passed_args->filter & FILTER_RES_RESOLUTION )
+	strcatf(args->str, "&lt;res ");
+	if( args->filter & FILTER_RES_RESOLUTION )
 	{
 		dstw = reqw;
 		dsth = ((((reqw<<10)/srcw)*srch)>>10);
@@ -569,42 +569,43 @@ add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_pn,
 			dsth = reqh;
 			dstw = (((reqh<<10)/srch) * srcw>>10);
 		}
-		strcatf(passed_args->str, "resolution=\"%dx%d\" ", dstw, dsth);
+		strcatf(args->str, "resolution=\"%dx%d\" ", dstw, dsth);
 	}
-	strcatf(passed_args->str, "protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=%s;DLNA.ORG_CI=1\"&gt;"
+	strcatf(args->str, "protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=%s;DLNA.ORG_CI=1\"&gt;"
 	                          "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
 	                          "&lt;/res&gt;",
-	                          dlna_pn, lan_addr[0].str, runtime_vars.port, detailID, dstw, dsth);
+	                          dlna_pn, lan_addr[args->iface].str, runtime_vars.port,
+	                          detailID, dstw, dsth);
 }
 
 inline static void
 add_res(char *size, char *duration, char *bitrate, char *sampleFrequency,
         char *nrAudioChannels, char *resolution, char *dlna_pn, char *mime,
-        char *detailID, char *ext, struct Response *passed_args)
+        char *detailID, char *ext, struct Response *args)
 {
-	strcatf(passed_args->str, "&lt;res ");
-	if( size && (passed_args->filter & FILTER_RES_SIZE) ) {
-		strcatf(passed_args->str, "size=\"%s\" ", size);
+	strcatf(args->str, "&lt;res ");
+	if( size && (args->filter & FILTER_RES_SIZE) ) {
+		strcatf(args->str, "size=\"%s\" ", size);
 	}
-	if( duration && (passed_args->filter & FILTER_RES_DURATION) ) {
-		strcatf(passed_args->str, "duration=\"%s\" ", duration);
+	if( duration && (args->filter & FILTER_RES_DURATION) ) {
+		strcatf(args->str, "duration=\"%s\" ", duration);
 	}
-	if( bitrate && (passed_args->filter & FILTER_RES_BITRATE) ) {
-		strcatf(passed_args->str, "bitrate=\"%s\" ", bitrate);
+	if( bitrate && (args->filter & FILTER_RES_BITRATE) ) {
+		strcatf(args->str, "bitrate=\"%s\" ", bitrate);
 	}
-	if( sampleFrequency && (passed_args->filter & FILTER_RES_SAMPLEFREQUENCY) ) {
-		strcatf(passed_args->str, "sampleFrequency=\"%s\" ", sampleFrequency);
+	if( sampleFrequency && (args->filter & FILTER_RES_SAMPLEFREQUENCY) ) {
+		strcatf(args->str, "sampleFrequency=\"%s\" ", sampleFrequency);
 	}
-	if( nrAudioChannels && (passed_args->filter & FILTER_RES_NRAUDIOCHANNELS) ) {
-		strcatf(passed_args->str, "nrAudioChannels=\"%s\" ", nrAudioChannels);
+	if( nrAudioChannels && (args->filter & FILTER_RES_NRAUDIOCHANNELS) ) {
+		strcatf(args->str, "nrAudioChannels=\"%s\" ", nrAudioChannels);
 	}
-	if( resolution && (passed_args->filter & FILTER_RES_RESOLUTION) ) {
-		strcatf(passed_args->str, "resolution=\"%s\" ", resolution);
+	if( resolution && (args->filter & FILTER_RES_RESOLUTION) ) {
+		strcatf(args->str, "resolution=\"%s\" ", resolution);
 	}
-	strcatf(passed_args->str, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
+	strcatf(args->str, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
 	                          "http://%s:%d/MediaItems/%s.%s"
 	                          "&lt;/res&gt;",
-	                          mime, dlna_pn, lan_addr[0].str,
+	                          mime, dlna_pn, lan_addr[args->iface].str,
 	                          runtime_vars.port, detailID, ext);
 }
 
@@ -756,14 +757,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 				ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN\"&gt;"
 				                   "http://%s:%d/AlbumArt/%s-%s.jpg"
 				                   "&lt;/res&gt;",
-				                   lan_addr[0].str, runtime_vars.port, album_art, detailID);
+				                   lan_addr[passed_args->iface].str, runtime_vars.port, album_art, detailID);
 			} else if( passed_args->filter & FILTER_UPNP_ALBUMARTURI ) {
 				ret = strcatf(str, "&lt;upnp:albumArtURI");
 				if( passed_args->filter & FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID ) {
 					ret = strcatf(str, " dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"");
 				}
 				ret = strcatf(str, "&gt;http://%s:%d/AlbumArt/%s-%s.jpg&lt;/upnp:albumArtURI&gt;",
-				                   lan_addr[0].str, runtime_vars.port, album_art, detailID);
+				                   lan_addr[passed_args->iface].str, runtime_vars.port, album_art, detailID);
 			}
 		}
 #ifdef PFS_HACK
@@ -774,12 +775,12 @@ callback(void *args, int argc, char **argv, char **azColName)
 				ret = strcatf(str, "&lt;upnp:albumArtURI&gt;"
 				                   "http://%s:%d/Thumbnails/%s.jpg"
 			        	           "&lt;/upnp:albumArtURI&gt;",
-			                	   lan_addr[0].str, runtime_vars.port, detailID);
+			                	   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
 			} else {
 				ret = strcatf(str, "&lt;upnp:albumArtURI&gt;"
 				                   "http://%s:%d/Resized/%s.jpg?width=160,height=160"
 			        	           "&lt;/upnp:albumArtURI&gt;",
-			                	   lan_addr[0].str, runtime_vars.port, detailID);
+			                	   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
 			}
 		}
 #endif
@@ -789,7 +790,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
 				                   "http://%s:%d/Thumbnails/%s.jpg"
 				                   "&lt;/res&gt;",
-				                   mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str,
+				                   mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[passed_args->iface].str,
 				                   runtime_vars.port, detailID);
 			}
 			add_res(size, duration, bitrate, sampleFrequency, nrAudioChannels,
@@ -809,7 +810,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 					ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
 					                   "http://%s:%d/Thumbnails/%s.jpg"
 					                   "&lt;/res&gt;",
-					                   mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[0].str,
+					                   mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[passed_args->iface].str,
 					                   runtime_vars.port, detailID);
 				}
 			}
@@ -886,7 +887,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 						ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:text/srt:*\"&gt;"
 						                     "http://%s:%d/Captions/%s.srt"
 						                   "&lt;/res&gt;",
-						                   lan_addr[0].str, runtime_vars.port, detailID);
+						                   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
 					}
 					break;
 				default:
@@ -936,7 +937,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				ret = strcatf(str, "dlna:profileID=\"JPEG_TN\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"");
 			}
 			ret = strcatf(str, "&gt;http://%s:%d/AlbumArt/%s-%s.jpg&lt;/upnp:albumArtURI&gt;",
-			                   lan_addr[0].str, runtime_vars.port, album_art, detailID);
+			                   lan_addr[passed_args->iface].str, runtime_vars.port, album_art, detailID);
 		}
 		ret = strcatf(str, "&lt;/container&gt;");
 	}
@@ -997,6 +998,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	str.off = sprintf(str.data, "%s", resp0);
 	args.str = &str;
 	/* See if we need to include DLNA namespace reference */
+	args.iface = h->iface;
 	args.filter = set_filter_flags(Filter, h->req_client);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 	{
@@ -1174,6 +1176,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	str.size = DEFAULT_RESP_SIZE;
 	str.off = sprintf(str.data, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
+	args.iface = h->iface;
 	args.filter = set_filter_flags(Filter, h->req_client);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 	{

@@ -263,7 +263,24 @@ intervening space) by either an integer or the keyword "infinite". */
 			}
 			else if(strncasecmp(line, "Host", 4)==0)
 			{
+				int i;
 				h->reqflags |= FLAG_HOST;
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				for(n = 0; n<n_lan_addr; n++)
+				{
+					for(i=0; lan_addr[n].str[i]; i++)
+					{
+						if(lan_addr[n].str[i] != p[i])
+							break;
+					}
+					if(!lan_addr[n].str[i])
+					{
+						h->iface = n;
+						break;
+					}
+				}
 			}
 			else if(strncasecmp(line, "User-Agent", 10)==0)
 			{
@@ -1847,7 +1864,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%lld'", id) > 0 )
 		{
 			strcatf(&str, "CaptionInfo.sec: http://%s:%d/Captions/%lld.srt\r\n",
-			              lan_addr[0].str, runtime_vars.port, id);
+			              lan_addr[h->iface].str, runtime_vars.port, id);
 		}
 	}
 

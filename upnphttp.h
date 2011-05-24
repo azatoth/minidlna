@@ -57,6 +57,7 @@ enum httpCommands {
 struct upnphttp {
 	int socket;
 	struct in_addr clientaddr;	/* client address */
+	int iface;
 	int state;
 	char HttpVer[16];
 	/* request */
@@ -77,11 +78,11 @@ struct upnphttp {
 	off_t req_RangeEnd;
 	long int req_chunklen;
 	uint32_t reqflags;
-	uint32_t respflags;
 	/* response */
 	char * res_buf;
 	int res_buflen;
 	int res_buf_alloclen;
+	uint32_t respflags;
 	/*int res_contentlen;*/
 	/*int res_contentoff;*/		/* header length */
 	LIST_ENTRY(upnphttp) entries;

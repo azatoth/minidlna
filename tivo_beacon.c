@@ -51,8 +51,6 @@
 #include "upnpglobalvars.h"
 #include "log.h"
 
-static struct aBeacon* topBeacon = NULL;
-
 /* OpenAndConfHTTPSocket() :
  * setup the socket used to handle incoming HTTP connections. */
 int
@@ -187,8 +185,6 @@ rcvBeaconMessage(char * beacon)
 	char * cp;
 	char * scp;
 	char * tokptr;
-	struct aBeacon * b;
-	time_t current;
 
 	cp = strtok_r(beacon, "=\r\n", &tokptr);
 	while( cp != NULL )
@@ -217,6 +213,14 @@ rcvBeaconMessage(char * beacon)
 	if( strcmp(identity, uuidvalue) == 0)
 		return 0;
 
+#ifdef DEBUG
+	static struct aBeacon* topBeacon = NULL;
+	struct aBeacon * b;
+	time_t current;
+	int len;
+	char buf[32];
+	static time_t lastSummary = 0;
+
 	current = time(NULL);
 	for( b = topBeacon; b != NULL; b = b->next )
 	{
@@ -241,10 +245,6 @@ rcvBeaconMessage(char * beacon)
 		         platform ? platform : "-", 
 		         services ? services : "-" );
 	}
-#ifdef DEBUG
-	int len;
-	char buf[32];
-	static time_t lastSummary = 0;
 
 	b->lastSeen = current;
 	if( !lastSummary )
@@ -292,6 +292,21 @@ void ProcessTiVoBeacon(int s)
 	             (struct sockaddr *)&sendername, &len_r);
 	if( n > 0 )
 		bufr[n] = '\0';
+
+	/* find which subnet the client is in */
+	for(n = 0; n<n_lan_addr; n++)
+	{
+		if( (sendername.sin_addr.s_addr & lan_addr[n].mask.s_addr)
+		   == (lan_addr[n].addr.s_addr & lan_addr[n].mask.s_addr))
+			break;
+	}
+	if( n == n_lan_addr )
+	{
+		DPRINTF(E_DEBUG, L_TIVO, "Ignoring TiVo beacon on other interface [%s]\n",
+			inet_ntoa(sendername.sin_addr));
+		return;
+	}
+
 	for( cp = bufr; *cp; cp++ )
 		/* do nothing */;
 	if( cp[-1] == '\r' || cp[-1] == '\n' )
