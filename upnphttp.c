@@ -334,6 +334,11 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->req_client = ELGDevice;
 					h->reqflags |= FLAG_DLNA;
 				}
+				else if(strncmp(p, "Verismo,", 8)==0)
+				{
+					h->req_client = ENetgearEVA2000;
+					h->reqflags |= FLAG_MS_PFS;
+				}
 				else if(strstrc(p, "UPnP/1.0 DLNADOC/1.50 Intel_SDK_for_UPnP_devices/1.2", '\r'))
 				{
 					h->req_client = EToshibaTV;
@@ -1364,12 +1369,12 @@ SendResp_caption(struct upnphttp * h, char * object)
 	                                       "Date: %s\r\n"
 	                                       "EXT:\r\n"
 	                                       "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
-	                                       size, date);
+	                                       (intmax_t)size, date);
 
 	if( send_data(h, header, ret, MSG_MORE) == 0 )
 	{
  		if( h->req_command != EHead )
-			send_file(h, fd, 0, size);
+			send_file(h, fd, 0, size-1);
 	}
 	close(fd);
 }

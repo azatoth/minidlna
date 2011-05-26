@@ -77,6 +77,7 @@ enum client_types {
 	ERokuSoundBridge,
 	EToshibaTV,
 	ELGDevice,
+	ENetgearEVA2000,
 	EStandardDLNA150 = 100
 };
 
