@@ -37,6 +37,7 @@ struct Response
 	int start;
 	int returned;
 	int requested;
+	int iface;
 	uint32_t filter;
 	uint32_t flags;
 	enum client_types client;

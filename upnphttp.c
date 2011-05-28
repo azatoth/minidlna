@@ -265,7 +265,24 @@ intervening space) by either an integer or the keyword "infinite". */
 			}
 			else if(strncasecmp(line, "Host", 4)==0)
 			{
+				int i;
 				h->reqflags |= FLAG_HOST;
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				for(n = 0; n<n_lan_addr; n++)
+				{
+					for(i=0; lan_addr[n].str[i]; i++)
+					{
+						if(lan_addr[n].str[i] != p[i])
+							break;
+					}
+					if(!lan_addr[n].str[i])
+					{
+						h->iface = n;
+						break;
+					}
+				}
 			}
 			else if(strncasecmp(line, "User-Agent", 10)==0)
 			{
@@ -287,13 +304,19 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
-				else if(strncmp(p, "SamsungWiselinkPro", 18)==0 ||
-				        strncmp(p, "SEC_HHP_", 8)==0)
+				else if(strncmp(p, "SEC_HHP_", 8)==0)
 				{
 					h->req_client = ESamsungTV;
+					h->reqflags |= FLAG_SAMSUNG;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_NO_RESIZE;
-					//h->reqflags |= FLAG_MIME_AVI_DIVX;
+				}
+				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)
+				{
+					h->req_client = ESamsungSeriesA;
+					h->reqflags |= FLAG_SAMSUNG;
+					h->reqflags |= FLAG_DLNA;
+					h->reqflags |= FLAG_NO_RESIZE;
 				}
 				else if(strstrc(p, "bridgeCo-DMP/3", '\r'))
 				{
@@ -318,6 +341,11 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->req_client = ELGDevice;
 					h->reqflags |= FLAG_DLNA;
+				}
+				else if(strncmp(p, "Verismo,", 8)==0)
+				{
+					h->req_client = ENetgearEVA2000;
+					h->reqflags |= FLAG_MS_PFS;
 				}
 				else if(strstrc(p, "UPnP/1.0 DLNADOC/1.50 Intel_SDK_for_UPnP_devices/1.2", '\r'))
 				{
@@ -1349,12 +1377,12 @@ SendResp_caption(struct upnphttp * h, char * object)
 	                                       "Date: %s\r\n"
 	                                       "EXT:\r\n"
 	                                       "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
-	                                       size, date);
+	                                       (intmax_t)size, date);
 
 	if( send_data(h, header, ret, MSG_MORE) == 0 )
 	{
  		if( h->req_command != EHead )
-			send_file(h, fd, 0, size);
+			send_file(h, fd, 0, size-1);
 	}
 	close(fd);
 }
@@ -1706,10 +1734,16 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		{
 			strncpy(last_file.mime, result[4], sizeof(last_file.mime)-1);
 			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
-			if( h->req_client == ESamsungTV )
+			if( h->reqflags & FLAG_SAMSUNG )
 			{
 				if( strcmp(last_file.mime+6, "x-matroska") == 0 )
 					strcpy(last_file.mime+8, "mkv");
+				/* Samsung TV's such as the A750 can natively support many
+				   Xvid/DivX AVI's however, the DLNA server needs the 
+				   mime type to say video/mpeg */
+				else if( h->req_client == ESamsungSeriesA &&
+				         strcmp(last_file.mime+6, "x-msvideo") == 0 )
+					strcpy(last_file.mime+6, "mpeg");
 			}
 			/* ... and Sony BDP-S370 won't play MKV unless we pretend it's a DiVX file */
 			else if( h->req_client == ESonyBDP )
@@ -1761,7 +1795,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Interactive without an image!\n");
 			/* Samsung TVs (well, at least the A950) do this for some reason,
 			 * and I don't see them fixing this bug any time soon. */
-			if( h->req_client != ESamsungTV || GETFLAG(DLNA_STRICT_MASK) )
+			if( !(h->reqflags & FLAG_SAMSUNG) || GETFLAG(DLNA_STRICT_MASK) )
 			{
 				Send406(h);
 				goto error;
@@ -1849,7 +1883,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%lld'", id) > 0 )
 		{
 			strcatf(&str, "CaptionInfo.sec: http://%s:%d/Captions/%lld.srt\r\n",
-			              lan_addr[0].str, runtime_vars.port, id);
+			              lan_addr[h->iface].str, runtime_vars.port, id);
 		}
 	}
 
