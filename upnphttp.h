@@ -111,7 +111,8 @@ struct upnphttp {
 #define FLAG_MIME_FLAC_FLAC     0x00800000
 #define FLAG_NO_RESIZE          0x01000000
 #define FLAG_MS_PFS		0x02000000 // Microsoft PlaysForSure client
-#define FLAG_AUDIO_ONLY		0x04000000
+#define FLAG_SAMSUNG		0x04000000
+#define FLAG_AUDIO_ONLY		0x08000000
 
 #define FLAG_FREE_OBJECT_ID	0x00000001
 

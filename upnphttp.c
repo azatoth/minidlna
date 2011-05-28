@@ -302,13 +302,19 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
-				else if(strncmp(p, "SamsungWiselinkPro", 18)==0 ||
-				        strncmp(p, "SEC_HHP_", 8)==0)
+				else if(strncmp(p, "SEC_HHP_", 8)==0)
 				{
 					h->req_client = ESamsungTV;
+					h->reqflags |= FLAG_SAMSUNG;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_NO_RESIZE;
-					//h->reqflags |= FLAG_MIME_AVI_DIVX;
+				}
+				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)
+				{
+					h->req_client = ESamsungSeriesA;
+					h->reqflags |= FLAG_SAMSUNG;
+					h->reqflags |= FLAG_DLNA;
+					h->reqflags |= FLAG_NO_RESIZE;
 				}
 				else if(strstrc(p, "bridgeCo-DMP/3", '\r'))
 				{
@@ -1726,10 +1732,16 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		{
 			strncpy(last_file.mime, result[4], sizeof(last_file.mime)-1);
 			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
-			if( h->req_client == ESamsungTV )
+			if( h->reqflags & FLAG_SAMSUNG )
 			{
 				if( strcmp(last_file.mime+6, "x-matroska") == 0 )
 					strcpy(last_file.mime+8, "mkv");
+				/* Samsung TV's such as the A750 can natively support many
+				   Xvid/DivX AVI's however, the DLNA server needs the 
+				   mime type to say video/mpeg */
+				else if( h->req_client == ESamsungSeriesA &&
+				         strcmp(last_file.mime+6, "x-msvideo") == 0 )
+					strcpy(last_file.mime+6, "mpeg");
 			}
 			/* ... and Sony BDP-S370 won't play MKV unless we pretend it's a DiVX file */
 			else if( h->req_client == ESonyBDP )
@@ -1781,7 +1793,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Interactive without an image!\n");
 			/* Samsung TVs (well, at least the A950) do this for some reason,
 			 * and I don't see them fixing this bug any time soon. */
-			if( h->req_client != ESamsungTV || GETFLAG(DLNA_STRICT_MASK) )
+			if( !(h->reqflags & FLAG_SAMSUNG) || GETFLAG(DLNA_STRICT_MASK) )
 			{
 				Send406(h);
 				goto error;

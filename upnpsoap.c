@@ -346,14 +346,14 @@ mime_to_ext(const char * mime, char * buf)
 #define FILTER_UPNP_SEARCHCLASS                  0x00100000
 
 static u_int32_t
-set_filter_flags(char * filter, enum client_types client)
+set_filter_flags(char * filter, struct upnphttp *h)
 {
 	char *item, *saveptr = NULL;
 	u_int32_t flags = 0;
 
 	if( !filter || (strlen(filter) <= 1) )
 		return 0xFFFFFFFF;
-	if( client == ESamsungTV )
+	if( h->reqflags & FLAG_SAMSUNG )
 		flags |= FILTER_DLNA_NAMESPACE;
 	item = strtok_r(filter, ",", &saveptr);
 	while( item != NULL )
@@ -393,7 +393,7 @@ set_filter_flags(char * filter, enum client_types client)
 		else if( strcmp(item, "upnp:albumArtURI") == 0 )
 		{
 			flags |= FILTER_UPNP_ALBUMARTURI;
-			if( client == ESamsungTV )
+			if( h->reqflags & FLAG_SAMSUNG )
 				flags |= FILTER_UPNP_ALBUMARTURI_DLNA_PROFILEID;
 		}
 		else if( strcmp(item, "upnp:albumArtURI@dlna:profileID") == 0 )
@@ -694,7 +694,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 			}
 			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
-			if( passed_args->client == ESamsungTV )
+			if( passed_args->flags & FLAG_SAMSUNG )
 			{
 				if( strcmp(mime+6, "x-matroska") == 0 )
 				{
@@ -992,7 +992,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	str.off = sprintf(str.data, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
 	args.iface = h->iface;
-	args.filter = set_filter_flags(Filter, h->req_client);
+	args.filter = set_filter_flags(Filter, h);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 	{
 		ret = strcatf(&str, DLNA_NAMESPACE);
@@ -1169,7 +1169,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	str.off = sprintf(str.data, "%s", resp0);
 	/* See if we need to include DLNA namespace reference */
 	args.iface = h->iface;
-	args.filter = set_filter_flags(Filter, h->req_client);
+	args.filter = set_filter_flags(Filter, h);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 	{
 		ret = strcatf(&str, DLNA_NAMESPACE);

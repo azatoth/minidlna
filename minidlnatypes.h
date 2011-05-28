@@ -78,6 +78,7 @@ enum client_types {
 	EToshibaTV,
 	ELGDevice,
 	ENetgearEVA2000,
+	ESamsungSeriesA,
 	EStandardDLNA150 = 100
 };
 
