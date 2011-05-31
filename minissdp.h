@@ -62,5 +62,8 @@ ProcessSSDPRequest(int s, unsigned short port);
 int
 SendSSDPGoodbye(int * sockets, int n);
 
+int
+SubmitServicesToMiniSSDPD(const char * host, unsigned short port);
+
 #endif
 
