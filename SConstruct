@@ -24,7 +24,7 @@ if not sys.stdout.isatty():
    for key, value in colors.iteritems():
       colors[key] = ''
 
-env = Environment(tools = ['default', 'gettext'])
+env = Environment(tools = ['default', 'gettext'], toolpath=['tools'])
 
 AddOption(
     "--verbose",
