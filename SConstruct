@@ -163,7 +163,7 @@ def CheckPKG(context, name):
 
 conf = Configure(
     env, 
-    config_h="config.h",
+    config_h="src/config.h",
     custom_tests = {
     'CheckPKGConfig' : CheckPKGConfig,
     'CheckPKG' : CheckPKG
@@ -368,21 +368,8 @@ if GetOption("enable_nls"):
         }
         env.Alias('install', env.InstallAs("%s/minidlna.mo"%localedir, mo_file))
 
-minidlna_sources = [
-    "minidlna.c", "upnphttp.c", "upnpdescgen.c", "upnpsoap.c",
-    "upnpreplyparse.c", "minixml.c", 
-    "getifaddr.c", "daemonize.c", "upnpglobalvars.c", 
-    "options.c", "minissdp.c", "uuid.c", "upnpevents.c", 
-    "sql.c", "utils.c", "metadata.c", "scanner.c", "inotify.c", 
-    "tivo_utils.c", "tivo_beacon.c", "tivo_commands.c", 
-    "tagutils/textutils.c", "tagutils/misc.c", "tagutils/tagutils.c",
-    "playlist.c", "image_utils.c", "albumart.c", "log.c"
-]
-testupnpdescgen_sources = [ "testupnpdescgen.c", "upnpdescgen.c" ]
+o = env.SConscript('src/SConscript', exports=['env', 'bindir'])
 
-minidlna = env.Program(target = "minidlna", source = minidlna_sources);
-testupnpdescgen = env.Program(target = "testupnpdescgen", source = testupnpdescgen_sources);
-
-env.Install(bindir, [minidlna, testupnpdescgen])
+env.Install(bindir, o)
 
 env.Alias('install', bindir)
