@@ -85,8 +85,6 @@
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 #define MIN_BUFFER_SIZE 65536
 
-#include "icons.c"
-
 struct upnphttp * 
 New_upnphttp(int s)
 {

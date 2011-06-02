@@ -10,6 +10,9 @@ import os, sys, re, platform
 EnsurePythonVersion(2, 5)
 EnsureSConsVersion(2, 0)
 
+package_name = "MiniDLNA"
+package_tarname = re.sub(r'[^a-z0-9]','_',package_name.lower())
+
 colors = {}
 colors['cyan']   = '\033[96m'
 colors['purple'] = '\033[95m'
@@ -81,10 +84,35 @@ AddOption(
 
 bindir = GetOption('bindir')
 
+AddOption(
+    '--datarootdir',
+    dest='datarootdir',
+    type='string',
+    nargs=1,
+    action='store',
+    metavar='DIR',
+    default='%s/share' % prefix,
+    help='installation prefix for the root of read-only data files'
+)
+
+datarootdir = GetOption('datarootdir')
+
+AddOption(
+    '--datadir',
+    dest='datadir',
+    type='string',
+    nargs=1,
+    action='store',
+    metavar='DIR',
+    default='%s/%s' % (datarootdir, package_tarname),
+    help='installation prefix for read-only data files'
+)
+
+datadir = GetOption('datadir')
+
 # below three variables are not yet used
 libdir = "%s/lib" % prefix
 includedir = "%s/include" % prefix
-datadir = "%s/share" % prefix
 
 AddOption(
     "--db-path",
@@ -335,6 +363,10 @@ if not env.GetOption('clean') and not env.GetOption('help'):
     conf.config_h_text += "\n"
     conf.Define('PNPX', pnpx, "Enable PnPX support.")
 
+    conf.Define('DATADIR', '"%s"'%str(datadir), "Data directory");
+    conf.Define('PACKAGE_NAME', '"%s"'%str(package_name), "Package name");
+
+
 
 env.ParseConfig('pkg-config --cflags --libs  libavformat libavutil libavcodec sqlite3 libexif id3tag flac ogg vorbis')
 
@@ -363,7 +395,7 @@ if GetOption("enable_nls"):
     for po_file in gettext_po_files:
         mo_file = env.Gettext(po_file)
         localedir = "%(datadir)s/locale/%(lang)s/LC_MESSAGES" % {
-            'datadir': datadir,
+            'datadir': datarootdir,
             'lang': re.sub(r"po\/(\w+)\.po", r"\1", po_file)
         }
         env.Alias('install', env.InstallAs("%s/minidlna.mo"%localedir, mo_file))
@@ -372,4 +404,6 @@ o = env.SConscript('src/SConscript', exports=['env', 'bindir'])
 
 env.Install(bindir, o)
 
-env.Alias('install', bindir)
+env.Install(datadir, env.Glob('icons/tux/*'))
+
+env.Alias('install', [bindir, datadir])

@@ -200,6 +200,8 @@ extern char presentationurl[];
 extern char pnpx_hwid[];
 #endif
 
+extern const uint8_t *png_sm, *png_lrg, *jpeg_sm, *jpeg_lrg;
+
 /* lan addresses */
 /* MAX_LAN_ADDR : maximum number of interfaces
  * to listen to SSDP traffic */

@@ -327,6 +327,34 @@ open_db(void)
 	return new_db;
 }
 
+static const uint8_t* read_file(const char* dir, const char *filename) {
+	char path[1024];
+	long size;
+	sprintf( path, "%s/%s", dir, filename);
+	uint8_t * data;
+	struct stat sb;
+	FILE *file = fopen(path, "rb");
+	if(!file) {
+		char err[1024];
+		sprintf(err, "Failed to open path %s", path);
+
+		perror(err);
+		exit(EXIT_FAILURE);
+	}
+	fseek( file , 0L , SEEK_END);
+	size = ftell( file );
+	rewind( file );
+
+	data = malloc(size + 1);
+	if(!data) {
+		perror("read_file(): failed to allocate memory");
+		exit(EXIT_FAILURE);
+	}
+	fread(data, sizeof(char), sb.st_size, file);
+	fclose(file);
+	return data;
+}
+
 /* init phase :
  * 1) read configuration file
  * 2) read command line arguments
@@ -804,6 +832,13 @@ init(int argc, char * * argv)
 #endif
 	}
 
+	/* Read icons */
+	png_sm = read_file(DATADIR, "png_sm.png");
+	png_lrg = read_file(DATADIR, "png_lrg.png");
+	jpeg_sm = read_file(DATADIR, "jpeg_sm.jpeg");
+	jpeg_lrg = read_file(DATADIR, "jpeg_lrg.jpeg");
+
+
 	/* set signal handler */
 	signal(SIGCLD, SIG_IGN);
 	memset(&sa, 0, sizeof(struct sigaction));
@@ -1257,6 +1292,11 @@ shutdown:
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "Failed to remove pidfile %s: %s\n", pidfilename, strerror(errno));
 	}
+
+	free((void*)png_sm);
+	free((void*)png_lrg);
+	free((void*)jpeg_sm);
+	free((void*)jpeg_lrg);
 
 	freeoptions();
 
