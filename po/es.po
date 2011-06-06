@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the MiniDLNA package.
 # Justin Maggard <jmaggard@users.sourceforge.net>, 2010.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: minidlna 1.0.18\n"
