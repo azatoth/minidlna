@@ -813,7 +813,8 @@ GetVideoMetadata(const char * path, char * name)
 			asprintf(&m.duration, "%d:%02d:%02d.%03d", hours, min, sec, ms);
 		}
 
-		/* NOTE: The DLNA spec only provides for ASF (WMV), TS, PS, and MP4 containers. Skip DLNA parsing for everything else. */
+		/* NOTE: The DLNA spec only provides for ASF (WMV), TS, PS, and MP4 containers.
+		 * Skip DLNA parsing for everything else. */
 		if( strcmp(ctx->iformat->name, "avi") == 0 )
 		{
 			asprintf(&m.mime, "video/x-msvideo");
@@ -857,7 +858,8 @@ GetVideoMetadata(const char * path, char * name)
 				off = sprintf(m.dlna_pn, "MPEG_");
 				if( strcmp(ctx->iformat->name, "mpegts") == 0 )
 				{
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS\n", video_stream, basename(path), m.resolution);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS\n",
+						video_stream, basename(path), m.resolution);
 					off += sprintf(m.dlna_pn+off, "TS_");
 					if( (vc->width  >= 1280) &&
 					    (vc->height >= 720) )
@@ -874,16 +876,17 @@ GetVideoMetadata(const char * path, char * name)
 							off += sprintf(m.dlna_pn+off, "NA");
 					}
 					ts = ctx->priv_data;
-					if( ts->packet_size == 192 )
+					if( ts->packet_size == MPEG_TS_PACKET_LENGTH_DLNA )
 					{
 						if( dlna_timestamp_is_present(path) )
 							ts_timestamp = VALID;
 						else
 							ts_timestamp = EMPTY;
 					}
-					else if( ts->packet_size != 188 )
+					else if( ts->packet_size != MPEG_TS_PACKET_LENGTH )
 					{
-						DPRINTF(E_DEBUG, L_METADATA, "Invalid TS packet size [%s]\n", basename(path));
+						DPRINTF(E_DEBUG, L_METADATA, "Unsupported DLNA TS packet size [%d] (%s)\n",
+							ts->packet_size, basename(path));
 						free(m.dlna_pn);
 						m.dlna_pn = NULL;
 					}
@@ -891,7 +894,8 @@ GetVideoMetadata(const char * path, char * name)
 					{
 						case NONE:
 							asprintf(&m.mime, "video/mpeg");
-							off += sprintf(m.dlna_pn+off, "_ISO");
+							if( m.dlna_pn )
+								off += sprintf(m.dlna_pn+off, "_ISO");
 							break;
 						case VALID:
 							off += sprintf(m.dlna_pn+off, "_T");
@@ -903,7 +907,8 @@ GetVideoMetadata(const char * path, char * name)
 				}
 				else if( strcmp(ctx->iformat->name, "mpeg") == 0 )
 				{
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 PS\n", video_stream, basename(path), m.resolution);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 PS\n",
+						video_stream, basename(path), m.resolution);
 					off += sprintf(m.dlna_pn+off, "PS_");
 					if( (vc->height == 576) ||
 					    (vc->height == 288) )
@@ -914,7 +919,8 @@ GetVideoMetadata(const char * path, char * name)
 				}
 				else
 				{
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s [UNKNOWN CONTAINER] is %s MPEG2\n", video_stream, basename(path), m.resolution);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s [%s] is %s non-DLNA MPEG2\n",
+						video_stream, basename(path), ctx->iformat->name, m.resolution);
 					free(m.dlna_pn);
 					m.dlna_pn = NULL;
 				}
@@ -973,11 +979,7 @@ GetVideoMetadata(const char * path, char * name)
 							else
 							{
 								DPRINTF(E_DEBUG, L_METADATA, "Unsupported h.264 video profile! [%s, %dx%d, %dbps : %s]\n",
-									m.dlna_pn,
-									vc->width,
-									vc->height,
-									vc->bit_rate,
-									basename(path));
+									m.dlna_pn, vc->width, vc->height, vc->bit_rate, basename(path));
 								free(m.dlna_pn);
 								m.dlna_pn = NULL;
 							}
@@ -994,8 +996,7 @@ GetVideoMetadata(const char * path, char * name)
 							else
 							{
 								DPRINTF(E_DEBUG, L_METADATA, "Unsupported h.264 HP video profile! [%dbps, %d audio : %s]\n",
-									vc->bit_rate,
-									audio_profile, basename(path));
+									vc->bit_rate, audio_profile, basename(path));
 								free(m.dlna_pn);
 								m.dlna_pn = NULL;
 							}
@@ -1025,7 +1026,7 @@ GetVideoMetadata(const char * path, char * name)
 					if( !m.dlna_pn )
 						break;
 					ts = ctx->priv_data;
-					if( ts->packet_size == 192 )
+					if( ts->packet_size == MPEG_TS_PACKET_LENGTH_DLNA )
 					{
 						if( vc->profile == FF_PROFILE_H264_HIGH ||
 						    dlna_timestamp_is_present(path) )
@@ -1033,10 +1034,18 @@ GetVideoMetadata(const char * path, char * name)
 						else
 							ts_timestamp = EMPTY;
 					}
+					else if( ts->packet_size != MPEG_TS_PACKET_LENGTH )
+					{
+						DPRINTF(E_DEBUG, L_METADATA, "Unsupported DLNA TS packet size [%d] (%s)\n",
+							ts->packet_size, basename(path));
+						free(m.dlna_pn);
+						m.dlna_pn = NULL;
+					}
 					switch( ts_timestamp )
 					{
 						case NONE:
-							off += sprintf(m.dlna_pn+off, "_ISO");
+							if( m.dlna_pn )
+								off += sprintf(m.dlna_pn+off, "_ISO");
 							break;
 						case VALID:
 							off += sprintf(m.dlna_pn+off, "_T");
@@ -1285,7 +1294,8 @@ GetVideoMetadata(const char * path, char * name)
 							off += sprintf(m.dlna_pn+off, "BASE");
 							break;
 						default:
-							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPLL/0x%X file %s\n", audio_profile, basename(path));
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPLL/0x%X file %s\n",
+								audio_profile, basename(path));
 							free(m.dlna_pn);
 							m.dlna_pn = NULL;
 							break;
@@ -1306,7 +1316,8 @@ GetVideoMetadata(const char * path, char * name)
 							off += sprintf(m.dlna_pn+off, "BASE");
 							break;
 						default:
-							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPML/0x%X file %s\n", audio_profile, basename(path));
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVSPML/0x%X file %s\n",
+								audio_profile, basename(path));
 							free(m.dlna_pn);
 							m.dlna_pn = NULL;
 							break;
@@ -1329,7 +1340,8 @@ GetVideoMetadata(const char * path, char * name)
 							off += sprintf(m.dlna_pn+off, "BASE");
 							break;
 						default:
-							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVMED/0x%X file %s\n", audio_profile, basename(path));
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVMED/0x%X file %s\n",
+								audio_profile, basename(path));
 							free(m.dlna_pn);
 							m.dlna_pn = NULL;
 							break;
@@ -1349,7 +1361,8 @@ GetVideoMetadata(const char * path, char * name)
 							off += sprintf(m.dlna_pn+off, "FULL");
 							break;
 						default:
-							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVHIGH/0x%X file %s\n", audio_profile, basename(path));
+							DPRINTF(E_DEBUG, L_METADATA, "No DLNA profile found for WMVHIGH/0x%X file %s\n",
+								audio_profile, basename(path));
 							free(m.dlna_pn);
 							m.dlna_pn = NULL;
 							break;
@@ -1361,7 +1374,8 @@ GetVideoMetadata(const char * path, char * name)
 			case CODEC_ID_MSMPEG4V3:
 				asprintf(&m.mime, "video/x-msvideo");
 			default:
-				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s [type %d]\n", video_stream, basename(path), m.resolution, vc->codec_id);
+				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s [type %d]\n",
+					video_stream, basename(path), m.resolution, vc->codec_id);
 				break;
 		}
 	}
