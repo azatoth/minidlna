@@ -1,5 +1,6 @@
-1.0.20 - Released 31-May-2011
+1.0.20 - Released 09-June-2011
 --------------------------------
+- Fix a crash bug when scanning MPEG-TS files with odd packet sizes.
 - Fix AVI file streaming on Samsung A-Series TV's.
 - Improve support for the NETGEAR Digital Entertainer Live (EVA2000).
 - Add support for multiple network interfaces.
