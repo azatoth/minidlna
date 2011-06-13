@@ -634,7 +634,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		if( (str->size+DEFAULT_RESP_SIZE) <= MAX_RESPONSE_SIZE )
 		{
 #endif
-			str->data = realloc(str->data, (str->off+DEFAULT_RESP_SIZE));
+			str->data = realloc(str->data, (str->size+DEFAULT_RESP_SIZE));
 			if( str->data )
 			{
 				str->size += DEFAULT_RESP_SIZE;
