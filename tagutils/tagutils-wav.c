@@ -49,9 +49,6 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 	uint32_t current_offset;
 	uint32_t block_len;
 
-	int found_fmt = 0;
-	int found_data = 0;
-
 	//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Getting WAV file info\n");
 
 	if(!(fd = open(filename, O_RDONLY)))
@@ -82,7 +79,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 
 	/* now, walk through the chunks */
 	current_offset = 12;
-	while(!found_fmt && !found_data)
+	while(current_offset < psong->file_size)
 	{
 		len = 8;
 		if(!(len = read(fd, hdr, len)) || (len != 8))
@@ -92,11 +89,16 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 			return -1;
 		}
 
+		current_offset += 8;
 		block_len = GET_WAV_INT32(hdr + 4);
 
 		//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Read block %02x%02x%02x%02x (%c%c%c%c) of "
-		//        "size %08x\n",hdr[0],hdr[1],hdr[2],hdr[3],
-		//        hdr[0],hdr[1],hdr[2],hdr[3],block_len);
+		//        "size 0x%08x\n",hdr[0],hdr[1],hdr[2],hdr[3],
+		//        isprint(hdr[0]) ? hdr[0] : '?',
+		//        isprint(hdr[1]) ? hdr[1] : '?',
+		//        isprint(hdr[2]) ? hdr[2] : '?',
+		//        isprint(hdr[3]) ? hdr[3] : '?',
+		//        block_len);
 
 		if(block_len < 0)
 		{
@@ -107,7 +109,6 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 
 		if(strncmp((char*)&hdr, "fmt ", 4) == 0)
 		{
-			found_fmt = 1;
 			//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Found 'fmt ' header\n");
 			len = 16;
 			if(!read(fd, fmt, len) || (len != 16))
@@ -133,10 +134,74 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 		{
 			//DEBUG DPRINTF(E_DEBUG,L_SCANNER,"Found 'data' header\n");
 			data_length = block_len;
-			found_data = 1;
+			goto next_block;
 		}
+		else if(strncmp((char*)&hdr, "LIST", 4) == 0)
+		{
+			char *tags;
+			char *p;
+			int off;
+			int taglen;
+			char **m;
 
-		lseek(fd, current_offset + block_len + 8, SEEK_SET);
+			len = GET_WAV_INT32(hdr + 4);
+			if(len > 65536)
+				goto next_block;
+
+			tags = malloc(len);
+			if(!tags)
+				goto next_block;
+
+			if(read(fd, tags, len) < len ||
+			   strncmp(tags, "INFO", 4) != 0)
+			{
+				free(tags);
+				goto next_block;
+			}
+
+			off = 4;
+			p = tags + off;
+			while(off < len - 8)
+			{
+				taglen = GET_WAV_INT32(p + 4);
+
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "%.*s: %.*s\n", 4, p, taglen, p + 8);
+				m = NULL;
+				if (taglen > 2048) {
+					DPRINTF(E_WARN, L_SCANNER, "Ignoring long tag [%.*s] in %s\n",
+				                4, p+8, filename);
+				}
+				else if(strncmp(p, "INAM", 4) == 0)
+					m = &(psong->title);
+				else if(strncmp(p, "IART", 4) == 0)
+					m = &(psong->contributor[ROLE_TRACKARTIST]);
+				else if(strncmp(p, "IALB", 4) == 0)
+					m = &(psong->album);
+				else if(strncmp(p, "IGRE", 4) == 0)
+					m = &(psong->genre);
+				else if(strncmp(p, "ICMT", 4) == 0)
+					m = &(psong->comment);
+				else if(strncmp(p, "ICOM", 4) == 0)
+					m = &(psong->contributor[ROLE_COMPOSER]);
+				else if(strncmp(p, "ITRK", 4) == 0)
+					psong->track = atoi(p + 8);
+				else if(strncmp(p, "ICRD", 4) == 0 ||
+				        strncmp(p, "IYER", 4) == 0)
+					psong->year = atoi(p + 8);
+				if(m)
+				{
+					*m = malloc(taglen + 1);
+					strncpy(*m, p + 8, taglen);
+					(*m)[taglen] = '\0';
+				}
+
+				p += taglen + 8;
+				off += taglen + 8;
+			}
+			free(tags);
+		}
+next_block:
+		lseek(fd, current_offset + block_len, SEEK_SET);
 		current_offset += block_len;
 	}
 	close(fd);
