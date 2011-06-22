@@ -173,15 +173,20 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 				}
 				else if(strncmp(p, "INAM", 4) == 0)
 					m = &(psong->title);
-				else if(strncmp(p, "IART", 4) == 0)
-					m = &(psong->contributor[ROLE_TRACKARTIST]);
-				else if(strncmp(p, "IALB", 4) == 0)
+				else if(strncmp(p, "IALB", 4) == 0 ||
+				        strncmp(p, "IPRD", 4) == 0)
 					m = &(psong->album);
-				else if(strncmp(p, "IGRE", 4) == 0)
+				else if(strncmp(p, "IGRE", 4) == 0 ||
+				        strncmp(p, "IGNR", 4) == 0)
 					m = &(psong->genre);
 				else if(strncmp(p, "ICMT", 4) == 0)
 					m = &(psong->comment);
-				else if(strncmp(p, "ICOM", 4) == 0)
+				else if(strncmp(p, "IART", 4) == 0)
+					m = &(psong->contributor[ROLE_TRACKARTIST]);
+				else if(strncmp(p, "IAAR", 4) == 0)
+					m = &(psong->contributor[ROLE_ALBUMARTIST]);
+				else if(strncmp(p, "ICOM", 4) == 0 ||
+				        strncmp(p, "IMUS", 4) == 0)
 					m = &(psong->contributor[ROLE_COMPOSER]);
 				else if(strncmp(p, "ITRK", 4) == 0)
 					psong->track = atoi(p + 8);
