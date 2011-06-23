@@ -1,4 +1,4 @@
-/* $Id: minissdp.c,v 1.18 2011/05/03 06:14:25 jmaggard Exp $ */
+/* $Id$ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -603,7 +603,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 		/*DPRINTF(E_INFO, L_SSDP, "SSDP M-SEARCH packet received from %s:%d\n",
 	           inet_ntoa(sendername.sin_addr),
 	           ntohs(sendername.sin_port) );*/
-		if( ntohs(sendername.sin_port) <= 1024 || ntohs(sendername.sin_port) == 1900 )
+		if( GETFLAG(DLNA_STRICT_MASK) && (ntohs(sendername.sin_port) <= 1024 || ntohs(sendername.sin_port) == 1900) )
 		{
 			DPRINTF(E_INFO, L_SSDP, "WARNING: Ignoring invalid SSDP M-SEARCH from %s [bad source port %d]\n",
 			   inet_ntoa(sendername.sin_addr), ntohs(sendername.sin_port));
