@@ -609,10 +609,11 @@ add_res(char *size, char *duration, char *bitrate, char *sampleFrequency,
 	                          runtime_vars.port, detailID, ext);
 }
 
-#define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.PARENT_ID, o.REF_ID, o.DETAIL_ID, o.CLASS," \
-                       " d.SIZE, d.TITLE, d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST," \
-                       " d.ALBUM, d.GENRE, d.COMMENT, d.CHANNELS, d.TRACK, d.DATE, d.RESOLUTION," \
-                       " d.THUMBNAIL, d.CREATOR, d.DLNA_PN, d.MIME, d.ALBUM_ART, d.DISC "
+#define COLUMNS "o.REF_ID, o.DETAIL_ID, o.CLASS," \
+                " d.SIZE, d.TITLE, d.DURATION, d.BITRATE, d.SAMPLERATE, d.ARTIST," \
+                " d.ALBUM, d.GENRE, d.COMMENT, d.CHANNELS, d.TRACK, d.DATE, d.RESOLUTION," \
+                " d.THUMBNAIL, d.CREATOR, d.DLNA_PN, d.MIME, d.ALBUM_ART, d.DISC "
+#define SELECT_COLUMNS "SELECT o.OBJECT_ID, o.PARENT_ID, " COLUMNS
 
 static int
 callback(void *args, int argc, char **argv, char **azColName)
@@ -663,6 +664,9 @@ callback(void *args, int argc, char **argv, char **azColName)
 		strcpy(dlna_buf, dlna_no_conv);
 	else
 		strcpy(dlna_buf, "*");
+
+	if( runtime_vars.root_container && strcmp(parent, runtime_vars.root_container) == 0 )
+		parent = "0";
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
@@ -1029,19 +1033,31 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 				ObjectID, RequestedCount, StartingIndex,
 	                        BrowseFlag, Filter, SortCriteria);
 
-	if( (args.flags & FLAG_AUDIO_ONLY) && (strcmp(ObjectID, "0") == 0) )
+	if( strcmp(ObjectID, "0") == 0 )
 	{
-		ObjectID = sqlite3_mprintf("%s", MUSIC_ID);
-		args.flags |= FLAG_FREE_OBJECT_ID;
+		args.flags |= FLAG_ROOT_CONTAINER;
+		if( runtime_vars.root_container )
+		{
+			if( (args.flags & FLAG_AUDIO_ONLY) && (strcmp(runtime_vars.root_container, BROWSEDIR_ID) == 0) )
+				ObjectID = MUSIC_DIR_ID;
+			else
+				ObjectID = runtime_vars.root_container;
+		}
+		else
+		{
+			if( args.flags & FLAG_AUDIO_ONLY )
+				ObjectID = MUSIC_ID;
+		}
 	}
 
 	if( strcmp(BrowseFlag+6, "Metadata") == 0 )
 	{
 		args.requested = 1;
-		sql = sqlite3_mprintf( SELECT_COLUMNS
+		sql = sqlite3_mprintf("SELECT %s, " COLUMNS
 		                      "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
-		                      " where OBJECT_ID = '%s';"
-		                      , ObjectID);
+	        	              " where OBJECT_ID = '%s';",
+		                      (args.flags & FLAG_ROOT_CONTAINER) ? "0, -1" : "o.OBJECT_ID, o.PARENT_ID",
+		                      ObjectID);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 		totalMatches = args.returned;
 	}

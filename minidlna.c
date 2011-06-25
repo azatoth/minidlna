@@ -376,6 +376,7 @@ init(int argc, char * * argv)
 	
 	runtime_vars.port = -1;
 	runtime_vars.notify_interval = 895;	/* seconds between SSDP announces */
+	runtime_vars.root_container = NULL;
 
 	/* read options file first since
 	 * command line arguments have final say */
@@ -558,6 +559,34 @@ init(int argc, char * * argv)
 			case ENABLE_DLNA_STRICT:
 				if( (strcmp(ary_options[i].value, "yes") == 0) || atoi(ary_options[i].value) )
 					SETFLAG(DLNA_STRICT_MASK);
+				break;
+			case ROOT_CONTAINER:
+				switch( ary_options[i].value[0] )
+				{
+				case '.':
+					runtime_vars.root_container = NULL;
+					break;
+				case 'B':
+				case 'b':
+					runtime_vars.root_container = BROWSEDIR_ID;
+					break;
+				case 'M':
+				case 'm':
+					runtime_vars.root_container = MUSIC_ID;
+					break;
+				case 'V':
+				case 'v':
+					runtime_vars.root_container = VIDEO_ID;
+					break;
+				case 'P':
+				case 'p':
+					runtime_vars.root_container = IMAGE_ID;
+					break;
+				default:
+					fprintf(stderr, "Invalid root container! [%s]\n",
+						ary_options[i].value);
+					break;
+				}
 				break;
 			default:
 				fprintf(stderr, "Unknown option in file %s\n",

@@ -115,6 +115,7 @@ struct upnphttp {
 #define FLAG_AUDIO_ONLY		0x08000000
 
 #define FLAG_FREE_OBJECT_ID	0x00000001
+#define FLAG_ROOT_CONTAINER	0x00000002
 
 /* New_upnphttp() */
 struct upnphttp *
