@@ -289,6 +289,7 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 
 	str.data = resp;
 	ret = strcatf(&str, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
+	args.str = &str;
 	args.requested = 1;
 	asprintf(&sql, SELECT_COLUMNS
 	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
