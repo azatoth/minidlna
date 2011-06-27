@@ -52,6 +52,7 @@
 #ifndef FF_PROFILE_H264_HIGH
 #define FF_PROFILE_H264_HIGH 100
 #endif
+#define FF_PROFILE_SKIP -100
 
 #define FLAG_TITLE	0x00000001
 #define FLAG_ARTIST	0x00000002
@@ -645,6 +646,7 @@ GetVideoMetadata(const char * path, char * name)
 	struct song_metadata video;
 	metadata_t m;
 	uint32_t free_flags = 0xFFFFFFFF;
+
 	memset(&m, '\0', sizeof(m));
 	memset(&video, '\0', sizeof(video));
 
@@ -933,7 +935,42 @@ GetVideoMetadata(const char * path, char * name)
 
 				if( strcmp(ctx->iformat->name, "mpegts") == 0 )
 				{
+					AVRational display_aspect_ratio;
+					int fps, interlaced;
+
 					off += sprintf(m.dlna_pn+off, "TS_");
+					if (vc->sample_aspect_ratio.num) {
+						av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
+						          vc->width  * vc->sample_aspect_ratio.num,
+						          vc->height * vc->sample_aspect_ratio.den,
+						          1024*1024);
+					}
+					fps = ctx->streams[video_stream]->r_frame_rate.num / ctx->streams[video_stream]->r_frame_rate.den;
+					interlaced = (ctx->streams[video_stream]->r_frame_rate.num / vc->time_base.den);
+					if( ((((vc->width == 1920 || vc->width == 1440) && vc->height == 1080) ||
+					      (vc->width == 720 && vc->height == 480)) && fps == 59 && interlaced) ||
+					    ((vc->width == 1280 && vc->height == 720) && fps == 59 && !interlaced) )
+					{
+						if( (vc->profile == FF_PROFILE_H264_MAIN || vc->profile == FF_PROFILE_H264_HIGH) &&
+						    audio_profile == PROFILE_AUDIO_AC3 )
+						{
+							off += sprintf(m.dlna_pn+off, "HD_60_");
+							vc->profile = FF_PROFILE_SKIP;
+						}
+					}
+					else if( ((vc->width == 1920 && vc->height == 1080) ||
+					          (vc->width == 1440 && vc->height == 1080) ||
+					          (vc->width == 1280 && vc->height ==  720) ||
+					          (vc->width ==  720 && vc->height ==  576)) &&
+					          interlaced && fps == 50 )
+					{
+						if( (vc->profile == FF_PROFILE_H264_MAIN || vc->profile == FF_PROFILE_H264_HIGH) &&
+						    audio_profile == PROFILE_AUDIO_AC3 )
+						{
+							off += sprintf(m.dlna_pn+off, "HD_50_");
+							vc->profile = FF_PROFILE_SKIP;
+						}
+					}
 					switch( vc->profile )
 					{
 						case FF_PROFILE_H264_BASELINE:
@@ -1000,6 +1037,8 @@ GetVideoMetadata(const char * path, char * name)
 								free(m.dlna_pn);
 								m.dlna_pn = NULL;
 							}
+							break;
+						case FF_PROFILE_SKIP:
 							break;
 					}
 					if( !m.dlna_pn )
