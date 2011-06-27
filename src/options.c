@@ -60,7 +60,8 @@ static const struct {
 	{ UPNPLOGDIR, "log_dir" },
 	{ ENABLE_TIVO, "enable_tivo" },
 	{ ENABLE_DLNA_STRICT, "strict_dlna" },
-	{ UPNPMINISSDPDSOCKET, "minissdpdsocket"}
+	{ UPNPMINISSDPDSOCKET, "minissdpdsocket"},
+	{ ROOT_CONTAINER, "root_container" }
 };
 
 int
