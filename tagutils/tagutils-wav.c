@@ -188,7 +188,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 				else if(strncmp(p, "ICOM", 4) == 0 ||
 				        strncmp(p, "IMUS", 4) == 0)
 					m = &(psong->contributor[ROLE_COMPOSER]);
-				else if(strncmp(p, "ITRK", 4) == 0)
+				else if(strncasecmp(p, "ITRK", 4) == 0)
 					psong->track = atoi(p + 8);
 				else if(strncmp(p, "ICRD", 4) == 0 ||
 				        strncmp(p, "IYER", 4) == 0)
