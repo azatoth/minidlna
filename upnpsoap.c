@@ -690,6 +690,14 @@ callback(void *args, int argc, char **argv, char **azColName)
 					strcpy(mime+6, "avi");
 				}
 			}
+			else if( passed_args->client == EFreeBox )
+			{
+				if( strncmp(dlna_pn, "AVC_TS", 6) == 0 ||
+				    strncmp(dlna_pn, "MPEG_TS", 7) == 0 )
+				{
+					strcpy(mime+6, "mp2t");
+				}
+			}
 			if( !(passed_args->flags & FLAG_DLNA) )
 			{
 				if( strcmp(mime+6, "vnd.dlna.mpeg-tts") == 0 )
