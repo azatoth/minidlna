@@ -278,7 +278,6 @@ int callback(void *args, int argc, char **argv, char **azColName)
 void
 SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 {
-	char * resp = malloc(32768);
 	char *sql;
 	char *zErrMsg = NULL;
 	struct Response args;
@@ -287,8 +286,9 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 	memset(&args, 0, sizeof(args));
 	memset(&str, 0, sizeof(str));
 
-	str.data = resp;
-	ret = strcatf(&str, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
+	str.data = malloc(32768);
+	str.size = 32768;
+	str.off = sprintf(str.data, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
 	args.str = &str;
 	args.requested = 1;
 	asprintf(&sql, SELECT_COLUMNS
@@ -597,7 +597,7 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 	                            " where %s and (%s)",
 	                            which, myfilter);
 	totalMatches = (ret > 0) ? ret : 0;
-	if( itemCount < 0 && !args.start )
+	if( itemCount < 0 && !itemStart && !anchorOffset )
 	{
 		args.start = totalMatches + itemCount;
 	}
