@@ -153,13 +153,12 @@ sendBeaconMessage(int fd, struct sockaddr_in * client, int len, int broadcast)
 	int mesg_len;
 
 	mesg_len = asprintf(&mesg, "TiVoConnect=1\n"
-	                           "swversion=%s\n"
+	                           "swversion=1.0\n"
 	                           "method=%s\n"
 	                           "identity=%s\n"
 	                           "machine=%s\n"
 	                           "platform=pc/minidlna\n"
 	                           "services=TiVoMediaServer:%d/http\n",
-	                           "1.0",
 	                           broadcast ? "broadcast" : "connected",
 	                           uuidvalue, friendly_name, runtime_vars.port);
 	DPRINTF(E_DEBUG, L_TIVO, "Sending TiVo beacon to %s\n", inet_ntoa(client->sin_addr));
@@ -207,10 +206,6 @@ rcvBeaconMessage(char * beacon)
 	}
 
 	if( tivoConnect == NULL )
-		return 0;
-
-	/* It's pointless to respond to our own beacon */
-	if( strcmp(identity, uuidvalue) == 0)
 		return 0;
 
 #ifdef DEBUG
@@ -273,8 +268,18 @@ rcvBeaconMessage(char * beacon)
 		lastSummary = current;
 	}
 #endif
+	/* It's pointless to respond to a non-TiVo beacon. */
+	if( strncmp(platform, "tcd/", 4) != 0 )
+		return 0;
+
 	if( strcasecmp(method, "broadcast") == 0 )
+	{
+		DPRINTF(E_DEBUG, L_TIVO, "Received new beacon: machine(%s) platform(%s) services(%s)\n", 
+		         machine ? machine : "-",
+		         platform ? platform : "-", 
+		         services ? services : "-" );
 		return 1;
+	}
 	return 0;
 }
 

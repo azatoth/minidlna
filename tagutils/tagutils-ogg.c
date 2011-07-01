@@ -450,6 +450,7 @@ _get_oggfileinfo(char *filename, struct song_metadata *psong)
 		{
 			DPRINTF(E_FATAL, L_SCANNER, "Could not find a processor for stream, bailing\n");
 			_ogg_free_stream_set(processors);
+			fclose(file);
 			return -1;
 		}
 

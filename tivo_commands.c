@@ -112,7 +112,6 @@ int callback(void *args, int argc, char **argv, char **azColName)
 	char *id = argv[0], *class = argv[1], *detailID = argv[2], *size = argv[3], *title = argv[4], *duration = argv[5],
              *bitrate = argv[6], *sampleFrequency = argv[7], *artist = argv[8], *album = argv[9], *genre = argv[10],
              *comment = argv[11], *date = argv[12], *resolution = argv[13], *mime = argv[14], *path = argv[15];
-	int ret = 0;
 	struct string_s *str = passed_args->str;
 
 	if( strncmp(class, "item", 4) == 0 )
@@ -122,34 +121,34 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		if( strncmp(mime, "audio", 5) == 0 )
 		{
 			flags |= FLAG_NO_PARAMS;
-			ret = strcatf(str, "<Item><Details>"
-			                   "<ContentType>audio/*</ContentType>"
-			                   "<SourceFormat>%s</SourceFormat>"
-			                   "<SourceSize>%s</SourceSize>"
-			                   "<SongTitle>%s</SongTitle>", mime, size, title);
+			strcatf(str, "<Item><Details>"
+			             "<ContentType>audio/*</ContentType>"
+			             "<SourceFormat>%s</SourceFormat>"
+			             "<SourceSize>%s</SourceSize>"
+			             "<SongTitle>%s</SongTitle>", mime, size, title);
 			if( date )
 			{
-				ret = strcatf(str, "<AlbumYear>%.*s</AlbumYear>", 4, date);
+				strcatf(str, "<AlbumYear>%.*s</AlbumYear>", 4, date);
 			}
 		}
 		else if( strcmp(mime, "image/jpeg") == 0 )
 		{
 			flags |= FLAG_SEND_RESIZED;
-			ret = strcatf(str, "<Item><Details>"
-			                   "<ContentType>image/*</ContentType>"
-			                   "<SourceFormat>image/jpeg</SourceFormat>"
-			                   "<SourceSize>%s</SourceSize>", size);
+			strcatf(str, "<Item><Details>"
+			             "<ContentType>image/*</ContentType>"
+			             "<SourceFormat>image/jpeg</SourceFormat>"
+			             "<SourceSize>%s</SourceSize>", size);
 			if( date )
 			{
 				struct tm tm;
 				memset(&tm, 0, sizeof(tm));
 				tm.tm_isdst = -1; // Have libc figure out if DST is in effect or not
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
-				ret = strcatf(str, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
+				strcatf(str, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
 			}
 			if( comment )
 			{
-				ret = strcatf(str, "<Caption>%s</Caption>", comment);
+				strcatf(str, "<Caption>%s</Caption>", comment);
 			}
 		}
 		else if( strncmp(mime, "video", 5) == 0 )
@@ -157,20 +156,20 @@ int callback(void *args, int argc, char **argv, char **azColName)
 			char *episode;
 			flags |= FLAG_NO_PARAMS;
 			flags |= FLAG_VIDEO;
-			ret = strcatf(str, "<Item><Details>"
-			                   "<ContentType>video/x-tivo-mpeg</ContentType>"
-			                   "<SourceFormat>%s</SourceFormat>"
-			                   "<SourceSize>%s</SourceSize>", mime, size);
+			strcatf(str, "<Item><Details>"
+			             "<ContentType>video/x-tivo-mpeg</ContentType>"
+			             "<SourceFormat>%s</SourceFormat>"
+			             "<SourceSize>%s</SourceSize>", mime, size);
 			episode = strstr(title, " - ");
 			if( episode )
 			{
-				ret = strcatf(str, "<Title>%.*s</Title>"
-				                   "<EpisodeTitle>%s</EpisodeTitle>", 
-				                   (int)(episode-title), title, episode+3);
+				strcatf(str, "<Title>%.*s</Title>"
+				             "<EpisodeTitle>%s</EpisodeTitle>", 
+				             (int)(episode-title), title, episode+3);
 			}
 			else
 			{
-				ret = strcatf(str, "<Title>%s</Title>", title);
+				strcatf(str, "<Title>%s</Title>", title);
 			}
 			if( date )
 			{
@@ -178,64 +177,64 @@ int callback(void *args, int argc, char **argv, char **azColName)
 				memset(&tm, 0, sizeof(tm));
 				tm.tm_isdst = -1; // Have libc figure out if DST is in effect or not
 				strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
-				ret = strcatf(str, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
+				strcatf(str, "<CaptureDate>0x%X</CaptureDate>", (unsigned int)mktime(&tm));
 			}
 			if( comment )
 			{
-				ret = strcatf(str, "<Description>%s</Description>", comment);
+				strcatf(str, "<Description>%s</Description>", comment);
 			}
 		}
 		else
 		{
 			return 0;
 		}
-		ret = strcatf(str, "<Title>%s</Title>", unescape_tag(title));
+		strcatf(str, "<Title>%s</Title>", unescape_tag(title));
 		if( artist ) {
-			ret = strcatf(str, "<ArtistName>%s</ArtistName>", unescape_tag(artist));
+			strcatf(str, "<ArtistName>%s</ArtistName>", unescape_tag(artist));
 		}
 		if( album ) {
-			ret = strcatf(str, "<AlbumTitle>%s</AlbumTitle>", unescape_tag(album));
+			strcatf(str, "<AlbumTitle>%s</AlbumTitle>", unescape_tag(album));
 		}
 		if( genre ) {
-			ret = strcatf(str, "<MusicGenre>%s</MusicGenre>", unescape_tag(genre));
+			strcatf(str, "<MusicGenre>%s</MusicGenre>", unescape_tag(genre));
 		}
 		if( resolution ) {
 			char *width = strsep(&resolution, "x");
-			ret = strcatf(str, "<SourceWidth>%s</SourceWidth>"
+			strcatf(str, "<SourceWidth>%s</SourceWidth>"
 			                   "<SourceHeight>%s</SourceHeight>",
 			                   width, resolution);
 		}
 		if( duration ) {
-			ret = strcatf(str, "<Duration>%d</Duration>",
+			strcatf(str, "<Duration>%d</Duration>",
 			      atoi(strrchr(duration, '.')+1) + (1000*atoi(strrchr(duration, ':')+1))
 			      + (60000*atoi(strrchr(duration, ':')-2)) + (3600000*atoi(duration)));
 		}
 		if( bitrate ) {
-			ret = strcatf(str, "<SourceBitRate>%s</SourceBitRate>", bitrate);
+			strcatf(str, "<SourceBitRate>%s</SourceBitRate>", bitrate);
 		}
 		if( sampleFrequency ) {
-			ret = strcatf(str, "<SourceSampleRate>%s</SourceSampleRate>", sampleFrequency);
+			strcatf(str, "<SourceSampleRate>%s</SourceSampleRate>", sampleFrequency);
 		}
-		ret = strcatf(str, "</Details><Links><Content>"
-		                   "<ContentType>%s</ContentType>"
-		                   "<Url>/%s/%s.dat</Url>%s</Content>",
-		                   mime,
-		                   (flags & FLAG_SEND_RESIZED)?"Resized":"MediaItems", detailID,
-		                   (flags & FLAG_NO_PARAMS)?"<AcceptsParams>No</AcceptsParams>":"");
+		strcatf(str, "</Details><Links><Content>"
+		             "<ContentType>%s</ContentType>"
+		             "<Url>/%s/%s.dat</Url>%s</Content>",
+		             mime,
+		             (flags & FLAG_SEND_RESIZED)?"Resized":"MediaItems", detailID,
+		             (flags & FLAG_NO_PARAMS)?"<AcceptsParams>No</AcceptsParams>":"");
 		if( flags & FLAG_VIDEO )
 		{
 			char *esc_name = escape_tag(basename(path), 1);
-			ret = strcatf(str, "<CustomIcon>"
-			                     "<ContentType>video/*</ContentType>"
-			                     "<Url>urn:tivo:image:save-until-i-delete-recording</Url>"
-			                   "</CustomIcon>"
-			                   "<Push><Container>Videos</Container></Push>"
-			                   "<File>%s</File> </Links>", esc_name);
+			strcatf(str, "<CustomIcon>"
+			               "<ContentType>video/*</ContentType>"
+			               "<Url>urn:tivo:image:save-until-i-delete-recording</Url>"
+			             "</CustomIcon>"
+			             "<Push><Container>Videos</Container></Push>"
+			             "<File>%s</File> </Links>", esc_name);
 			free(esc_name);
 		}
 		else
 		{
-			ret = strcatf(str, "</Links>");
+			strcatf(str, "</Links>");
 		}
 	}
 	else if( strncmp(class, "container", 9) == 0 )
@@ -249,22 +248,22 @@ int callback(void *args, int argc, char **argv, char **azColName)
 		                              " (MIME in ('image/jpeg', 'audio/mpeg', 'video/mpeg', 'video/x-tivo-mpeg')"
 		                              " or CLASS glob 'container*')", id);
 #endif
-		ret = strcatf(str, "<Item>"
-		                   "<Details>"
-		                     "<ContentType>x-container/folder</ContentType>"
-		                     "<SourceFormat>x-container/folder</SourceFormat>"
-		                     "<Title>%s</Title>"
-		                     "<TotalItems>%d</TotalItems>"
-		                   "</Details>"
-		                   "<Links>"
-		                     "<Content>"
-		                       "<Url>/TiVoConnect?Command=QueryContainer&amp;Container=%s</Url>"
-		                       "<ContentType>x-tivo-container/folder</ContentType>"
-		                     "</Content>"
-		                   "</Links>",
-		                   unescape_tag(title), count, id);
+		strcatf(str, "<Item>"
+		             "<Details>"
+		               "<ContentType>x-container/folder</ContentType>"
+		               "<SourceFormat>x-container/folder</SourceFormat>"
+		               "<Title>%s</Title>"
+		               "<TotalItems>%d</TotalItems>"
+		             "</Details>"
+		             "<Links>"
+		               "<Content>"
+		                 "<Url>/TiVoConnect?Command=QueryContainer&amp;Container=%s</Url>"
+		                 "<ContentType>x-tivo-container/folder</ContentType>"
+		               "</Content>"
+		             "</Links>",
+		             unescape_tag(title), count, id);
 	}
-	ret = strcatf(str, "</Item>");
+	strcatf(str, "</Item>");
 
 	passed_args->returned++;
 
