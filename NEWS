@@ -1,7 +1,9 @@
 1.0.21 - Released 00-MONTH-2011
 --------------------------------
+- Fix a crash bug when playing music on TiVo.
 - Add the ability to change the root media container.
 - Add WAV/RIFF INFO tag parsing support for the most common tags.
+- Fix a crash bug with clients that request a large number of results.
 
 1.0.20 - Released 09-June-2011
 --------------------------------
