@@ -333,12 +333,9 @@ open_db(void)
 	return new_db;
 }
 
-static const uint8_t* read_file(const char* dir, const char *filename) {
+static void read_file(img_t* img, const char* dir, const char *filename) {
 	char path[1024];
-	long size;
 	sprintf( path, "%s/%s", dir, filename);
-	uint8_t * data;
-	struct stat sb;
 	FILE *file = fopen(path, "rb");
 	if(!file) {
 		char err[1024];
@@ -348,17 +345,16 @@ static const uint8_t* read_file(const char* dir, const char *filename) {
 		exit(EXIT_FAILURE);
 	}
 	fseek( file , 0L , SEEK_END);
-	size = ftell( file );
+	img->size = ftell( file );
 	rewind( file );
 
-	data = malloc(size + 1);
-	if(!data) {
+	img->data = calloc(img->size + 1, sizeof(char));
+	if(!img->data) {
 		perror("read_file(): failed to allocate memory");
 		exit(EXIT_FAILURE);
 	}
-	fread(data, sizeof(char), sb.st_size, file);
+	fread(img->data, sizeof(char), img->size, file);
 	fclose(file);
-	return data;
 }
 
 /* init phase :
@@ -868,10 +864,14 @@ init(int argc, char * * argv)
 	}
 
 	/* Read icons */
-	png_sm = read_file(DATADIR, "png_sm.png");
-	png_lrg = read_file(DATADIR, "png_lrg.png");
-	jpeg_sm = read_file(DATADIR, "jpeg_sm.jpeg");
-	jpeg_lrg = read_file(DATADIR, "jpeg_lrg.jpeg");
+	memset(&png_sm, '\0', sizeof(img_t));
+	memset(&png_lrg, '\0', sizeof(img_t));
+	memset(&jpeg_sm, '\0', sizeof(img_t));
+	memset(&jpeg_lrg, '\0', sizeof(img_t));
+	read_file(&png_sm, DATADIR, "png_sm.png");
+	read_file(&png_lrg, DATADIR, "png_lrg.png");
+	read_file(&jpeg_sm, DATADIR, "jpeg_sm.jpeg");
+	read_file(&jpeg_lrg, DATADIR, "jpeg_lrg.jpeg");
 
 
 	/* set signal handler */
@@ -1328,10 +1328,10 @@ shutdown:
 		DPRINTF(E_ERROR, L_GENERAL, "Failed to remove pidfile %s: %s\n", pidfilename, strerror(errno));
 	}
 
-	free((void*)png_sm);
-	free((void*)png_lrg);
-	free((void*)jpeg_sm);
-	free((void*)jpeg_lrg);
+	free(png_sm.data);
+	free(png_lrg.data);
+	free(jpeg_sm.data);
+	free(jpeg_lrg.data);
 
 	freeoptions();
 

@@ -98,4 +98,4 @@ short int scanning = 0;
 volatile short int quitting = 0;
 volatile uint32_t updateID = 0;
 
-const uint8_t *png_sm = 0, *png_lrg = 0, *jpeg_sm = 0, *jpeg_lrg = 0;
+img_t png_sm, png_lrg, jpeg_sm, jpeg_lrg;

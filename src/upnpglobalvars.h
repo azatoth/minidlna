@@ -206,7 +206,12 @@ extern char presentationurl[];
 extern char pnpx_hwid[];
 #endif
 
-extern const uint8_t *png_sm, *png_lrg, *jpeg_sm, *jpeg_lrg;
+typedef struct img_s {
+	uint8_t* data;
+	long size;
+} img_t;
+
+extern img_t png_sm, png_lrg, jpeg_sm, jpeg_lrg;
 
 /* lan addresses */
 /* MAX_LAN_ADDR : maximum number of interfaces
