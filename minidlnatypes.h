@@ -80,6 +80,7 @@ enum client_types {
 	ELGDevice,
 	ENetgearEVA2000,
 	ESamsungSeriesA,
+	ESamsungSeriesB,
 	EStandardDLNA150 = 100
 };
 

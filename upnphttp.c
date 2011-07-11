@@ -494,9 +494,11 @@ next_header:
 				break;
 			}
 		}
-		else if( (clients[n].type < EStandardDLNA150) && (h->req_client == EStandardDLNA150) )
+		else if( (clients[n].type < EStandardDLNA150 && h->req_client == EStandardDLNA150) ||
+		         (clients[n].type == ESamsungSeriesB && h->req_client == ESamsungSeriesA) )
 		{
 			/* If we know the client and our new detection is generic, use our cached info */
+			/* If we detected a Samsung Series B earlier, don't overwrite it with Series A info */
 			h->reqflags |= clients[n].flags;
 			h->req_client = clients[n].type;
 			return;
@@ -1702,13 +1704,18 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	off_t total, offset, size;
 	sqlite_int64 id;
 	int sendfh;
-	static struct { sqlite_int64 id; char path[PATH_MAX]; char mime[32]; char dlna[96]; } last_file = { 0 };
+	static struct { sqlite_int64 id;
+	                enum client_types client;
+	                char path[PATH_MAX];
+	                char mime[32];
+	                char dlna[96];
+	              } last_file = { 0, 0 };
 #if USE_FORK
 	pid_t newpid = 0;
 #endif
 
 	id = strtoll(object, NULL, 10);
-	if( id != last_file.id )
+	if( id != last_file.id || h->req_client != last_file.client )
 	{
 		sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%lld'", id);
 		ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
@@ -1727,6 +1734,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		}
 		/* Cache the result */
 		last_file.id = id;
+		last_file.client = h->req_client;
 		strncpy(last_file.path, result[3], sizeof(last_file.path)-1);
 		if( result[4] )
 		{
@@ -1894,6 +1902,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	              "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
 	              date, last_file.dlna);
 
+	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "RESPONSE: %s\n", str.data);
 	if( send_data(h, str.data, str.off, MSG_MORE) == 0 )
 	{
  		if( h->req_command != EHead )

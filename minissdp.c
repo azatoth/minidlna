@@ -44,6 +44,7 @@
 #include "upnpreplyparse.h"
 #include "getifaddr.h"
 #include "minissdp.h"
+#include "utils.h"
 #include "log.h"
 
 /* SSDP ip/port */
@@ -357,9 +358,9 @@ ParseUPnPClient(char *location)
 	int content_len = sizeof(buf);
 	struct NameValueParserData xml;
 	int client;
-	enum client_types type = -1;
+	enum client_types type = 0;
 	uint32_t flags = 0;
-	char *model;
+	char *model, *serial;
 
 	if (strncmp(location, "http://", 7) != 0)
 		return;
@@ -442,17 +443,29 @@ close:
 	nread -= off - buf;
 	ParseNameValue(off, nread, &xml);
 	model = GetValueFromNameValueList(&xml, "modelName");
+	serial = GetValueFromNameValueList(&xml, "serialNumber");
 	if( model )
 	{
 		DPRINTF(E_DEBUG, L_SSDP, "Model: %s\n", model);
-		if (strstr(model, "Roku SoundBridge"))
+		if( strstr(model, "Roku SoundBridge") )
 		{
 			type = ERokuSoundBridge;
 			flags |= FLAG_AUDIO_ONLY;
 		}
+		else if( strcmp(model, "Samsung DTV DMR") == 0 && serial )
+		{
+			DPRINTF(E_DEBUG, L_SSDP, "Serial: %s\n", serial);
+			/* The Series B I saw was 20081224DMR.  Series A should be older than that. */
+			if( atoi(serial) > 20081200 )
+			{
+				type = ESamsungSeriesB;
+				flags |= FLAG_SAMSUNG;
+				flags |= FLAG_DLNA;
+				flags |= FLAG_NO_RESIZE;
+			}
+		}
 	}
-
-	if( type < 0 )
+	if( !type )
 		return;
 	client = SearchClientCache(dest.sin_addr, 1);
 	/* Add this client to the cache if it's not there already. */
@@ -542,18 +555,23 @@ ProcessSSDPRequest(int s, unsigned short port)
 				while(man[man_len]!='\r' && man[man_len]!='\n') man_len++;
 			}
 		}
-		if (!loc || !srv || !man || (strncmp(man, "ssdp:alive", man_len) != 0))
+		if( !loc || !srv || !man || (strncmp(man, "ssdp:alive", man_len) != 0) )
 		{
 			return;
 		}
-		if (strncmp(srv, "Allegro-Software-RomPlug", 24) == 0)
+		if( strncmp(srv, "Allegro-Software-RomPlug", 24) == 0 ||
+		    strstr(loc, "SamsungMRDesc.xml") )
 		{
 			/* Check if the client is already in cache */
 			i = SearchClientCache(sendername.sin_addr, 1);
-			if( i >= 0 && clients[i].type < EStandardDLNA150 )
+			if( i >= 0 )
 			{
-				clients[i].age = time(NULL);
-				return;
+				if( clients[i].type < EStandardDLNA150 &&
+				    clients[i].type != ESamsungSeriesA )
+				{
+					clients[i].age = time(NULL);
+					return;
+				}
 			}
 			ParseUPnPClient(loc);
 		}
@@ -562,7 +580,7 @@ ProcessSSDPRequest(int s, unsigned short port)
 	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
 	{
 		int st_len = 0, mx_len = 0, mx_val = 0;
-		//DPRINTF(E_DEBUG, L_SSDP, "Received SSDP request:\n%.*s", n, bufr);
+		//DPRINTF(E_DEBUG, L_SSDP, "Received SSDP request:\n%.*s\n", n, bufr);
 		for(i=0; i < n; i++)
 		{
 			if( bufr[i] == '*' )

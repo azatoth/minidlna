@@ -1,5 +1,6 @@
 1.0.21 - Released 00-MONTH-2011
 --------------------------------
+- Fix FF/REW of AVI files on Samsung Series B TV's.
 - Fix a crash bug when playing music on TiVo.
 - Add the ability to change the root media container.
 - Add WAV/RIFF INFO tag parsing support for the most common tags.
