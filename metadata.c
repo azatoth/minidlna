@@ -53,11 +53,10 @@
 #define FF_PROFILE_H264_HIGH 100
 #endif
 #define FF_PROFILE_SKIP -100
-#ifndef CODEC_TYPE_AUDIO
-#define CODEC_TYPE_AUDIO AVMEDIA_TYPE_AUDIO
-#endif
-#ifndef CODEC_TYPE_VIDEO
-#define CODEC_TYPE_VIDEO AVMEDIA_TYPE_VIDEO
+
+#if LIBAVCODEC_VERSION_MAJOR < 53
+#define AVMEDIA_TYPE_AUDIO CODEC_TYPE_AUDIO
+#define AVMEDIA_TYPE_VIDEO CODEC_TYPE_VIDEO
 #endif
 
 #define FLAG_TITLE	0x00000001
@@ -663,7 +662,11 @@ GetVideoMetadata(const char * path, char * name)
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", file.st_size);
 
 	av_register_all();
+	#if LIBAVFORMAT_VERSION_INT >= ((53<<16)+(2<<8)+0)
+	if( avformat_open_input(&ctx, path, NULL, NULL) != 0 )
+	#else
 	if( av_open_input_file(&ctx, path, NULL, 0, NULL) != 0 )
+	#endif
 	{
 		DPRINTF(E_WARN, L_METADATA, "Opening %s failed!\n", path);
 		return 0;
@@ -673,14 +676,14 @@ GetVideoMetadata(const char * path, char * name)
 	for( i=0; i<ctx->nb_streams; i++)
 	{
 		if( audio_stream == -1 &&
-		    ctx->streams[i]->codec->codec_type == CODEC_TYPE_AUDIO )
+		    ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO )
 		{
 			audio_stream = i;
 			ac = ctx->streams[audio_stream]->codec;
 			continue;
 		}
 		else if( video_stream == -1 &&
-			 ctx->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
+			 ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO )
 		{
 			video_stream = i;
 			vc = ctx->streams[video_stream]->codec;
