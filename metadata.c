@@ -92,34 +92,41 @@ enum audio_profiles {
 
 /* This function shamelessly copied from libdlna */
 #define MPEG_TS_SYNC_CODE 0x47
-#define MPEG_TS_PACKET_LENGTH 188 /* prepends 4 bytes to TS packet */
+#define MPEG_TS_PACKET_LENGTH 188
 #define MPEG_TS_PACKET_LENGTH_DLNA 192 /* prepends 4 bytes to TS packet */
 int
-dlna_timestamp_is_present(const char * filename)
+dlna_timestamp_is_present(const char * filename, int * raw_packet_size)
 {
-	unsigned char buffer[2*MPEG_TS_PACKET_LENGTH_DLNA+1];
+	unsigned char buffer[3*MPEG_TS_PACKET_LENGTH_DLNA];
 	int fd, i;
 
 	/* read file header */
 	fd = open(filename, O_RDONLY);
-	read(fd, buffer, MPEG_TS_PACKET_LENGTH_DLNA*2);
+	read(fd, buffer, MPEG_TS_PACKET_LENGTH_DLNA*3);
 	close(fd);
 	for( i=0; i < MPEG_TS_PACKET_LENGTH_DLNA; i++ )
 	{
 		if( buffer[i] == MPEG_TS_SYNC_CODE )
 		{
-			if (buffer[i + MPEG_TS_PACKET_LENGTH_DLNA] == MPEG_TS_SYNC_CODE)
+			if (buffer[i + MPEG_TS_PACKET_LENGTH_DLNA] == MPEG_TS_SYNC_CODE &&
+			    buffer[i + MPEG_TS_PACKET_LENGTH_DLNA*2] == MPEG_TS_SYNC_CODE)
 			{
+			        *raw_packet_size = MPEG_TS_PACKET_LENGTH_DLNA;
 				if (buffer[i+MPEG_TS_PACKET_LENGTH] == 0x00 &&
 				    buffer[i+MPEG_TS_PACKET_LENGTH+1] == 0x00 &&
 				    buffer[i+MPEG_TS_PACKET_LENGTH+2] == 0x00 &&
 				    buffer[i+MPEG_TS_PACKET_LENGTH+3] == 0x00)
-					break;
+					return 0;
 				else
 					return 1;
+			} else if (buffer[i + MPEG_TS_PACKET_LENGTH] == MPEG_TS_SYNC_CODE &&
+				   buffer[i + MPEG_TS_PACKET_LENGTH*2] == MPEG_TS_SYNC_CODE) {
+			    *raw_packet_size = MPEG_TS_PACKET_LENGTH;
+			    return 0;
 			}
 		}
 	}
+	*raw_packet_size = 0;
 	return 0;
 }
 
@@ -644,7 +651,6 @@ GetVideoMetadata(const char * path, char * name)
 	AVCodecContext *ac = NULL, *vc = NULL;
 	int audio_stream = -1, video_stream = -1;
 	enum audio_profiles audio_profile = PROFILE_AUDIO_UNKNOWN;
-	tsinfo_t *ts;
 	char fourcc[4];
 	sqlite_int64 album_art = 0;
 	char nfo[PATH_MAX], *ext;
@@ -869,8 +875,10 @@ GetVideoMetadata(const char * path, char * name)
 				off = sprintf(m.dlna_pn, "MPEG_");
 				if( strcmp(ctx->iformat->name, "mpegts") == 0 )
 				{
-					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS\n",
-						video_stream, basename(path), m.resolution);
+					int raw_packet_size;
+					int dlna_ts_present = dlna_timestamp_is_present(path, &raw_packet_size);
+					DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is %s MPEG2 TS packet size %d\n",
+						video_stream, basename(path), m.resolution, raw_packet_size);
 					off += sprintf(m.dlna_pn+off, "TS_");
 					if( (vc->width  >= 1280) &&
 					    (vc->height >= 720) )
@@ -886,18 +894,17 @@ GetVideoMetadata(const char * path, char * name)
 						else
 							off += sprintf(m.dlna_pn+off, "NA");
 					}
-					ts = ctx->priv_data;
-					if( ts->packet_size == MPEG_TS_PACKET_LENGTH_DLNA )
+					if( raw_packet_size == MPEG_TS_PACKET_LENGTH_DLNA )
 					{
-						if( dlna_timestamp_is_present(path) )
+						if (dlna_ts_present)
 							ts_timestamp = VALID;
 						else
 							ts_timestamp = EMPTY;
 					}
-					else if( ts->packet_size != MPEG_TS_PACKET_LENGTH )
+					else if( raw_packet_size != MPEG_TS_PACKET_LENGTH )
 					{
 						DPRINTF(E_DEBUG, L_METADATA, "Unsupported DLNA TS packet size [%d] (%s)\n",
-							ts->packet_size, basename(path));
+							raw_packet_size, basename(path));
 						free(m.dlna_pn);
 						m.dlna_pn = NULL;
 					}
@@ -946,6 +953,8 @@ GetVideoMetadata(const char * path, char * name)
 				{
 					AVRational display_aspect_ratio;
 					int fps, interlaced;
+					int raw_packet_size;
+					int dlna_ts_present = dlna_timestamp_is_present(path, &raw_packet_size);
 
 					off += sprintf(m.dlna_pn+off, "TS_");
 					if (vc->sample_aspect_ratio.num) {
@@ -1073,19 +1082,18 @@ GetVideoMetadata(const char * path, char * name)
 					}
 					if( !m.dlna_pn )
 						break;
-					ts = ctx->priv_data;
-					if( ts->packet_size == MPEG_TS_PACKET_LENGTH_DLNA )
+					if( raw_packet_size == MPEG_TS_PACKET_LENGTH_DLNA )
 					{
 						if( vc->profile == FF_PROFILE_H264_HIGH ||
-						    dlna_timestamp_is_present(path) )
+						    dlna_ts_present )
 							ts_timestamp = VALID;
 						else
 							ts_timestamp = EMPTY;
 					}
-					else if( ts->packet_size != MPEG_TS_PACKET_LENGTH )
+					else if( raw_packet_size != MPEG_TS_PACKET_LENGTH )
 					{
 						DPRINTF(E_DEBUG, L_METADATA, "Unsupported DLNA TS packet size [%d] (%s)\n",
-							ts->packet_size, basename(path));
+							raw_packet_size, basename(path));
 						free(m.dlna_pn);
 						m.dlna_pn = NULL;
 					}
