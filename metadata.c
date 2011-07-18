@@ -647,7 +647,7 @@ GetVideoMetadata(const char * path, char * name)
 	struct stat file;
 	int ret, i;
 	struct tm *modtime;
-	AVFormatContext *ctx;
+	AVFormatContext *ctx = NULL;
 	AVCodecContext *ac = NULL, *vc = NULL;
 	int audio_stream = -1, video_stream = -1;
 	enum audio_profiles audio_profile = PROFILE_AUDIO_UNKNOWN;
