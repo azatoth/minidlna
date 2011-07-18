@@ -191,7 +191,7 @@ make_dir(char * path, mode_t mode)
 	struct stat st;
 
 	do {
-		c = 0;
+		c = '\0';
 
 		/* Bypass leading non-'/'s and then subsequent '/'s. */
 		while (*s) {
@@ -200,7 +200,7 @@ make_dir(char * path, mode_t mode)
 					++s;
 				} while (*s == '/');
 				c = *s;     /* Save the current char */
-				*s = 0;     /* and replace it with nul. */
+				*s = '\0';     /* and replace it with nul. */
 				break;
 			}
 			++s;
@@ -209,9 +209,11 @@ make_dir(char * path, mode_t mode)
 		if (mkdir(path, mode) < 0) {
 			/* If we failed for any other reason than the directory
 			 * already exists, output a diagnostic and return -1.*/
-			if (errno != EEXIST
-			    || (stat(path, &st) < 0 || !S_ISDIR(st.st_mode))) {
-				break;
+			if (errno != EEXIST || (stat(path, &st) < 0 || !S_ISDIR(st.st_mode))) {
+				DPRINTF(E_WARN, L_GENERAL, "make_dir: cannot create directory '%s'\n", path);
+				if (c)
+					*s = c;
+				return -1;
 			}
 		}
 	        if (!c)
@@ -221,9 +223,6 @@ make_dir(char * path, mode_t mode)
 		*s = c;
 
 	} while (1);
-
-	DPRINTF(E_WARN, L_GENERAL, "make_dir: cannot create directory '%s'\n", path);
-	return -1;
 }
 
 int
