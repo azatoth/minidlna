@@ -42,11 +42,6 @@ typedef struct metadata_s {
 	char *dlna_pn;
 } metadata_t;
 
-typedef struct tsinfo_s {
-	int x;
-	int packet_size;
-} tsinfo_t;
-
 typedef enum {
   AAC_INVALID   =  0,
   AAC_MAIN      =  1, /* AAC Main */

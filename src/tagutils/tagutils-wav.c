@@ -36,7 +36,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 	uint32_t len;
 	unsigned char hdr[12];
 	unsigned char fmt[16];
-	uint32_t chunk_data_length;
+	//uint32_t chunk_data_length;
 	uint32_t format_data_length = 0;
 	uint32_t compression_code = 0;
 	uint32_t channel_count = 0;
@@ -75,7 +75,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 		return -1;
 	}
 
-	chunk_data_length = GET_WAV_INT32(hdr + 4);
+	//chunk_data_length = GET_WAV_INT32(hdr + 4);
 
 	/* now, walk through the chunks */
 	current_offset = 12;
