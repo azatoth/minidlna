@@ -80,6 +80,9 @@ char presentationurl[PRESENTATIONURL_MAX_LEN];
 int n_lan_addr = 0;
 struct lan_addr_s lan_addr[MAX_LAN_ADDR];
 
+/* Path of the Unix socket used to communicate with MiniSSDPd */
+const char * minissdpdsocketpath = "/var/run/minissdpd.sock";
+
 /* UPnP-A/V [DLNA] */
 sqlite3 * db;
 char dlna_no_conv[] = "DLNA.ORG_OP=01;DLNA.ORG_CI=0";

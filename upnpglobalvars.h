@@ -211,6 +211,8 @@ extern char pnpx_hwid[];
 extern int n_lan_addr;
 extern struct lan_addr_s lan_addr[];
 
+extern const char * minissdpdsocketpath;
+
 /* UPnP-A/V [DLNA] */
 extern sqlite3 *db;
 extern char dlna_no_conv[];
