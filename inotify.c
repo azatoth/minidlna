@@ -510,9 +510,9 @@ int
 inotify_remove_file(const char * path)
 {
 	char * sql;
-	char **result;
 	char * art_cache;
 	char * ptr;
+	char **result;
 	sqlite_int64 detailID;
 	int rows, playlist;
 
@@ -528,9 +528,9 @@ inotify_remove_file(const char * path)
 	{
 		sql_exec(db, "DELETE from PLAYLISTS where ID = %lld", detailID);
 		sql_exec(db, "DELETE from DETAILS where ID ="
-		             " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s$%lld')",
+		             " (SELECT DETAIL_ID from OBJECTS where OBJECT_ID = '%s$%llX')",
 		         MUSIC_PLIST_ID, detailID);
-		sql_exec(db, "DELETE from OBJECTS where OBJECT_ID = '%s$%lld' or PARENT_ID = '%s$%lld'",
+		sql_exec(db, "DELETE from OBJECTS where OBJECT_ID = '%s$%llX' or PARENT_ID = '%s$%llX'",
 		         MUSIC_PLIST_ID, detailID, MUSIC_PLIST_ID, detailID);
 	}
 	else
