@@ -121,7 +121,7 @@ fill_playlists()
 		if( sql_get_int_field(db, "SELECT ID from OBJECTS where PARENT_ID = '"MUSIC_PLIST_ID"'"
 		                          " and NAME = '%q'", plname) <= 0 )
 		{
-			detailID = GetFolderMetadata(plname, NULL, NULL, NULL, NULL);
+			detailID = GetFolderMetadata(plname, NULL, NULL, NULL, 0);
 			sql_exec(db, "INSERT into OBJECTS"
 			             " (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME) "
 			             "VALUES"

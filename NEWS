@@ -1,3 +1,7 @@
+1.0.22 - Released 00-Month-0000
+--------------------------------
+- Add thumbnail support on folders, since at least XBMC supports it.
+
 1.0.21 - Released 18-July-2011
 --------------------------------
 - Fix a few issues with new libav/ffmpeg versions.
