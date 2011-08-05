@@ -606,6 +606,12 @@ CreateDatabase(void)
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
+	ret = sql_exec(db, "CREATE TABLE BOOKMARKS ("
+					"ID INTEGER PRIMARY KEY, "
+					"SEC INTEGER"
+					")");
+	if( ret != SQLITE_OK )
+		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE PLAYLISTS ("
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
 					"NAME TEXT NOT NULL, "

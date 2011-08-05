@@ -871,7 +871,6 @@ main(int argc, char * * argv)
 	time_t lastupdatetime = 0;
 	int max_fd = -1;
 	int last_changecnt = 0;
-	short int new_db = 0;
 	pid_t scanner_pid = 0;
 	pthread_t inotify_thread = 0;
 	struct media_dir_s *media_path, *last_path;
@@ -911,14 +910,14 @@ main(int argc, char * * argv)
 #endif
 	LIST_INIT(&upnphttphead);
 
-	new_db = open_db();
-	if( !new_db )
+	if( open_db() == 0 )
 	{
 		updateID = sql_get_int_field(db, "SELECT UPDATE_ID from SETTINGS");
 	}
-	if( sql_get_int_field(db, "pragma user_version") != DB_VERSION )
+	i = db_upgrade(db);
+	if( i != 0 )
 	{
-		if( new_db )
+		if( i < 0 )
 		{
 			DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
 		}
