@@ -36,6 +36,9 @@ int
 sql_get_int_field(sqlite3 *db, const char *fmt, ...);
 
 char *
-sql_get_text_field(void *dbh, const char *fmt, ...);
+sql_get_text_field(sqlite3 *db, const char *fmt, ...);
+
+int
+db_upgrade(sqlite3 *db);
 
 #endif

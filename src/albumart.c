@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <libgen.h>
 #include <setjmp.h>
 #include <errno.h>
@@ -268,16 +269,16 @@ end_art:
 }
 
 char *
-check_for_album_file(char * dir, const char * path)
+check_for_album_file(const char * dir, const char * path)
 {
-	char * file = malloc(PATH_MAX);
+	char file[MAXPATHLEN];
 	struct album_art_name_s * album_art_name;
 	image_s * imsrc = NULL;
 	int width=0, height=0;
 	char * art_file;
 
 	/* First look for file-specific cover art */
-	sprintf(file, "%s.cover.jpg", path);
+	snprintf(file, sizeof(file), "%s.cover.jpg", path);
 	if( access(file, R_OK) == 0 )
 	{
 		if( art_cache_exists(file, &art_file) )
@@ -287,9 +288,10 @@ check_for_album_file(char * dir, const char * path)
 		if( imsrc )
 			goto found_file;
 	}
-	sprintf(file, "%s", path);
-	strip_ext(file);
-	strcat(file, ".jpg");
+	snprintf(file, sizeof(file), "%s", path);
+	art_file = strrchr(file, '.');
+	if( art_file )
+		strcpy(art_file, ".jpg");
 	if( access(file, R_OK) == 0 )
 	{
 		if( art_cache_exists(file, &art_file) )
@@ -303,13 +305,12 @@ check_for_album_file(char * dir, const char * path)
 	/* Then fall back to possible generic cover art file names */
 	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
 	{
-		sprintf(file, "%s/%s", dir, album_art_name->name);
+		snprintf(file, sizeof(file), "%s/%s", dir, album_art_name->name);
 		if( access(file, R_OK) == 0 )
 		{
 			if( art_cache_exists(file, &art_file) )
 			{
 existing_file:
-				free(file);
 				return art_file;
 			}
 			free(art_file);
@@ -320,16 +321,13 @@ found_file:
 			width = imsrc->width;
 			height = imsrc->height;
 			if( width > 160 || height > 160 )
-			{
-				art_file = file;
-				file = save_resized_album_art(imsrc, art_file);
-				free(art_file);
-			}
+				art_file = save_resized_album_art(imsrc, file);
+			else
+				art_file = strdup(file);
 			image_free(imsrc);
-			return(file);
+			return(art_file);
 		}
 	}
-	free(file);
 	return NULL;
 }
 
@@ -341,10 +339,23 @@ find_album_art(const char * path, const char * image_data, int image_size)
 	char ** result;
 	int cols, rows;
 	sqlite_int64 ret = 0;
-	char * mypath = strdup(path);
+	char * mypath;
+	const char * dir;
+	struct stat st;
+
+	if( stat(path, &st) == 0 && S_ISDIR(st.st_mode) )
+	{
+		mypath = NULL;
+		dir = path;
+	}
+	else
+	{
+		mypath = strdup(path);
+		dir = dirname(mypath);
+	}
 
 	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
-	    (album_art = check_for_album_file(dirname(mypath), path)) )
+	    (album_art = check_for_album_file(dir, path)) )
 	{
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
 		if( (sql_get_table(db, sql, &result, &rows, &cols) == SQLITE_OK) && rows )
@@ -359,8 +370,7 @@ find_album_art(const char * path, const char * image_data, int image_size)
 		sqlite3_free_table(result);
 		sqlite3_free(sql);
 	}
-	if( album_art )
-		free(album_art);
+	free(album_art);
 	free(mypath);
 
 	return ret;

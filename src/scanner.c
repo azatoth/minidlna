@@ -43,6 +43,7 @@
 #include "utils.h"
 #include "sql.h"
 #include "scanner.h"
+#include "albumart.h"
 #include "log.h"
 
 int valid_cache = 0;
@@ -109,7 +110,7 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 		}
 		if( !detailID )
 		{
-			detailID = GetFolderMetadata(item, NULL, artist, genre, album_art);
+			detailID = GetFolderMetadata(item, NULL, artist, genre, (album_art ? strtoll(album_art, NULL, 10) : 0));
 		}
 		ret = sql_exec(db, "INSERT into OBJECTS"
 		                   " (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
@@ -442,7 +443,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 		return 1;
 	}
 
-	detailID = GetFolderMetadata(name, path, NULL, NULL, NULL);
+	detailID = GetFolderMetadata(name, path, NULL, NULL, find_album_art(path, NULL, 0));
 	sql_exec(db, "INSERT into OBJECTS"
 	             " (OBJECT_ID, PARENT_ID, REF_ID, DETAIL_ID, CLASS, NAME) "
 	             "VALUES"
@@ -608,6 +609,12 @@ CreateDatabase(void)
 					")");
 	if( ret != SQLITE_OK )
 		goto sql_failed;
+	ret = sql_exec(db, "CREATE TABLE BOOKMARKS ("
+					"ID INTEGER PRIMARY KEY, "
+					"SEC INTEGER"
+					")");
+	if( ret != SQLITE_OK )
+		goto sql_failed;
 	ret = sql_exec(db, "CREATE TABLE PLAYLISTS ("
 					"ID INTEGER PRIMARY KEY AUTOINCREMENT, "
 					"NAME TEXT NOT NULL, "
@@ -631,7 +638,7 @@ CreateDatabase(void)
 		ret = sql_exec(db, "INSERT into OBJECTS (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME)"
 		                   " values "
 		                   "('%s', '%s', %lld, 'container.storageFolder', '%q')",
-		                   containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL, NULL, NULL, NULL), containers[i+2]);
+		                   containers[i], containers[i+1], GetFolderMetadata(containers[i+2], NULL, NULL, NULL, 0), containers[i+2]);
 		if( ret != SQLITE_OK )
 			goto sql_failed;
 	}
