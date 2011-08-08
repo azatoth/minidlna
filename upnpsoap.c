@@ -188,6 +188,7 @@ GetSearchCapabilities(struct upnphttp * h, const char * action)
 		"<u:%sResponse xmlns:u=\"%s\">"
 		"<SearchCaps>"
 		  "dc:creator,"
+		  "dc:date,"
 		  "dc:title,"
 		  "upnp:album,"
 		  "upnp:actor,"
@@ -1275,10 +1276,13 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	{
 		SearchCriteria = modifyString(SearchCriteria, "&quot;", "\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&apos;", "'", 0);
+		SearchCriteria = modifyString(SearchCriteria, "&lt;", "<", 0);
+		SearchCriteria = modifyString(SearchCriteria, "&gt;", ">", 0);
 		SearchCriteria = modifyString(SearchCriteria, "\\\"", "\"\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
 		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "like", 1);
 		SearchCriteria = modifyString(SearchCriteria, "contains", "like", 2);
+		SearchCriteria = modifyString(SearchCriteria, "dc:date", "d.DATE", 0);
 		SearchCriteria = modifyString(SearchCriteria, "dc:title", "d.TITLE", 0);
 		SearchCriteria = modifyString(SearchCriteria, "dc:creator", "d.CREATOR", 0);
 		SearchCriteria = modifyString(SearchCriteria, "upnp:class", "o.CLASS", 0);
