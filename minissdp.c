@@ -469,6 +469,7 @@ close:
 			}
 		}
 	}
+	ClearNameValueList(&xml);
 	if( !type )
 		return;
 	client = SearchClientCache(dest.sin_addr, 1);
