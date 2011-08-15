@@ -756,7 +756,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		if( date && (passed_args->filter & FILTER_DC_DATE) ) {
 			ret = strcatf(str, "&lt;dc:date&gt;%s&lt;/dc:date&gt;", date);
 		}
-		if( passed_args->filter & FILTER_SEC_CAPTION_INFO_EX) {
+		if( (passed_args->flags & FLAG_SAMSUNG) && (passed_args->filter & FILTER_SEC_CAPTION_INFO_EX) ) {
 			/* Get bookmark */
 			ret = strcatf(str, "&lt;sec:dcmInfo&gt;CREATIONDATE=0,FOLDER=%s,BM=%d&lt;/sec:dcmInfo&gt;",
 			              title, sql_get_int_field(db, "SELECT SEC from BOOKMARKS where ID = '%s'", detailID));
