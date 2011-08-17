@@ -38,7 +38,7 @@ extern "C" {
 struct NameValue {
     LIST_ENTRY(NameValue) entries;
     char name[64];
-    char value[512];
+    char value[];
 };
 
 struct NameValueParserData {
