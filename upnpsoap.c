@@ -605,7 +605,10 @@ add_res(char *size, char *duration, char *bitrate, char *sampleFrequency,
 		strcatf(args->str, "duration=\"%s\" ", duration);
 	}
 	if( bitrate && (args->filter & FILTER_RES_BITRATE) ) {
-		strcatf(args->str, "bitrate=\"%s\" ", bitrate);
+		int br = atoi(bitrate);
+		if(args->flags & FLAG_MS_PFS)
+			br /= 8;
+		strcatf(args->str, "bitrate=\"%d\" ", br);
 	}
 	if( sampleFrequency && (args->filter & FILTER_RES_SAMPLEFREQUENCY) ) {
 		strcatf(args->str, "sampleFrequency=\"%s\" ", sampleFrequency);
@@ -735,6 +738,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 				if( passed_args->flags & FLAG_MIME_FLAC_FLAC )
 				{
 					strcpy(mime+6, "flac");
+				}
+			}
+			else if( strcmp(mime+6, "x-wav") == 0 )
+			{
+				if( passed_args->flags & FLAG_MIME_WAV_WAV )
+				{
+					strcpy(mime+6, "wav");
 				}
 			}
 		}

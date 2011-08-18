@@ -81,6 +81,7 @@ enum client_types {
 	ENetgearEVA2000,
 	ESamsungSeriesA,
 	ESamsungSeriesB,
+	EMarantzDMP,
 	EStandardDLNA150 = 100
 };
 
