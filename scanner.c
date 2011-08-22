@@ -779,7 +779,7 @@ ScanDirectory(const char * dir, const char * parent, enum media_types dir_type)
 			sprintf(parent_id, "%s$%X", (parent ? parent:""), i+startID);
 			ScanDirectory(full_path, parent_id, dir_type);
 		}
-		else if( type == TYPE_FILE )
+		else if( type == TYPE_FILE && (access(full_path, R_OK|X_OK) == 0) )
 		{
 			if( insert_file(name, full_path, (parent ? parent:""), i+startID) == 0 )
 				fileno++;
