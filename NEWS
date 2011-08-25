@@ -1,10 +1,11 @@
-1.0.22 - Released 00-Month-0000
+1.0.22 - Released 24-Aug-2011
 --------------------------------
 - Add bookmark support for some Samsung TV's.
 - Fix a memory leak when certain model Samsung TV's or Roku devices are on the network.
 - Fix detection of Samsung Series D models.
 - Add WAV MIME workaround for Marantz Receivers and Roku SoundBridge.
 - Fix bitrate displayed on Microsoft PFS devices.
+- Fix a scanner crash when trying to scan image files with no read access.
 
 1.0.21 - Released 18-July-2011
 --------------------------------

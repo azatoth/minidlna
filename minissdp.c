@@ -1,5 +1,7 @@
-/* $Id$ */
-/* MiniUPnP project
+/* MiniDLNA media server
+ * This file is part of MiniDLNA.
+ *
+ * The code herein is based on the MiniUPnP Project.
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
  * Copyright (c) 2006, Thomas Bernard
