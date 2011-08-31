@@ -304,10 +304,12 @@ intervening space) by either an integer or the keyword "infinite". */
 				}
 				else if(strstrc(p, "SEC_HHP_", '\r'))
 				{
-					h->req_client = ESamsungTV;
+					h->req_client = ESamsungSeriesC;
 					h->reqflags |= FLAG_SAMSUNG;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_NO_RESIZE;
+					if(strstrc(p, "SEC_HHP_TV", '\r'))
+						h->reqflags |= FLAG_SAMSUNG_TV;
 				}
 				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)
 				{
@@ -843,6 +845,10 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 				snprintf(friendly_name+i, FRIENDLYNAME_MAX_LEN-i, ": 1");
 				sendXMLdesc(h, genRootDesc);
 				friendly_name[i] = '\0';
+			}
+			else if( h->reqflags & FLAG_SAMSUNG_TV )
+			{
+				sendXMLdesc(h, genRootDescSamsung);
 			}
 			else
 			{

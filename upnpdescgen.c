@@ -1,4 +1,4 @@
-/* $Id: upnpdescgen.c,v 1.18 2011/05/02 23:50:52 jmaggard Exp $ */
+/* $Id$ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *
@@ -675,14 +675,36 @@ genRootDesc(int * len)
 {
 	char * str;
 	int tmplen;
-	tmplen = 2048;
+	tmplen = 2560;
 	str = (char *)malloc(tmplen);
 	if(str == NULL)
 		return NULL;
 	* len = strlen(xmlver);
-	/*strcpy(str, xmlver); */
 	memcpy(str, xmlver, *len + 1);
 	str = genXML(str, len, &tmplen, rootDesc);
+	str[*len] = '\0';
+	return str;
+}
+
+char *
+genRootDescSamsung(int * len)
+{
+	char * str;
+	int tmplen;
+	struct XMLElt samsungRootDesc[sizeof(rootDesc)/sizeof(struct XMLElt)];
+	tmplen = 2560;
+	str = (char *)malloc(tmplen);
+	if(str == NULL)
+		return NULL;
+	* len = strlen(xmlver);
+	memcpy(str, xmlver, *len + 1);
+	/* Replace the optional modelURL and manufacturerURL fields with Samsung foo */
+	memcpy(&samsungRootDesc, &rootDesc, sizeof(rootDesc));
+	samsungRootDesc[8+PNPX].eltname = "/sec:ProductCap";
+	samsungRootDesc[8+PNPX].data = "smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec";
+	samsungRootDesc[12+PNPX].eltname = "/sec:X_ProductCap";
+	samsungRootDesc[12+PNPX].data = "smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec";
+	str = genXML(str, len, &tmplen, samsungRootDesc);
 	str[*len] = '\0';
 	return str;
 }

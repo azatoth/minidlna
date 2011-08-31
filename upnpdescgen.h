@@ -74,6 +74,9 @@ struct stateVar {
 char *
 genRootDesc(int * len);
 
+char *
+genRootDescSamsung(int * len);
+
 /* for the two following functions */
 char *
 genContentDirectory(int * len);

@@ -68,7 +68,7 @@ enum file_types {
 enum client_types {
 	EXbox = 1,
 	EPS3,
-	ESamsungTV,
+	ESamsungSeriesC,
 	EDenonReceiver,
 	EFreeBox,
 	EPopcornHour,
