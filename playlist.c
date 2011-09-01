@@ -89,7 +89,7 @@ fill_playlists()
 {
 	int rows, i, found, len;
 	char **result;
-	char *plpath, *plname, *fname;
+	char *plpath, *plname, *fname, *last_dir;
 	char class[] = "playlistContainer";
 	struct song_metadata plist;
 	struct stat file;
@@ -111,6 +111,7 @@ fill_playlists()
 		plID = strtoll(result[i], NULL, 10);
 		plname = result[++i];
 		plpath = result[++i];
+		last_dir = NULL;
 
 		strncpy(type, strrchr(plpath, '.')+1, 4);
 
@@ -141,6 +142,18 @@ fill_playlists()
        				freetags(&plist);
 				continue;
 			}
+			if( last_dir )
+			{
+				fname = basename(plist.path);
+				detailID = sql_get_int_field(db, "SELECT ID from DETAILS where PATH = '%s/%s'", last_dir, fname);
+				if( detailID <= 0 )
+				{
+					sqlite3_free(last_dir);
+					last_dir = NULL;
+				}
+				else
+					goto found;
+			}
 			
 			fname = plist.path;
 			DPRINTF(E_DEBUG, L_SCANNER, "%d: checking database for %s\n", plist.track, plist.path);
@@ -164,6 +177,7 @@ retry:
 			detailID = sql_get_int_field(db, "SELECT ID from DETAILS where PATH like '%%%q'", fname);
 			if( detailID > 0 )
 			{
+found:
 				DPRINTF(E_DEBUG, L_SCANNER, "+ %s found in db\n", fname);
 				sql_exec(db, "INSERT into OBJECTS"
 				             " (OBJECT_ID, PARENT_ID, CLASS, DETAIL_ID, NAME, REF_ID) "
@@ -173,6 +187,13 @@ retry:
 				             MUSIC_PLIST_ID, plID, plist.track,
 				             MUSIC_PLIST_ID, plID,
 				             detailID);
+				if( !last_dir )
+				{
+					last_dir = sql_get_text_field(db, "SELECT PATH from DETAILS where ID = %lld", detailID);
+					fname = strrchr(last_dir, '/');
+					if( fname )
+						*fname = '\0';
+				}
 				found++;
 			}
 			else
@@ -190,6 +211,11 @@ retry:
 				}
 			}
        			freetags(&plist);
+		}
+		if( last_dir )
+		{
+			sqlite3_free(last_dir);
+			last_dir = NULL;
 		}
 		sql_exec(db, "UPDATE PLAYLISTS set FOUND = %d where ID = %lld", found, plID);
 	}
