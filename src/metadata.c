@@ -592,19 +592,22 @@ no_exifdata:
 	if( image_get_jpeg_resolution(path, &width, &height) != 0 || !width || !height )
 	{
 		infile = fopen(path, "r");
-		cinfo.err = jpeg_std_error(&jerr);
-		jerr.error_exit = libjpeg_error_handler;
-		jpeg_create_decompress(&cinfo);
-		if( setjmp(setjmp_buffer) )
-			goto error;
-		jpeg_stdio_src(&cinfo, infile);
-		jpeg_read_header(&cinfo, TRUE);
-		jpeg_start_decompress(&cinfo);
-		width = cinfo.output_width;
-		height = cinfo.output_height;
-		error:
-		jpeg_destroy_decompress(&cinfo);
-		fclose(infile);
+		if( infile )
+		{
+			cinfo.err = jpeg_std_error(&jerr);
+			jerr.error_exit = libjpeg_error_handler;
+			jpeg_create_decompress(&cinfo);
+			if( setjmp(setjmp_buffer) )
+				goto error;
+			jpeg_stdio_src(&cinfo, infile);
+			jpeg_read_header(&cinfo, TRUE);
+			jpeg_start_decompress(&cinfo);
+			width = cinfo.output_width;
+			height = cinfo.output_height;
+			error:
+			jpeg_destroy_decompress(&cinfo);
+			fclose(infile);
+		}
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * resolution: %dx%d\n", width, height);
 

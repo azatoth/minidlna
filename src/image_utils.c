@@ -482,7 +482,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 	if(cinfo.output_components == 3)
 	{
 		ofs = 0;
-		if((ptr = (unsigned char *)malloc(w * 3 * cinfo.rec_outbuf_height + 8)) == NULL)
+		if((ptr = (unsigned char *)malloc(w * 3 * cinfo.rec_outbuf_height + 16)) == NULL)
 		{
 			DPRINTF(E_WARN, L_METADATA, "malloc failed\n");
 			image_free(vimage);

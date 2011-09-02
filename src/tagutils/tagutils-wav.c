@@ -148,7 +148,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 			if(len > 65536)
 				goto next_block;
 
-			tags = malloc(len);
+			tags = malloc(len+1);
 			if(!tags)
 				goto next_block;
 
@@ -158,6 +158,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 				free(tags);
 				goto next_block;
 			}
+			tags[len] = '\0';
 
 			off = 4;
 			p = tags + off;
@@ -165,7 +166,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 			{
 				taglen = GET_WAV_INT32(p + 4);
 
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "%.*s: %.*s\n", 4, p, taglen, p + 8);
+				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "%.*s: %.*s (%d)\n", 4, p, taglen, p + 8, taglen);
 				m = NULL;
 				if (taglen > 2048) {
 					DPRINTF(E_WARN, L_SCANNER, "Ignoring long tag [%.*s] in %s\n",

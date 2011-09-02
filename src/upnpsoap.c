@@ -607,7 +607,10 @@ add_res(char *size, char *duration, char *bitrate, char *sampleFrequency,
 		strcatf(args->str, "duration=\"%s\" ", duration);
 	}
 	if( bitrate && (args->filter & FILTER_RES_BITRATE) ) {
-		strcatf(args->str, "bitrate=\"%s\" ", bitrate);
+		int br = atoi(bitrate);
+		if(args->flags & FLAG_MS_PFS)
+			br /= 8;
+		strcatf(args->str, "bitrate=\"%d\" ", br);
 	}
 	if( sampleFrequency && (args->filter & FILTER_RES_SAMPLEFREQUENCY) ) {
 		strcatf(args->str, "sampleFrequency=\"%s\" ", sampleFrequency);
@@ -737,6 +740,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 				if( passed_args->flags & FLAG_MIME_FLAC_FLAC )
 				{
 					strcpy(mime+6, "flac");
+				}
+			}
+			else if( strcmp(mime+6, "x-wav") == 0 )
+			{
+				if( passed_args->flags & FLAG_MIME_WAV_WAV )
+				{
+					strcpy(mime+6, "wav");
 				}
 			}
 		}
@@ -985,22 +995,28 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			"<Result>"
 			"&lt;DIDL-Lite"
 			CONTENT_DIRECTORY_SCHEMAS;
-	char *zErrMsg = 0;
+	char *zErrMsg = NULL;
 	char *sql, *ptr;
-	int ret;
 	struct Response args;
 	struct string_s str;
 	int totalMatches;
+	int ret;
+	char *ObjectID, *Filter, *BrowseFlag, *SortCriteria;
+	char *orderBy = NULL;
 	struct NameValueParserData data;
-
-	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
-	char * ObjectID = GetValueFromNameValueList(&data, "ObjectID");
-	char * Filter = GetValueFromNameValueList(&data, "Filter");
-	char * BrowseFlag = GetValueFromNameValueList(&data, "BrowseFlag");
-	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
-	char * orderBy = NULL;
 	int RequestedCount = 0;
 	int StartingIndex = 0;
+
+	memset(&args, 0, sizeof(args));
+	memset(&str, 0, sizeof(str));
+
+	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
+
+	ObjectID = GetValueFromNameValueList(&data, "ObjectID");
+	Filter = GetValueFromNameValueList(&data, "Filter");
+	BrowseFlag = GetValueFromNameValueList(&data, "BrowseFlag");
+	SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
+
 	if( (ptr = GetValueFromNameValueList(&data, "RequestedCount")) )
 		RequestedCount = atoi(ptr);
 	if( !RequestedCount )
@@ -1017,8 +1033,6 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		SoapError(h, 701, "No such object error");
 		goto browse_error;
 	}
-	memset(&args, 0, sizeof(args));
-	memset(&str, 0, sizeof(str));
 
 	str.data = malloc(DEFAULT_RESP_SIZE);
 	str.size = DEFAULT_RESP_SIZE;
@@ -1173,24 +1187,29 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			"<Result>"
 			"&lt;DIDL-Lite"
 			CONTENT_DIRECTORY_SCHEMAS;
-	char *zErrMsg = 0;
+	char *zErrMsg = NULL;
 	char *sql, *ptr;
-	char **result;
 	struct Response args;
 	struct string_s str;
-	int totalMatches = 0;
+	int totalMatches;
 	int ret;
-
-	struct NameValueParserData data;
-	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
-	char * ContainerID = GetValueFromNameValueList(&data, "ContainerID");
-	char * Filter = GetValueFromNameValueList(&data, "Filter");
-	char * SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
-	char * SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
-	char * orderBy = NULL;
+	char *ContainerID, *Filter, *SearchCriteria, *SortCriteria;
+	char *newSearchCriteria = NULL, *orderBy = NULL;
 	char groupBy[] = "group by DETAIL_ID";
+	struct NameValueParserData data;
 	int RequestedCount = 0;
 	int StartingIndex = 0;
+
+	memset(&args, 0, sizeof(args));
+	memset(&str, 0, sizeof(str));
+
+	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
+
+	ContainerID = GetValueFromNameValueList(&data, "ContainerID");
+	Filter = GetValueFromNameValueList(&data, "Filter");
+	SearchCriteria = GetValueFromNameValueList(&data, "SearchCriteria");
+	SortCriteria = GetValueFromNameValueList(&data, "SortCriteria");
+
 	if( (ptr = GetValueFromNameValueList(&data, "RequestedCount")) )
 		RequestedCount = atoi(ptr);
 	if( !RequestedCount )
@@ -1205,8 +1224,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 			goto search_error;
 		}
 	}
-	memset(&args, 0, sizeof(args));
-	memset(&str, 0, sizeof(str));
 
 	str.data = malloc(DEFAULT_RESP_SIZE);
 	str.size = DEFAULT_RESP_SIZE;
@@ -1310,22 +1327,14 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Translated SearchCriteria: %s\n", SearchCriteria);
 
-	sql = sqlite3_mprintf("SELECT (select count(distinct DETAIL_ID)"
-	                      " from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
-	                      " where (OBJECT_ID glob '%s$*') and (%s))"
-	                      " + "
-	                      "(select count(*) from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
-	                      " where (OBJECT_ID = '%s') and (%s))",
-	                      ContainerID, SearchCriteria, ContainerID, SearchCriteria);
-	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "Count SQL: %s\n", sql);
-	ret = sql_get_table(db, sql, &result, NULL, NULL);
-	sqlite3_free(sql);
-	if( ret == SQLITE_OK )
-	{
-		totalMatches = atoi(result[1]);
-		sqlite3_free_table(result);
-	}
-	else
+	totalMatches = sql_get_int_field(db, "SELECT (select count(distinct DETAIL_ID)"
+	                                     " from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	                                     " where (OBJECT_ID glob '%s$*') and (%s))"
+	                                     " + "
+	                                     "(select count(*) from OBJECTS o left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	                                     " where (OBJECT_ID = '%s') and (%s))",
+	                                     ContainerID, SearchCriteria, ContainerID, SearchCriteria);
+	if( totalMatches < 0 )
 	{
 		/* Must be invalid SQL, so most likely bad or unhandled search criteria. */
 		SoapError(h, 708, "Unsupported or invalid search criteria");
