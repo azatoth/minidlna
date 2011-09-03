@@ -828,8 +828,12 @@ start_scanner()
 	 * client that uses UPnPSearch on large containers). */
 	sql_exec(db, "create INDEX IDX_SEARCH_OPT ON OBJECTS(OBJECT_ID, CLASS, DETAIL_ID);");
 
-	fill_playlists();
+	if( GETFLAG(NO_PLAYLIST_MASK) )
+		DPRINTF(E_WARN, L_SCANNER, "Playlist creation disabled\n");	  
+	else
+		fill_playlists();
 
+	DPRINTF(E_DEBUG, L_SCANNER, "Initial file scan completed\n", DB_VERSION);
 	//JM: Set up a db version number, so we know if we need to rebuild due to a new structure.
 	sql_exec(db, "pragma user_version = %d;", DB_VERSION);
 }
