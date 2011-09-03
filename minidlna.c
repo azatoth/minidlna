@@ -789,14 +789,7 @@ init(int argc, char * * argv)
 	}
 	else
 	{
-#ifdef USE_DAEMON
-		if(daemon(0, 0)<0) {
-			perror("daemon()");
-		}
-		pid = getpid();
-#else
 		pid = daemonize();
-#endif
 		#ifdef READYNAS
 		log_init("/var/log/upnp-av.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
 		#else

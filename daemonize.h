@@ -31,13 +31,11 @@
 
 #include "config.h"
 
-#ifndef USE_DAEMON
 /* daemonize()
  * "fork" to background, detach from terminal, etc... 
  * returns: pid of the daemon, exits upon failure */
 int
 daemonize(void);
-#endif
 
 /* writepidfile()
  * write the pid to a file */
