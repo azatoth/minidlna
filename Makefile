@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.31 2011/04/21 08:50:44 jmaggard Exp $
+# $Id$
 # MiniDLNA project
 # http://sourceforge.net/projects/minidlna/
 # (c) 2008-2009 Justin Maggard
@@ -59,6 +59,8 @@ distclean: clean
 install:	minidlna
 	$(INSTALL) -d $(SBININSTALLDIR)
 	$(INSTALL) minidlna $(SBININSTALLDIR)
+
+install-conf:
 	$(INSTALL) -d $(ETCINSTALLDIR)
 	$(INSTALL) --mode=0644 minidlna.conf $(ETCINSTALLDIR)
 
