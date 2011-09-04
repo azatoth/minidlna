@@ -147,7 +147,7 @@ fill_playlists()
 			if( last_dir )
 			{
 				fname = basename(plist.path);
-				detailID = sql_get_int_field(db, "SELECT ID from DETAILS where PATH = '%s/%s'", last_dir, fname);
+				detailID = sql_get_int_field(db, "SELECT ID from DETAILS where PATH = '%q/%q'", last_dir, fname);
 				if( detailID <= 0 )
 				{
 					sqlite3_free(last_dir);
