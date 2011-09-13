@@ -279,9 +279,9 @@ int
 inotify_insert_file(char * name, const char * path)
 {
 	int len;
-	char * last_dir;
-	char * path_buf;
-	char * base_name;
+	char * last_dir = NULL;
+	char * path_buf = NULL;
+	char * base_name = NULL;
 	char * base_copy;
 	char * parent_buf = NULL;
 	char * id = NULL;
@@ -356,8 +356,13 @@ inotify_insert_file(char * name, const char * path)
 	len = strlen(path)+1;
 	if( !(path_buf = malloc(len)) ||
 	    !(last_dir = malloc(len)) ||
-	    !(base_name = malloc(len)) )
+	    !(base_name = malloc(len)) ) {
+		free(path_buf);
+		free(last_dir);
+		free(base_name);
 		return -1;
+	}
+
 	base_copy = base_name;
 	while( depth )
 	{
