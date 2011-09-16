@@ -340,10 +340,7 @@ static void upnp_event_prepare(struct upnp_event_notify * obj)
 	                       obj->sub->uuid, obj->sub->seq,
 	                       l, xml);
 	obj->buffersize = obj->tosend;
-	if(xml) {
-		free(xml);
-		xml = NULL;
-	}
+	free(xml);
 	DPRINTF(E_DEBUG, L_HTTP, "Sending UPnP Event response:\n%s\n", obj->buffer);
 	obj->state = ESending;
 }
@@ -468,9 +465,7 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 				free(obj->sub);
 			}
 #endif
-			if(obj->buffer) {
-				free(obj->buffer);
-			}
+			free(obj->buffer);
 			LIST_REMOVE(obj, entries);
 			free(obj);
 		}

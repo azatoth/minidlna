@@ -274,8 +274,9 @@ rcvBeaconMessage(char * beacon)
 
 	if( strcasecmp(method, "broadcast") == 0 )
 	{
-		DPRINTF(E_DEBUG, L_TIVO, "Received new beacon: machine(%s) platform(%s) services(%s)\n", 
+		DPRINTF(E_DEBUG, L_TIVO, "Received new beacon: machine(%s/%s) platform(%s) services(%s)\n", 
 		         machine ? machine : "-",
+		         identity ? identity : "-",
 		         platform ? platform : "-", 
 		         services ? services : "-" );
 		return 1;

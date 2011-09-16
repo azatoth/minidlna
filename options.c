@@ -76,7 +76,7 @@ readoptionsfile(const char * fname)
 	int i;
 	enum upnpconfigoptions id;
 
-	if(!fname || (strlen(fname) == 0))
+	if(!fname || *fname == '\0')
 		return -1;
 
 	memset(buffer, 0, sizeof(buffer));
@@ -155,8 +155,17 @@ readoptionsfile(const char * fname)
 		}
 		else
 		{
-			num_options += 1;
-			ary_options = (struct option *) realloc(ary_options, num_options * sizeof(struct option));
+			num_options++;
+			t = realloc(ary_options, num_options * sizeof(struct option));
+			if(!t)
+			{
+				fprintf(stderr, "memory allocation error: %s=%s\n",
+					name, value);
+				num_options--;
+				continue;
+			}
+			else
+				ary_options = (struct option *)t;
 
 			ary_options[num_options-1].id = id;
 			strncpy(ary_options[num_options-1].value, value, MAX_OPTION_VALUE_LEN);

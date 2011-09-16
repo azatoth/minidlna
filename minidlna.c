@@ -53,14 +53,15 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/file.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <sys/file.h>
-#include <sys/time.h>
 #include <time.h>
 #include <signal.h>
-#include <sys/param.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pwd.h>
@@ -836,7 +837,7 @@ init(int argc, char * * argv)
 	}
 
 	/* set signal handler */
-	signal(SIGCLD, SIG_IGN);
+	signal(SIGCHLD, SIG_IGN);
 	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = sigterm;
 	if (sigaction(SIGTERM, &sa, NULL))
@@ -922,7 +923,7 @@ main(int argc, char * * argv)
 	{
 		if( i < 0 )
 		{
-			DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
+			DPRINTF(E_WARN, L_GENERAL, "Creating new database at %s/files.db\n", db_path);
 		}
 		else
 		{
@@ -970,12 +971,13 @@ main(int argc, char * * argv)
 		start_scanner();
 #endif
 	}
+#ifdef HAVE_INOTIFY
 	if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
 	    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
 	{
 		DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 	}
-
+#endif
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
 	if(sudp < 0)
 	{

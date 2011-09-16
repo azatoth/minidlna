@@ -19,7 +19,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
-#include <linux/limits.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -192,6 +192,11 @@ make_dir(char * path, mode_t mode)
 
 	do {
 		c = '\0';
+
+		/* Before we do anything, skip leading /'s, so we don't bother
+		 * trying to create /. */
+		while (*s == '/')
+			++s;
 
 		/* Bypass leading non-'/'s and then subsequent '/'s. */
 		while (*s) {

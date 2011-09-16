@@ -74,8 +74,7 @@ decodeString(char * string, int inplace)
 	}
 	if( inplace )
 	{
-		if( ns )
-			free(ns);
+		free(ns);
 		return string;
 	}
 	else

@@ -54,19 +54,18 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <arpa/inet.h>
+
 #include "config.h"
 #include "upnphttp.h"
 #include "upnpdescgen.h"
 #include "minidlnapath.h"
 #include "upnpsoap.h"
 #include "upnpevents.h"
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/sendfile.h>
-#include <arpa/inet.h>
 
 #include "upnpglobalvars.h"
 #include "utils.h"
@@ -79,6 +78,9 @@
 #include "tivo_utils.h"
 #include "tivo_commands.h"
 #endif
+
+#include "sendfile.h"
+
 //#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 #define MIN_BUFFER_SIZE 65536
@@ -1172,14 +1174,17 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 	off_t send_size;
 	off_t ret;
 	char *buf = NULL;
+#if HAVE_SENDFILE
 	int try_sendfile = 1;
+#endif
 
 	while( offset < end_offset )
 	{
+#if HAVE_SENDFILE
 		if( try_sendfile )
 		{
 			send_size = ( ((end_offset - offset) < MAX_BUFFER_SIZE) ? (end_offset - offset + 1) : MAX_BUFFER_SIZE);
-			ret = sendfile(h->socket, sendfd, &offset, send_size);
+			ret = sys_sendfile(h->socket, sendfd, &offset, send_size);
 			if( ret == -1 )
 			{
 				DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
@@ -1195,6 +1200,7 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 				continue;
 			}
 		}
+#endif
 		/* Fall back to regular I/O */
 		if( !buf )
 			buf = malloc(MIN_BUFFER_SIZE);

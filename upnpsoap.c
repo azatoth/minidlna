@@ -353,7 +353,7 @@ static u_int32_t
 set_filter_flags(char * filter, struct upnphttp *h)
 {
 	char *item, *saveptr = NULL;
-	u_int32_t flags = 0;
+	uint32_t flags = 0;
 
 	if( !filter || (strlen(filter) <= 1) )
 		return 0xFFFFFFFF;

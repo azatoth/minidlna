@@ -22,6 +22,7 @@
 #include <string.h>
 #include <libgen.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include "tivo_utils.h"
 #include "upnpglobalvars.h"

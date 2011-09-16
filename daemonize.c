@@ -94,7 +94,7 @@ writepidfile(const char * fname, int pid)
 	int pidstringlen;
 	int pidfile;
 
-	if(!fname || (strlen(fname) == 0))
+	if(!fname || *fname == '\0')
 		return -1;
 	
 	if( (pidfile = open(fname, O_WRONLY|O_CREAT, 0644)) < 0)
@@ -129,7 +129,7 @@ checkforrunning(const char * fname)
 	int pidfile;
 	pid_t pid;
 
-	if(!fname || (strlen(fname) == 0))
+	if(!fname || *fname == '\0')
 		return -1;
 
 	if( (pidfile = open(fname, O_RDONLY)) < 0)

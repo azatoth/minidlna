@@ -26,6 +26,7 @@
  * The resize functions come from the resize_image project, at http://www.golac.fr/Image-Resizer
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +34,11 @@
 #include <sys/types.h>
 #include <setjmp.h>
 #include <jpeglib.h>
+#ifdef HAVE_MACHINE_ENDIAN_H
+#include <machine/endian.h>
+#else
 #include <endian.h>
+#endif
 
 #include "upnpreplyparse.h"
 #include "image_utils.h"
@@ -380,8 +385,7 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 		}
 	}
 	fclose(img);
-	if( data )
-		free(data);
+	free(data);
 	return ret;
 }
 
@@ -463,8 +467,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 			fclose(file);
 		if( vimage )
 		{
-			if( vimage->buf )
-				free(vimage->buf);
+			free(vimage->buf);
 			free(vimage);
 		}
 		return NULL;

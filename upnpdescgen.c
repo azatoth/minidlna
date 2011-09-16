@@ -584,7 +584,7 @@ static char *
 genXML(char * str, int * len, int * tmplen,
                    const struct XMLElt * p)
 {
-	u_int16_t i, j, k;
+	uint16_t i, j, k;
 	int top;
 	const char * eltname, *s;
 	char c;

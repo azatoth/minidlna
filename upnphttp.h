@@ -119,6 +119,10 @@ struct upnphttp {
 #define FLAG_FREE_OBJECT_ID     0x00000001
 #define FLAG_ROOT_CONTAINER     0x00000002
 
+#ifndef MSG_MORE
+#define MSG_MORE 0
+#endif
+
 /* New_upnphttp() */
 struct upnphttp *
 New_upnphttp(int);
