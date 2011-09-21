@@ -89,7 +89,6 @@ AC_COMPILE_IFELSE(
 
 ################################################################################################################
 ### Library checks
-#AM_NLS
 AC_CHECK_LIB([dl], [dlopen], [LIBDL_LIBS="-ldl"],)
 AC_SUBST(LIBDL_LIBS)
 
@@ -466,11 +465,26 @@ AC_CHECK_LIB(vorbisfile, vorbis_comment_query,
 ################################################################################################################
 ### Header checks
 
-#AC_HEADER_CHECK(libintl.h, AC_DEFINE([ENABLE_NLS], [1], [Define to use NLS]))
-AC_HEADER_CHECK(inotify.h, AC_DEFINE([HAVE_INOTIFY_H], [1], [Define to enable inotify]))
+AC_CHECK_HEADERS([arpa/inet.h asm/unistd.h endian.h machine/endian.h fcntl.h libintl.h locale.h netdb.h netinet/in.h stddef.h stdlib.h string.h sys/file.h sys/inotify.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
 
-# Checks for header files. (From autoscan)
-AC_CHECK_HEADERS([arpa/inet.h endian.h machine/endian.h fcntl.h libintl.h locale.h netdb.h netinet/in.h stddef.h stdlib.h string.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_FUNCS(inotify_init, AC_DEFINE(HAVE_INOTIFY,1,[Whether kernel has inotify support]), [
+    AC_MSG_CHECKING([for __NR_inotify_init syscall])
+    AC_COMPILE_IFELSE(
+         [AC_LANG_PROGRAM(
+             [
+                 #include <asm/unistd.h>
+             ],
+             [
+                 #ifndef __NR_inotify_init
+                 #error
+                 #endif
+             ]
+         )],
+         [
+             AC_MSG_RESULT([yes])
+             AC_DEFINE(HAVE_INOTIFY,1,[Whether kernel has inotify support])
+         ])
+])
 
 ################################################################################################################
 ### Build Options

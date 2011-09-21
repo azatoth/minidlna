@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <poll.h>
-#ifdef HAVE_INOTIFY_H
+#ifdef HAVE_SYS_INOTIFY_H
 #include <sys/inotify.h>
 #else
 #include "linux/inotify.h"
