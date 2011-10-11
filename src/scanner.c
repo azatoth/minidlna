@@ -24,6 +24,7 @@
 #include <locale.h>
 #include <libgen.h>
 #include <inttypes.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -45,6 +46,12 @@
 #include "scanner.h"
 #include "albumart.h"
 #include "log.h"
+
+#if SCANDIR_CONST
+typedef const struct dirent scan_filter;
+#else
+typedef struct dirent scan_filter;
+#endif
 
 int valid_cache = 0;
 
@@ -264,7 +271,7 @@ insert_containers(const char * name, const char *path, const char * refID, const
 			sql_exec(db, "INSERT into OBJECTS"
 			             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 			             "VALUES"
-			             " ('%s$%"PRIX64"', '%s', '%s', '%s', %"PRId64", %Q)",
+			             " ('%s$%llX', '%s', '%s', '%s', %lld, %Q)",
 			             last_album.parentID, last_album.objectID, last_album.parentID, refID, class, detailID, name);
 		}
 		if( artist )
@@ -495,8 +502,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 		strcpy(class, "item.audioItem.musicTrack");
 		detailID = GetAudioMetadata(path, name);
 	}
-	if( orig_name )
-		free(orig_name);
+	free(orig_name);
 	if( !detailID )
 	{
 		DPRINTF(E_WARN, L_SCANNER, "Unsuccessful getting details for %s!\n", path);
@@ -658,7 +664,7 @@ sql_failed:
 }
 
 int
-filter_audio(const struct dirent *d)
+filter_audio(scan_filter *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
@@ -672,7 +678,7 @@ filter_audio(const struct dirent *d)
 }
 
 int
-filter_video(const struct dirent *d)
+filter_video(scan_filter *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
@@ -684,7 +690,7 @@ filter_video(const struct dirent *d)
 }
 
 int
-filter_images(const struct dirent *d)
+filter_images(scan_filter *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
@@ -696,7 +702,7 @@ filter_images(const struct dirent *d)
 }
 
 int
-filter_media(const struct dirent *d)
+filter_media(scan_filter *d)
 {
 	return ( (*d->d_name != '.') &&
 	         ((d->d_type == DT_DIR) ||
@@ -831,8 +837,16 @@ start_scanner()
 	 * client that uses UPnPSearch on large containers). */
 	sql_exec(db, "create INDEX IDX_SEARCH_OPT ON OBJECTS(OBJECT_ID, CLASS, DETAIL_ID);");
 
-	fill_playlists();
+	if( GETFLAG(NO_PLAYLIST_MASK) )
+	{
+		DPRINTF(E_WARN, L_SCANNER, "Playlist creation disabled\n");	  
+	}
+	else
+	{
+		fill_playlists();
+	}
 
+	DPRINTF(E_DEBUG, L_SCANNER, "Initial file scan completed\n", DB_VERSION);
 	//JM: Set up a db version number, so we know if we need to rebuild due to a new structure.
 	sql_exec(db, "pragma user_version = %d;", DB_VERSION);
 }

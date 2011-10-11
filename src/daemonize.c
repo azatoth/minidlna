@@ -43,12 +43,12 @@
 #endif /* HAVE_CONFIG_H */
 #include "log.h"
 
-#ifndef USE_DAEMON
-
 int
 daemonize(void)
 {
-	int pid, i;
+	int pid;
+#ifndef USE_DAEMON
+	int i;
 
 	switch(fork())
 	{
@@ -74,16 +74,20 @@ daemonize(void)
 		dup(i); /* stderr */
 
 		umask(027);
-		chdir("/"); /* chdir to /tmp ? */			
+		chdir("/");
 
-		return pid;
-
+		break;
 	/* parent process */
 	default:
 		exit(0);
 	}
-}
+#else
+	if( daemon(0, 0) < 0 )
+		perror("daemon()");
+	pid = getpid();
 #endif
+	return pid;
+}
 
 int
 writepidfile(const char * fname, int pid)
@@ -92,7 +96,7 @@ writepidfile(const char * fname, int pid)
 	int pidstringlen;
 	int pidfile;
 
-	if(!fname || (strlen(fname) == 0))
+	if(!fname || *fname == '\0')
 		return -1;
 	
 	if( (pidfile = open(fname, O_WRONLY|O_CREAT, 0644)) < 0)
@@ -127,7 +131,7 @@ checkforrunning(const char * fname)
 	int pidfile;
 	pid_t pid;
 
-	if(!fname || (strlen(fname) == 0))
+	if(!fname || *fname == '\0')
 		return -1;
 
 	if( (pidfile = open(fname, O_RDONLY)) < 0)

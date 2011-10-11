@@ -58,15 +58,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/file.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
@@ -371,6 +371,7 @@ init(int argc, char * * argv)
 	int i;
 	int pid;
 	int debug_flag = 0;
+	int verbose_flag = 0;
 	int options_flag = 0;
 	struct sigaction sa;
 	/*const char * logfilename = 0;*/
@@ -382,6 +383,7 @@ init(int argc, char * * argv)
 	char * path;
 	char real_path[PATH_MAX];
 	char ip_addr[INET_ADDRSTRLEN + 3] = {'\0'};
+	char log_str[72] = "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn";
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -689,6 +691,11 @@ init(int argc, char * * argv)
 			break;
 		case 'd':
 			debug_flag = 1;
+		case 'v':
+			verbose_flag = 1;
+			break;
+		case 'L':
+			SETFLAG(NO_PLAYLIST_MASK);
 			break;
 		case 'w':
 			if(i+1 < argc)
@@ -796,7 +803,7 @@ init(int argc, char * * argv)
 	if( (n_lan_addr==0) || (runtime_vars.port<=0) )
 	{
 		fprintf(stderr, "Usage:\n\t"
-		        "%s [-d] [-f config_file]\n"
+		        "%s [-d] [-v] [-f config_file]\n"
 			"\t\t[-a listening_ip] [-p port]\n"
 			/*"[-l logfile] " not functionnal */
 			"\t\t[-s serial] [-m model_number] \n"
@@ -808,33 +815,29 @@ init(int argc, char * * argv)
 			"\t-w sets the presentation url. Default is http address on port 80\n"
 			"\t-h displays this text\n"
 			"\t-R forces a full rescan\n"
+			"\t-L do note create playlists\n"
 			"\t-V print the version number\n",
 		        argv[0], pidfilename);
 		return 1;
 	}
 
+	if( verbose_flag )
+		strcpy(log_str+65, "debug");
 	if(debug_flag)
 	{
 		pid = getpid();
-		log_init(NULL, "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=debug");
+		log_init(NULL, log_str);
 	}
 	else
 	{
-#ifdef USE_DAEMON
-		if(daemon(0, 0)<0) {
-			perror("daemon()");
-		}
-		pid = getpid();
-#else
 		pid = daemonize();
-#endif
 		#ifdef READYNAS
-		log_init("/var/log/upnp-av.log", "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
+		log_init("/var/log/upnp-av.log", log_str);
 		#else
 		if( access(db_path, F_OK) != 0 )
 			make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
 		sprintf(real_path, "%s/minidlna.log", log_path);
-		log_init(real_path, "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn");
+		log_init(real_path, log_str);
 		#endif
 	}
 
@@ -875,7 +878,7 @@ init(int argc, char * * argv)
 
 
 	/* set signal handler */
-	signal(SIGCLD, SIG_IGN);
+	signal(SIGCHLD, SIG_IGN);
 	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = sigterm;
 	if (sigaction(SIGTERM, &sa, NULL))
@@ -961,7 +964,7 @@ main(int argc, char * * argv)
 	{
 		if( i < 0 )
 		{
-			DPRINTF(E_WARN, L_GENERAL, "Creating new database...\n");
+			DPRINTF(E_WARN, L_GENERAL, "Creating new database at %s/files.db\n", db_path);
 		}
 		else
 		{
@@ -1009,12 +1012,13 @@ main(int argc, char * * argv)
 		start_scanner();
 #endif
 	}
+#ifdef HAVE_INOTIFY
 	if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
 	    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
 	{
 		DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
 	}
-
+#endif
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
 	if(sudp < 0)
 	{
