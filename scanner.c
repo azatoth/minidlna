@@ -90,7 +90,7 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 
 	result = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
 	                                " where PARENT_ID = '%s'"
-			                " and NAME = '%q'"
+			                " and NAME like '%q'"
 	                                " and CLASS = 'container.%s' limit 1",
 	                                rootParent, item, class);
 	if( result )
