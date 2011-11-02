@@ -78,6 +78,7 @@ _get_mp3tags(char *file, struct song_metadata *psong)
 		else if(!strcmp(pid3frame->id, "APIC") && !image_size)
 		{
 			if( (strcmp((char*)id3_field_getlatin1(&pid3frame->fields[1]), "image/jpeg") == 0) ||
+			    (strcmp((char*)id3_field_getlatin1(&pid3frame->fields[1]), "image/jpg") == 0) ||
 			    (strcmp((char*)id3_field_getlatin1(&pid3frame->fields[1]), "jpeg") == 0) )
 			{
 				image = id3_field_getbinarydata(&pid3frame->fields[4], &image_size);
