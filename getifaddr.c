@@ -93,12 +93,12 @@ getifaddr(const char * ifname, char * buf, int len)
 	}
 	for( p = ifap; p != NULL; p = p->ifa_next )
 	{
-		if( p->ifa_addr->sa_family == AF_INET )
+		if( p->ifa_addr && p->ifa_addr->sa_family == AF_INET )
 		{
 			if( strcmp(p->ifa_name, ifname) != 0 )
 				continue;
 			addr_in = (struct sockaddr_in *)p->ifa_addr;
-			if(!inet_ntop(AF_INET, &addr_in->sin_addr, buf, len))
+			if( !inet_ntop(AF_INET, &addr_in->sin_addr, buf, len) )
 			{
 				DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));
 				break;
@@ -176,13 +176,13 @@ getsysaddr(char * buf, int len)
 	}
 	for( p = ifap; p != NULL; p = p->ifa_next )
 	{
-		if (p->ifa_addr->sa_family == AF_INET)
+		if( p->ifa_addr && p->ifa_addr->sa_family == AF_INET )
 		{
 			addr_in = (struct sockaddr_in *)p->ifa_addr;
 			a = (htonl(addr_in->sin_addr.s_addr) >> 0x18) & 0xFF;
 			if( a == 127 )
 				continue;
-			if(!inet_ntop(AF_INET, &addr_in->sin_addr, buf, len))
+			if( !inet_ntop(AF_INET, &addr_in->sin_addr, buf, len) )
 			{
 				DPRINTF(E_ERROR, L_GENERAL, "inet_ntop(): %s\n", strerror(errno));
 				break;
@@ -250,7 +250,7 @@ getsyshwaddr(char * buf, int len)
 	}
 	for( p = ifap; p != NULL; p = p->ifa_next )
 	{
-		if (p->ifa_addr->sa_family == AF_LINK)
+		if( p->ifa_addr && p->ifa_addr->sa_family == AF_LINK )
 		{
 			addr_in = (struct sockaddr_in *)p->ifa_addr;
 			a = (htonl(addr_in->sin_addr.s_addr) >> 0x18) & 0xFF;
