@@ -88,11 +88,13 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 	int ret = 0;
 	sqlite_int64 detailID = 0;
 
-	result = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS"
-	                                " where PARENT_ID = '%s'"
-			                " and NAME like '%q'"
-	                                " and CLASS = 'container.%s' limit 1",
-	                                rootParent, item, class);
+	result = sql_get_text_field(db, "SELECT OBJECT_ID from OBJECTS o "
+	                                "left join DETAILS d on (o.DETAIL_ID = d.ID)"
+	                                " where o.PARENT_ID = '%s'"
+			                " and o.NAME like '%q'"
+			                " and d.ARTIST %s %Q"
+	                                " and o.CLASS = 'container.%s' limit 1",
+	                                rootParent, item, artist?"like":"is", artist, class);
 	if( result )
 	{
 		base = strrchr(result, '$');
