@@ -37,8 +37,7 @@ static int _utf8bom = 0;
 static int _trackno;
 
 static int (*_next_track)(struct song_metadata*, struct stat*, char*, char*);
-static int _m3u_next_track(struct song_metadata*, struct stat*, char*, char*);
-static int _pls_next_track(struct song_metadata*, struct stat*, char*, char*);
+static int _m3u_pls_next_track(struct song_metadata*, struct stat*, char*, char*);
 
 int
 start_plist(const char *path, struct song_metadata *psong, struct stat *stat, char *lang, char *type)
@@ -50,9 +49,9 @@ start_plist(const char *path, struct song_metadata *psong, struct stat *stat, ch
 	_trackno = 0;
 
 	if(strcasecmp(type, "m3u") == 0)
-		_next_track = _m3u_next_track;
+		_next_track = _m3u_pls_next_track;
 	else if(strcasecmp(type, "pls") == 0)
-		_next_track = _pls_next_track;
+		_next_track = _m3u_pls_next_track;
 
 	if(!_next_track)
 	{
@@ -92,62 +91,7 @@ start_plist(const char *path, struct song_metadata *psong, struct stat *stat, ch
 }
 
 int
-_m3u_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char *type)
-{
-	char buf[MAX_BUF], *p;
-	int len;
-
-	//
-	memset((void*)psong, 0, sizeof(struct song_metadata));
-
-	// read first line, check BOM
-	p = fgets(buf, MAX_BUF, fp);
-	if(!p)
-	{
-		fclose(fp);
-		return 1;
-	}
-
-	if(!_utf8bom && p[0] == '\xef' && p[1] == '\xbb' && p[2] == '\xbf')
-	{
-		_utf8bom = 1;
-		p += 3;
-	}
-
-	while(p)
-	{
-		while(isspace(*p)) p++;
-
-		if(!isprint(*p))
-		{
-			DPRINTF(E_ERROR, L_SCANNER, "Playlist looks bad (unprintable characters)\n");
-			fclose(fp);
-			return 2;
-		}
-
-		if(*p && *p != '#')
-		{
-			// check dos format
-			len = strlen((char*)p);
-
-			while(p[len - 1] == '\r' || p[len - 1] == '\n')
-			{
-				p[--len] = '\0';
-			}
-			psong->path = strdup(p);
-			psong->track = ++_trackno;
-			return 0;
-		}
-		p = fgets(buf, MAX_BUF, fp);
-		continue;
-	}
-
-	fclose(fp);
-	return 1;
-}
-
-int
-_pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char *type)
+_m3u_pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char *type)
 {
 	char buf[MAX_BUF], *p;
 	int len;
@@ -156,10 +100,28 @@ _pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 
 	// read first line
 	p = fgets(buf, MAX_BUF, fp);
+	if(!p)
+	{
+		fclose(fp);
+		return 1;
+	}
+
+	if(strcasecmp(type, "m3u") == 0)
+	{
+		// check BOM
+		if(!_utf8bom && p[0] == '\xef' && p[1] == '\xbb' && p[2] == '\xbf')
+		{
+			_utf8bom = 1;
+			p += 3;
+		}
+	}
 
 	while(p)
 	{
 		while(isspace(*p)) p++;
+
+		if(!(*p) || *p == '#')
+			goto next_line;
 
 		if(!isprint(*p))
 		{
@@ -168,7 +130,7 @@ _pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 			return 2;
 		}
 
-		if(*p && *p != '#')
+		if(strcasecmp(type, "pls") == 0)
 		{
 			// verify that it's a valid pls playlist
 			if(!_trackno)
@@ -179,23 +141,22 @@ _pls_next_track(struct song_metadata *psong, struct stat *stat, char *lang, char
 				goto next_line;
 			}
 
-			if(strncmp(p, "File", 4))
+			if(strncmp(p, "File", 4) != 0)
 				goto next_line;
 
 			psong->track = strtol(p+4, &p, 10);
-			if(!psong->track || !p)
+			if(!psong->track || !p++)
 				goto next_line;
 			_trackno = psong->track;
-			// check dos format
-			len = strlen(++p);
-
-			while(p[len - 1] == '\r' || p[len - 1] == '\n')
-			{
-				p[--len] = '\0';
-			}
-			psong->path = strdup(p);
-			return 0;
 		}
+		else if(strcasecmp(type, "m3u") == 0)
+			psong->track = ++_trackno;
+
+		len = strlen(p);
+		while(p[len-1] == '\r' || p[len-1] == '\n')
+			p[--len] = '\0';
+		psong->path = strdup(p);
+		return 0;
 next_line:
 		p = fgets(buf, MAX_BUF, fp);
 	}
