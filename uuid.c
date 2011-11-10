@@ -23,6 +23,7 @@
  * You should have received a copy of the GNU General Public License
  * along with MiniDLNA. If not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -38,14 +39,9 @@
 #include <sys/syscall.h>
 #endif
 
+#include "uuid.h"
 #include "getifaddr.h"
 #include "log.h"
-
-#define ETH_ALEN 6
-#ifndef NSEC_PER_SEC
-#define NSEC_PER_SEC 1000000000L
-#endif
-#define NSEC_PER_MSEC 1000000L
 
 static uint32_t clock_seq;
 static const uint32_t clock_seq_max = 0x3fff; /* 14 bits */
