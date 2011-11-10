@@ -31,6 +31,8 @@ minidlna_LDADD = \
 	@LIBEXIF_LIBS@ \
 	@LIBDL_LIBS@ \
 	@LIBRT_LIBS@ \
+	@LIBINTL@ \
+	@LIBICONV@ \
 	-lpthread  -lFLAC  $(flacoggflag) $(vorbisflag)
 
 minidlna_LDFLAGS = @STATIC_LDFLAGS@

@@ -49,6 +49,7 @@ case $host in
     *-*-darwin*)
         DARWIN_OS=1
         SEARCH_DIR="/opt/local"
+        INCLUDE_DIR="$SEARCH_DIR/include"
         ;;
     *-*-solaris*)
         AC_DEFINE([SOLARIS], [1], [we are on solaris])
@@ -61,6 +62,11 @@ case $host in
         ;;
     *-*-openbsd*)
         OPENBSD_OS=1
+        ;;
+    *-*-linux*)
+        if test -f /etc/redhat-release; then
+            INCLUDE_DIR="/usr/include/ffmpeg"
+        fi
         ;;
 esac
 
@@ -83,7 +89,7 @@ AC_COMPILE_IFELSE(
      ],
      [
          AC_MSG_RESULT([no])
-         AC_CHECK_LIB([rt], [clock_gettime], [LIBRT_LIBS="-lrt"],)
+         AC_CHECK_LIB([rt], [clock_gettime], [LIBRT_LIBS="-lrt" AC_DEFINE([HAVE_LIBRT], [1], [use clock_gettime])],)
          AC_SUBST(LIBRT_LIBS)
      ])
 
@@ -93,36 +99,20 @@ AC_CHECK_LIB([dl], [dlopen], [LIBDL_LIBS="-ldl"],)
 AC_SUBST(LIBDL_LIBS)
 
 CPPFLAGS_SAVE="$CPPFLAGS"
-for dir in "" /usr/local $SEARCH_DIR; do
+for dir in "" /usr/local $INCLUDE_DIR; do
     if test -n "$dir"; then
-        CPPFLAGS="$CPPFLAGS -I$dir/include"
+        CPPFLAGS="$CPPFLAGS_SAVE -I$dir"
     fi
-    AC_CHECK_HEADERS([libavutil/avutil.h ffmpeg/libavutil/avutil.h libav/libavutil/avutil.h avutil.h ffmpeg/avutil.h libav/avutil.h], [break], [continue], [])
-    if test -n "$dir"; then
-        if test x"$ac_cv_header_avutil_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include"
-        elif test x"$ac_cv_header_libavutil_avutil_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libavutil"
-        elif test x"$ac_cv_header_ffmpeg_avutil_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/ffmpeg"
-        elif test x"$ac_cv_header_ffmpeg_libavutil_avutil_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/ffmpeg/libavutil"
-        elif test x"$ac_cv_header_libav_avutil_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libav"
-        elif test x"$ac_cv_header_libav_libavutil_avutil_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libav/libavutil"
-        else
-            unset ac_cv_header_avutil_h
-            unset ac_cv_header_libavutil_avutil_h
-            unset ac_cv_header_ffmpeg_avutil_h
-            unset ac_cv_header_ffmpeg_libavutil_avutil_h
-            unset ac_cv_header_libav_avutil_h
-            unset ac_cv_header_libav_libavutil_avutil_h
-            CPPFLAGS="$CPPFLAGS_SAVE"
-            continue
-        fi
+    AC_CHECK_HEADERS([libavutil/avutil.h ffmpeg/libavutil/avutil.h libav/libavutil/avutil.h avutil.h ffmpeg/avutil.h libav/avutil.h], [HAVE_LIBAVUTIL=1])
+    if test -z "$HAVE_LIBAVUTIL"; then
+        unset ac_cv_header_avutil_h
+        unset ac_cv_header_libavutil_avutil_h
+        unset ac_cv_header_ffmpeg_avutil_h
+        unset ac_cv_header_ffmpeg_libavutil_avutil_h
+        unset ac_cv_header_libav_avutil_h
+        unset ac_cv_header_libav_libavutil_avutil_h
+        continue
     fi
-    HAVE_LIBAVUTIL=1
     break
 done
 if test -z "$HAVE_LIBAVUTIL"; then
@@ -130,36 +120,20 @@ if test -z "$HAVE_LIBAVUTIL"; then
 fi
 
 CPPFLAGS_SAVE="$CPPFLAGS"
-for dir in "" /usr/local $SEARCH_DIR; do
+for dir in "" /usr/local $INCLUDE_DIR; do
     if test -n "$dir"; then
-        CPPFLAGS="$CPPFLAGS -I$dir/include"
+        CPPFLAGS="$CPPFLAGS_SAVE -I$dir"
     fi
-    AC_CHECK_HEADERS([libavcodec/avcodec.h ffmpeg/libavcodec/avcodec.h libav/libavcodec/avcodec.h avcodec.h ffmpeg/avcodec.h libav/avcodec.h], [break], [continue], [])
-    if test -n "$dir"; then
-        if test x"$ac_cv_header_avcodec_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include"
-        elif test x"$ac_cv_header_libavcodec_avcodec_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libavcodec"
-        elif test x"$ac_cv_header_ffmpeg_avcodec_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/ffmpeg"
-        elif test x"$ac_cv_header_ffmpeg_libavcodec_avcodec_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/ffmpeg/libavcodec"
-        elif test x"$ac_cv_header_libav_avcodec_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libav"
-        elif test x"$ac_cv_header_libav_libavcodec_avcodec_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libav/libavcodec"
-        else
-            unset ac_cv_header_avcodec_h
-            unset ac_cv_header_libavcodec_avcodec_h
-            unset ac_cv_header_ffmpeg_avcodec_h
-            unset ac_cv_header_ffmpeg_libavcodec_avcodec_h
-            unset ac_cv_header_libav_avcodec_h
-            unset ac_cv_header_libav_libavcodec_avcodec_h
-            CPPFLAGS="$CPPFLAGS_SAVE"
-            continue
-        fi
+    AC_CHECK_HEADERS([libavcodec/avcodec.h ffmpeg/libavcodec/avcodec.h libav/libavcodec/avcodec.h avcodec.h ffmpeg/avcodec.h libav/avcodec.h], [HAVE_LIBAVCODEC=1])
+    if test -z "$HAVE_LIBAVCODEC"; then
+        unset ac_cv_header_avcodec_h
+        unset ac_cv_header_libavcodec_avcodec_h
+        unset ac_cv_header_ffmpeg_avcodec_h
+        unset ac_cv_header_ffmpeg_libavcodec_avcodec_h
+        unset ac_cv_header_libav_avcodec_h
+        unset ac_cv_header_libav_libavcodec_avcodec_h
+        continue
     fi
-    HAVE_LIBAVCODEC=1
     break
 done
 if test -z "$HAVE_LIBAVCODEC"; then
@@ -167,36 +141,20 @@ if test -z "$HAVE_LIBAVCODEC"; then
 fi
 
 CPPFLAGS_SAVE="$CPPFLAGS"
-for dir in "" /usr/local $SEARCH_DIR; do
+for dir in "" /usr/local $INCLUDE_DIR; do
     if test -n "$dir"; then
-        CPPFLAGS="$CPPFLAGS -I$dir/include"
+        CPPFLAGS="$CPPFLAGS_SAVE -I$dir"
     fi
-    AC_CHECK_HEADERS([libavformat/avformat.h ffmpeg/libavformat/avformat.h libav/libavformat/avformat.h avformat.h ffmpeg/avformat.h libav/avformat.h], [break], [continue], [])
-    if test -n "$dir"; then
-        if test x"$ac_cv_header_avformat_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include"
-        elif test x"$ac_cv_header_libavformat_avformat_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libavformat"
-        elif test x"$ac_cv_header_ffmpeg_avformat_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/ffmpeg"
-        elif test x"$ac_cv_header_ffmpeg_libavformat_avformat_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/ffmpeg/libavformat"
-        elif test x"$ac_cv_header_libav_avformat_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libav"
-        elif test x"$ac_cv_header_libav_libavformat_avformat_h" = xyes; then
-            CPPFLAGS="$CPPFLAGS_SAVE -I$dir/include/libav/libavformat"
-        else
-            unset ac_cv_header_avformat_h
-            unset ac_cv_header_libavformat_avformat_h
-            unset ac_cv_header_ffmpeg_avformat_h
-            unset ac_cv_header_ffmpeg_libavformat_avformat_h
-            unset ac_cv_header_libav_avformat_h
-            unset ac_cv_header_libav_libavformat_avformat_h
-            CPPFLAGS="$CPPFLAGS_SAVE"
-            continue
-        fi
+    AC_CHECK_HEADERS([libavformat/avformat.h ffmpeg/libavformat/avformat.h libav/libavformat/avformat.h avformat.h ffmpeg/avformat.h libav/avformat.h], [HAVE_LIBAVFORMAT=1])
+    if test -z "$HAVE_LIBAVFORMAT"; then
+        unset ac_cv_header_avformat_h
+        unset ac_cv_header_libavformat_avformat_h
+        unset ac_cv_header_ffmpeg_avformat_h
+        unset ac_cv_header_ffmpeg_libavformat_avformat_h
+        unset ac_cv_header_libav_avformat_h
+        unset ac_cv_header_libav_libavformat_avformat_h
+        continue
     fi
-    HAVE_LIBAVFORMAT=1
     break
 done
 if test -z "$HAVE_LIBAVFORMAT"; then
@@ -204,9 +162,9 @@ if test -z "$HAVE_LIBAVFORMAT"; then
 fi
 
 CPPFLAGS_SAVE="$CPPFLAGS"
-for dir in "" /usr/local $SEARCH_DIR; do
+for dir in "" /usr/local $INCLUDE_DIR; do
     if test -n "$dir"; then
-        CPPFLAGS="$CPPFLAGS -I$dir/include"
+        CPPFLAGS="$CPPFLAGS -I$dir"
     fi
     AC_CHECK_HEADERS([jpeglib.h sqlite3.h libexif/exif-loader.h id3tag.h ogg/ogg.h vorbis/codec.h FLAC/metadata.h],,[unset $as_ac_Header; break],)
     if test x"$ac_cv_header_jpeglib_h" != x"yes"; then
@@ -249,9 +207,11 @@ AC_COMPILE_IFELSE(
      [AC_LANG_PROGRAM(
          [
              #include <stdlib.h>
+             #include <unistd.h>
          ],
          [
-            (void)daemon(0, 0);
+            int ret;
+            ret = daemon(0, 0);
          ]
      )],
      [
@@ -483,6 +443,9 @@ AC_CHECK_FUNCS(inotify_init, AC_DEFINE(HAVE_INOTIFY,1,[Whether kernel has inotif
          [
              AC_MSG_RESULT([yes])
              AC_DEFINE(HAVE_INOTIFY,1,[Whether kernel has inotify support])
+         ],
+         [
+             AC_MSG_RESULT([no])
          ])
 ])
 
