@@ -36,22 +36,26 @@
 #include "image_utils.h"
 #include "log.h"
 
-int
-art_cache_exists(const char * orig_path, char ** cache_file)
+static int
+art_cache_exists(const char *orig_path, char **cache_file)
 {
-	asprintf(cache_file, "%s/art_cache%s", db_path, orig_path);
+	if( asprintf(cache_file, "%s/art_cache%s", db_path, orig_path) < 0 )
+	{
+		*cache_file = NULL;
+		return 0;
+	}
 	strcpy(strchr(*cache_file, '\0')-4, ".jpg");
 
 	return (!access(*cache_file, F_OK));
 }
 
-char *
-save_resized_album_art(image_s * imsrc, const char * path)
+static char *
+save_resized_album_art(image_s *imsrc, const char *path)
 {
 	int dstw, dsth;
-	image_s * imdst;
-	char * cache_file;
-	char * cache_dir;
+	image_s *imdst;
+	char *cache_file;
+	char cache_dir[MAXPATHLEN];
 
 	if( !imsrc )
 		return NULL;
@@ -59,9 +63,8 @@ save_resized_album_art(image_s * imsrc, const char * path)
 	if( art_cache_exists(path, &cache_file) )
 		return cache_file;
 
-	cache_dir = strdup(cache_file);
+	strncpyt(cache_dir, cache_file, sizeof(cache_dir));
 	make_dir(dirname(cache_dir), S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
-	free(cache_dir);
 
 	if( imsrc->width > imsrc->height )
 	{
@@ -88,7 +91,8 @@ error:
 }
 
 /* Simple, efficient hash function from Daniel J. Bernstein */
-unsigned int DJBHash(const char * str, int len)
+static unsigned int
+DJBHash(const char *str, int len)
 {
 	unsigned int hash = 5381;
 	unsigned int i = 0;
@@ -103,19 +107,22 @@ unsigned int DJBHash(const char * str, int len)
 
 /* And our main album art functions */
 void
-update_if_album_art(const char * path)
+update_if_album_art(const char *path)
 {
-	char * dir;
-	char * match = NULL;
-	char * file = NULL;
+	char *dir;
+	char *match;
+	char file[MAXPATHLEN];
+	char fpath[MAXPATHLEN];
+	char dpath[MAXPATHLEN];
 	int ncmp = 0;
 	int album_art;
-	DIR * dh;
+	DIR *dh;
 	struct dirent *dp;
 	enum file_types type = TYPE_UNKNOWN;
 	sqlite_int64 art_id = 0;
 
-	match = strdup(basename((char *)path));
+	strncpyt(fpath, path, sizeof(fpath));
+	match = basename(fpath);
 	/* Check if this file name matches a specific audio or video file */
 	if( ends_with(match, ".cover.jpg") )
 	{
@@ -128,7 +135,8 @@ update_if_album_art(const char * path)
 	/* Check if this file name matches one of the default album art names */
 	album_art = is_album_art(match);
 
-	dir = dirname(strdup(path));
+	strncpyt(dpath, path, sizeof(dpath));
+	dir = dirname(dpath);
 	dh = opendir(dir);
 	if( !dh )
 		return;
@@ -141,9 +149,8 @@ update_if_album_art(const char * path)
 				break;
 			case DT_LNK:
 			case DT_UNKNOWN:
-				asprintf(&file, "%s/%s", dir, dp->d_name);
+				snprintf(file, sizeof(file), "%s/%s", dir, dp->d_name);
 				type = resolve_unknown_type(file, ALL_MEDIA);
-				free(file);
 				break;
 			default:
 				type = TYPE_UNKNOWN;
@@ -156,27 +163,25 @@ update_if_album_art(const char * path)
 		    (album_art || strncmp(dp->d_name, match, ncmp) == 0) )
 		{
 			DPRINTF(E_DEBUG, L_METADATA, "New file %s looks like cover art for %s\n", path, dp->d_name);
-			asprintf(&file, "%s/%s", dir, dp->d_name);
+			snprintf(file, sizeof(file), "%s/%s", dir, dp->d_name);
 			art_id = find_album_art(file, NULL, 0);
 			if( sql_exec(db, "UPDATE DETAILS set ALBUM_ART = %lld where PATH = '%q'", art_id, file) != SQLITE_OK )
 				DPRINTF(E_WARN, L_METADATA, "Error setting %s as cover art for %s\n", match, dp->d_name);
-			free(file);
 		}
 	}
 	closedir(dh);
 	
 	free(dir);
-	free(match);
 }
 
 char *
-check_embedded_art(const char * path, const char * image_data, int image_size)
+check_embedded_art(const char *path, const char *image_data, int image_size)
 {
 	int width = 0, height = 0;
-	char * art_path = NULL;
-	char * cache_dir;
-	FILE * dstfile;
-	image_s * imsrc;
+	char *art_path = NULL;
+	char *cache_dir;
+	FILE *dstfile;
+	image_s *imsrc;
 	static char last_path[PATH_MAX];
 	static unsigned int last_hash = 0;
 	static int last_success = 0;
@@ -269,14 +274,28 @@ end_art:
 	return(art_path);
 }
 
-char *
-check_for_album_file(const char * dir, const char * path)
+static char *
+check_for_album_file(const char *path)
 {
 	char file[MAXPATHLEN];
-	struct album_art_name_s * album_art_name;
-	image_s * imsrc = NULL;
+	char mypath[MAXPATHLEN];
+	struct album_art_name_s *album_art_name;
+	image_s *imsrc = NULL;
 	int width=0, height=0;
-	char * art_file;
+	char *art_file;
+	const char *dir;
+	struct stat st;
+
+	if( stat(path, &st) != 0 )
+		return NULL;
+
+	if( S_ISDIR(st.st_mode) )
+	{
+		dir = path;
+		goto check_dir;
+	}
+	strncpyt(mypath, path, sizeof(mypath));
+	dir = dirname(mypath);
 
 	/* First look for file-specific cover art */
 	snprintf(file, sizeof(file), "%s.cover.jpg", path);
@@ -302,7 +321,7 @@ check_for_album_file(const char * dir, const char * path)
 		if( imsrc )
 			goto found_file;
 	}
-
+check_dir:
 	/* Then fall back to possible generic cover art file names */
 	for( album_art_name = album_art_names; album_art_name; album_art_name = album_art_name->next )
 	{
@@ -333,30 +352,16 @@ found_file:
 }
 
 sqlite_int64
-find_album_art(const char * path, const char * image_data, int image_size)
+find_album_art(const char *path, const char *image_data, int image_size)
 {
-	char * album_art = NULL;
-	char * sql;
-	char ** result;
+	char *album_art = NULL;
+	char *sql;
+	char **result;
 	int cols, rows;
 	sqlite_int64 ret = 0;
-	char * mypath;
-	const char * dir;
-	struct stat st;
-
-	if( stat(path, &st) == 0 && S_ISDIR(st.st_mode) )
-	{
-		mypath = NULL;
-		dir = path;
-	}
-	else
-	{
-		mypath = strdup(path);
-		dir = dirname(mypath);
-	}
 
 	if( (image_size && (album_art = check_embedded_art(path, image_data, image_size))) ||
-	    (album_art = check_for_album_file(dir, path)) )
+	    (album_art = check_for_album_file(path)) )
 	{
 		sql = sqlite3_mprintf("SELECT ID from ALBUM_ART where PATH = '%q'", album_art ? album_art : path);
 		if( (sql_get_table(db, sql, &result, &rows, &cols) == SQLITE_OK) && rows )
@@ -372,7 +377,6 @@ find_album_art(const char * path, const char * image_data, int image_size)
 		sqlite3_free(sql);
 	}
 	free(album_art);
-	free(mypath);
 
 	return ret;
 }

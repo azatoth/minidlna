@@ -27,6 +27,9 @@
 int
 strcatf(struct string_s *str, char *fmt, ...);
 
+void
+strncpyt(char *dst, const char *src, size_t len);
+
 int
 ends_with(const char * haystack, const char * needle);
 

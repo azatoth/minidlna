@@ -402,8 +402,7 @@ GetAudioMetadata(const char * path, char * name)
 		if( !getenv("LANG") )
 			strcpy(lang, "en_US");
 		else
-			strncpy(lang, getenv("LANG"), 5);
-		lang[5] = '\0';
+			strncpyt(lang, getenv("LANG"), sizeof(lang));
 	}
 
 	if( readtags((char *)path, &song, &file, lang, type) != 0 )
@@ -595,11 +594,11 @@ GetImageMetadata(const char * path, char * name)
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MAKE);
 	if( e )
 	{
-		strncpy(make, exif_entry_get_value(e, b, sizeof(b)), sizeof(make));
+		strncpyt(make, exif_entry_get_value(e, b, sizeof(b)), sizeof(make));
 		e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MODEL);
 		if( e )
 		{
-			strncpy(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
+			strncpyt(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
 			if( !strcasestr(model, make) )
 				snprintf(model, sizeof(model), "%s %s", make, exif_entry_get_value(e, b, sizeof(b)));
 			m.creator = strdup(model);

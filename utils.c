@@ -45,6 +45,13 @@ strcatf(struct string_s *str, const char *fmt, ...)
 	return ret;
 }
 
+inline void
+strncpyt(char *dst, const char *src, size_t len)
+{
+	strncpy(dst, src, len);
+	dst[len-1] = '\0';
+}
+
 int
 ends_with(const char * haystack, const char * needle)
 {
