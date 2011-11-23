@@ -286,6 +286,7 @@ intervening space) by either an integer or the keyword "infinite". */
 			}
 			else if(strncasecmp(line, "User-Agent", 10)==0)
 			{
+				char *s;
 				/* Skip client detection if we already detected it. */
 				if( h->req_client )
 					goto next_header;
@@ -304,13 +305,13 @@ intervening space) by either an integer or the keyword "infinite". */
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_MIME_AVI_DIVX;
 				}
-				else if(strstrc(p, "SEC_HHP_", '\r'))
+				else if((s=strstrc(p, "SEC_HHP_", '\r')))
 				{
 					h->req_client = ESamsungSeriesC;
 					h->reqflags |= FLAG_SAMSUNG;
 					h->reqflags |= FLAG_DLNA;
 					h->reqflags |= FLAG_NO_RESIZE;
-					if(strstrc(p, "SEC_HHP_TV", '\r'))
+					if(strstrc(s+8, "TV", '\r'))
 						h->reqflags |= FLAG_SAMSUNG_TV;
 				}
 				else if(strncmp(p, "SamsungWiselinkPro", 18)==0)

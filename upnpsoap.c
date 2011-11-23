@@ -488,7 +488,7 @@ set_filter_flags(char * filter, struct upnphttp *h)
 }
 
 char *
-parse_sort_criteria(char * sortCriteria, int * error)
+parse_sort_criteria(char *sortCriteria, int *error)
 {
 	char *order = NULL;
 	char *item, *saveptr;
@@ -929,6 +929,15 @@ callback(void *args, int argc, char **argv, char **azColName)
 						                   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
 					}
 					break;
+				case ESamsungSeriesC:
+					if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
+					{
+						ret = strcatf(str, "&lt;sec:CaptionInfoEx sec:type=\"srt\"&gt;"
+						                     "http://%s:%d/Captions/%s.srt"
+						                   "&lt;/sec:CaptionInfoEx&gt;",
+						                   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
+					}
+					break;
 				default:
 					break;
 				}
@@ -1119,16 +1128,21 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			if( strncmp(ObjectID, MUSIC_PLIST_ID, strlen(MUSIC_PLIST_ID)) == 0 )
 			{
 				if( strcmp(ObjectID, MUSIC_PLIST_ID) == 0 )
-					asprintf(&orderBy, "order by d.TITLE");
+					ret = asprintf(&orderBy, "order by d.TITLE");
 				else
-					asprintf(&orderBy, "order by length(OBJECT_ID), OBJECT_ID");
+					ret = asprintf(&orderBy, "order by length(OBJECT_ID), OBJECT_ID");
 			}
 			else if( args.client == ERokuSoundBridge )
 			{
 #ifdef __sparc__
 				if( totalMatches < 10000 )
 #endif
-				asprintf(&orderBy, "order by o.CLASS, d.DISC, d.TRACK, d.TITLE");
+				ret = asprintf(&orderBy, "order by o.CLASS, d.DISC, d.TRACK, d.TITLE");
+			}
+			if( ret == -1 )
+			{
+				orderBy = NULL;
+				ret = 0;
 			}
 		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
