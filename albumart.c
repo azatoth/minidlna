@@ -170,8 +170,6 @@ update_if_album_art(const char *path)
 		}
 	}
 	closedir(dh);
-	
-	free(dir);
 }
 
 char *
