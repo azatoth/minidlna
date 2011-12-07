@@ -4,7 +4,8 @@ AC_INIT(MiniDLNA,1.1.0,,minidlna)
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE(minidlna,1.1.0)
 AC_CONFIG_HEADERS([config.h])
-AC_USE_SYSTEM_EXTENSIONS
+
+m4_ifdef([AC_USE_SYSTEM_EXTENSIONS], [AC_USE_SYSTEM_EXTENSIONS])
 
 #MiniDLNA
 
@@ -25,17 +26,17 @@ AC_PROG_MAKE_SET
 ################################################################################################################
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
-AC_TYPE_INT32_T
 AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
+m4_ifdef([AC_TYPE_UINT8_T], [AC_TYPE_UINT8_T])
+m4_ifdef([AC_TYPE_INT32_T], [AC_TYPE_INT32_T])
+m4_ifdef([AC_TYPE_UINT32_T], [AC_TYPE_UINT32_T])
+m4_ifdef([AC_TYPE_UINT64_T], [AC_TYPE_UINT64_T])
+m4_ifdef([AC_TYPE_SSIZE_T], [AC_TYPE_SSIZE_T])
 AC_STRUCT_ST_BLOCKS
 AC_HEADER_STDBOOL
-AC_TYPE_UINT32_T
-AC_TYPE_UINT64_T
-AC_TYPE_UINT8_T
 AC_C_BIGENDIAN
 
 # Checks for library functions.
