@@ -369,7 +369,9 @@ for dir in "" /usr/local $SEARCH_DIR; do
     if test -n "$dir"; then
         LDFLAGS="$LDFLAGS -L$dir/lib"
     fi
-    AC_CHECK_LIB([sqlite3], [sqlite3_open], [LIBSQLITE3_LIBS="-lsqlite3"], [unset ac_cv_lib_sqlite3_sqlite3_open; LDFLAGS="$LDFLAGS_SAVE"; continue])
+    AC_CHECK_LIB(sqlite3, sqlite3_open, [LIBSQLITE3_LIBS="-lsqlite3"], [unset ac_cv_lib_sqlite3_sqlite3_open; LDFLAGS="$LDFLAGS_SAVE"; continue])
+    AC_CHECK_LIB(sqlite3, sqlite3_malloc, [AC_DEFINE([HAVE_SQLITE3_MALLOC], [1], [Define to 1 if the sqlite3_malloc function exists.])])
+    AC_CHECK_LIB(sqlite3, sqlite3_prepare_v2, [AC_DEFINE([HAVE_SQLITE3_PREPARE_V2], [1], [Define to 1 if the sqlite3_prepare_v2 function exists.])])
     break
 done
 test x"$ac_cv_lib_sqlite3_sqlite3_open" = x"yes" || AC_MSG_ERROR([Could not find libsqlite3])

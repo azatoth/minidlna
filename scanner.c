@@ -54,7 +54,7 @@ int valid_cache = 0;
 
 struct virtual_item
 {
-	sqlite3_int64 objectID;
+	sqlite_int64 objectID;
 	char parentID[64];
 	char name[256];
 };
@@ -81,7 +81,7 @@ get_next_available_id(const char * table, const char * parentID)
 
 int
 insert_container(const char * item, const char * rootParent, const char * refID, const char *class,
-                 const char *artist, const char *genre, const char *album_art, sqlite3_int64 *objectID, sqlite3_int64 *parentID)
+                 const char *artist, const char *genre, const char *album_art, sqlite_int64 *objectID, sqlite_int64 *parentID)
 {
 	char *result;
 	char *base;
@@ -130,7 +130,7 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 }
 
 static void
-insert_containers(const char * name, const char *path, const char * refID, const char * class, sqlite3_int64 detailID)
+insert_containers(const char * name, const char *path, const char * refID, const char * class, sqlite_int64 detailID)
 {
 	char *sql;
 	char **result;
@@ -465,7 +465,7 @@ insert_file(char * name, const char * path, const char * parentID, int object)
 {
 	char class[32];
 	char objectID[64];
-	sqlite3_int64 detailID = 0;
+	sqlite_int64 detailID = 0;
 	char base[8];
 	char * typedir_parentID;
 	int typedir_objectID;

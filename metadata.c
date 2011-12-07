@@ -314,7 +314,7 @@ free_metadata(metadata_t * m, uint32_t flags)
 }
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, sqlite3_int64 album_art)
+GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, sqlite_int64 album_art)
 {
 	int ret;
 

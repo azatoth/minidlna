@@ -88,7 +88,7 @@ void
 check_for_captions(const char * path, sqlite_int64 detailID);
 
 sqlite_int64
-GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, sqlite3_int64 album_art);
+GetFolderMetadata(const char * name, const char * path, const char * artist, const char * genre, sqlite_int64 album_art);
 
 sqlite_int64
 GetAudioMetadata(const char * path, char * name);
