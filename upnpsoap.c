@@ -324,6 +324,7 @@ mime_to_ext(const char * mime, char * buf)
 	}
 }
 
+/* Standard DLNA/UPnP filter flags */
 #define FILTER_CHILDCOUNT                        0x00000001
 #define FILTER_DC_CREATOR                        0x00000002
 #define FILTER_DC_DATE                           0x00000004
@@ -345,9 +346,11 @@ mime_to_ext(const char * mime, char * buf)
 #define FILTER_UPNP_GENRE                        0x00040000
 #define FILTER_UPNP_ORIGINALTRACKNUMBER          0x00080000
 #define FILTER_UPNP_SEARCHCLASS                  0x00100000
-#define FILTER_SEC                               0x00200000
-#define FILTER_SEC_CAPTION_INFO                  0x00400000
-#define FILTER_SEC_CAPTION_INFO_EX               0x00800000
+/* Vendor-specific filter flags */
+#define FILTER_SEC_CAPTION_INFO_EX               0x10000000
+#define FILTER_SEC_DCM_INFO                      0x20000000
+#define FILTER_PV_SUBTITLE_FILE_TYPE             0x40000000
+#define FILTER_PV_SUBTITLE_FILE_URI              0x80000000
 
 static u_int32_t
 set_filter_flags(char * filter, struct upnphttp *h)
@@ -356,7 +359,8 @@ set_filter_flags(char * filter, struct upnphttp *h)
 	uint32_t flags = 0;
 
 	if( !filter || (strlen(filter) <= 1) )
-		return 0xFFFFFFFF;
+		/* Not the full 32 bits.  Skip vendor-specific stuff by default. */
+		return 0xFFFFFFF;
 	if( h->reqflags & FLAG_SAMSUNG )
 		flags |= FILTER_DLNA_NAMESPACE;
 	item = strtok_r(filter, ",", &saveptr);
@@ -471,15 +475,21 @@ set_filter_flags(char * filter, struct upnphttp *h)
 			flags |= FILTER_RES;
 			flags |= FILTER_RES_SIZE;
 		}
-		else if( strcmp(item, "sec:CaptionInfo") == 0)
+		else if( strcmp(item, "sec:CaptionInfoEx") == 0 )
 		{
-			flags |= FILTER_SEC;
-			flags |= FILTER_SEC_CAPTION_INFO;
-		}
-		else if( strcmp(item, "sec:CaptionInfoEx") == 0)
-		{
-			flags |= FILTER_SEC;
 			flags |= FILTER_SEC_CAPTION_INFO_EX;
+		}
+		else if( strcmp(item, "sec:dcmInfo") == 0 )
+		{
+			flags |= FILTER_SEC_DCM_INFO;
+		}
+		else if( strcmp(item, "res@pv:subtitleFileType") == 0 )
+		{
+			flags |= FILTER_PV_SUBTITLE_FILE_TYPE;
+		}
+		else if( strcmp(item, "res@pv:subtitleFileUri") == 0 )
+		{
+			flags |= FILTER_PV_SUBTITLE_FILE_URI;
 		}
 		item = strtok_r(NULL, ",", &saveptr);
 	}
@@ -618,6 +628,17 @@ add_res(char *size, char *duration, char *bitrate, char *sampleFrequency,
 	}
 	if( resolution && (args->filter & FILTER_RES_RESOLUTION) ) {
 		strcatf(args->str, "resolution=\"%s\" ", resolution);
+	}
+	if( args->filter & (FILTER_PV_SUBTITLE_FILE_TYPE|FILTER_PV_SUBTITLE_FILE_URI) )
+	{
+		if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
+		{
+			if( args->filter & FILTER_PV_SUBTITLE_FILE_TYPE )
+				strcatf(args->str, "pv:subtitleFileType=\"SRT\" ");
+			if( args->filter & FILTER_PV_SUBTITLE_FILE_URI )
+				strcatf(args->str, "pv:subtitleFileUri=\"http://%s:%d/Captions/%s.srt\" ",
+			                lan_addr[args->iface].str, runtime_vars.port, detailID);
+		}
 	}
 	strcatf(args->str, "protocolInfo=\"http-get:*:%s:%s\"&gt;"
 	                          "http://%s:%d/MediaItems/%s.%s"
@@ -766,7 +787,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		if( date && (passed_args->filter & FILTER_DC_DATE) ) {
 			ret = strcatf(str, "&lt;dc:date&gt;%s&lt;/dc:date&gt;", date);
 		}
-		if( (passed_args->flags & FLAG_SAMSUNG) && (passed_args->filter & FILTER_SEC_CAPTION_INFO_EX) ) {
+		if( passed_args->filter & FILTER_SEC_DCM_INFO ) {
 			/* Get bookmark */
 			ret = strcatf(str, "&lt;sec:dcmInfo&gt;CREATIONDATE=0,FOLDER=%s,BM=%d&lt;/sec:dcmInfo&gt;",
 			              title, sql_get_int_field(db, "SELECT SEC from BOOKMARKS where ID = '%s'", detailID));
@@ -930,15 +951,17 @@ callback(void *args, int argc, char **argv, char **azColName)
 					}
 					break;
 				case ESamsungSeriesC:
-					if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
-					{
-						ret = strcatf(str, "&lt;sec:CaptionInfoEx sec:type=\"srt\"&gt;"
-						                     "http://%s:%d/Captions/%s.srt"
-						                   "&lt;/sec:CaptionInfoEx&gt;",
-						                   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
-					}
-					break;
 				default:
+					if( passed_args->filter & FILTER_SEC_CAPTION_INFO_EX )
+					{
+						if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
+						{
+							ret = strcatf(str, "&lt;sec:CaptionInfoEx sec:type=\"srt\"&gt;"
+							                     "http://%s:%d/Captions/%s.srt"
+							                   "&lt;/sec:CaptionInfoEx&gt;",
+							                   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
+						}
+					}
 					break;
 				}
 			}
