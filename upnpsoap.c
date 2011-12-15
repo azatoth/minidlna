@@ -347,10 +347,11 @@ mime_to_ext(const char * mime, char * buf)
 #define FILTER_UPNP_ORIGINALTRACKNUMBER          0x00080000
 #define FILTER_UPNP_SEARCHCLASS                  0x00100000
 /* Vendor-specific filter flags */
-#define FILTER_SEC_CAPTION_INFO_EX               0x10000000
-#define FILTER_SEC_DCM_INFO                      0x20000000
-#define FILTER_PV_SUBTITLE_FILE_TYPE             0x40000000
-#define FILTER_PV_SUBTITLE_FILE_URI              0x80000000
+#define FILTER_SEC_CAPTION_INFO_EX               0x01000000
+#define FILTER_SEC_DCM_INFO                      0x02000000
+#define FILTER_PV_SUBTITLE_FILE_TYPE             0x04000000
+#define FILTER_PV_SUBTITLE_FILE_URI              0x08000000
+#define FILTER_AV_MEDIA_CLASS                    0x10000000
 
 static u_int32_t
 set_filter_flags(char * filter, struct upnphttp *h)
@@ -360,7 +361,7 @@ set_filter_flags(char * filter, struct upnphttp *h)
 
 	if( !filter || (strlen(filter) <= 1) )
 		/* Not the full 32 bits.  Skip vendor-specific stuff by default. */
-		return 0xFFFFFFF;
+		return 0xFFFFFF;
 	if( h->reqflags & FLAG_SAMSUNG )
 		flags |= FILTER_DLNA_NAMESPACE;
 	item = strtok_r(filter, ",", &saveptr);
@@ -490,6 +491,10 @@ set_filter_flags(char * filter, struct upnphttp *h)
 		else if( strcmp(item, "res@pv:subtitleFileUri") == 0 )
 		{
 			flags |= FILTER_PV_SUBTITLE_FILE_URI;
+		}
+		else if( strcmp(item, "av:mediaClass") == 0 )
+		{
+			flags |= FILTER_AV_MEDIA_CLASS;
 		}
 		item = strtok_r(NULL, ",", &saveptr);
 	}
@@ -1009,6 +1014,20 @@ callback(void *args, int argc, char **argv, char **azColName)
 			}
 			ret = strcatf(str, "&gt;http://%s:%d/AlbumArt/%s-%s.jpg&lt;/upnp:albumArtURI&gt;",
 			                   lan_addr[passed_args->iface].str, runtime_vars.port, album_art, detailID);
+		}
+		if( passed_args->filter & FILTER_AV_MEDIA_CLASS ) {
+			char class;
+			if( strncmp(id, MUSIC_ID, sizeof(MUSIC_ID)) == 0 )
+				class = 'M';
+			else if( strncmp(id, VIDEO_ID, sizeof(VIDEO_ID)) == 0 )
+				class = 'V';
+			else if( strncmp(id, IMAGE_ID, sizeof(IMAGE_ID)) == 0 )
+				class = 'P';
+			else
+				class = 0;
+			if( class )
+				ret = strcatf(str, "&lt;av:mediaClass xmlns:av=\"urn:schemas-sony-com:av\"&gt;"
+				                    "%c&lt;/av:mediaClass&gt;", class);
 		}
 		ret = strcatf(str, "&lt;/container&gt;");
 	}
