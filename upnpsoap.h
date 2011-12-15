@@ -30,6 +30,8 @@
 	" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
 #define DLNA_NAMESPACE \
 	" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\""
+#define PV_NAMESPACE \
+	" xmlns:pv=\"http://www.pv.com/pvns/\""
 
 struct Response
 {

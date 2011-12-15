@@ -1090,9 +1090,9 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.iface = h->iface;
 	args.filter = set_filter_flags(Filter, h);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
-	{
 		ret = strcatf(&str, DLNA_NAMESPACE);
-	}
+	if( args.filter & FILTER_PV_SUBTITLE_FILE_TYPE|FILTER_PV_SUBTITLE_FILE_URI )
+		ret = strcatf(&str, PV_NAMESPACE);
 	strcatf(&str, "&gt;\n");
 
 	args.returned = 0;
