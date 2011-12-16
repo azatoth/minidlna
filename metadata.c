@@ -601,7 +601,7 @@ GetImageMetadata(const char * path, char * name)
 			strncpyt(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
 			if( !strcasestr(model, make) )
 				snprintf(model, sizeof(model), "%s %s", make, exif_entry_get_value(e, b, sizeof(b)));
-			m.creator = strdup(model);
+			m.creator = escape_tag(model, 1);
 		}
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * model: %s\n", model);
