@@ -713,6 +713,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
+		char *alt_title = NULL;
 		/* We may need special handling for certain MIME types */
 		if( *mime == 'v' )
 		{
@@ -754,6 +755,18 @@ callback(void *args, int argc, char **argv, char **azColName)
 				if( strcmp(mime+6, "x-matroska") == 0 )
 				{
 					strcpy(mime+8, "mkv");
+				}
+			}
+			/* LG hack: subtitles won't get used unless dc:title contains a dot. */
+			else if( passed_args->client == ELGDevice && (passed_args->filter & FILTER_RES) )
+			{
+				if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
+				{
+					ret = asprintf(&alt_title, "%s.", title);
+					if( ret > 0 )
+						title = alt_title;
+					else
+						alt_title = NULL;
 				}
 			}
 		}
@@ -947,12 +960,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 					}
 					break;
 				case ELGDevice:
-					if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%s'", detailID) > 0 )
+					if( alt_title )
 					{
 						ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:text/srt:*\"&gt;"
 						                     "http://%s:%d/Captions/%s.srt"
 						                   "&lt;/res&gt;",
 						                   lan_addr[passed_args->iface].str, runtime_vars.port, detailID);
+						free(alt_title);
 					}
 					break;
 				case ESamsungSeriesC:
@@ -1091,7 +1105,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	args.filter = set_filter_flags(Filter, h);
 	if( args.filter & FILTER_DLNA_NAMESPACE )
 		ret = strcatf(&str, DLNA_NAMESPACE);
-	if( args.filter & FILTER_PV_SUBTITLE_FILE_TYPE|FILTER_PV_SUBTITLE_FILE_URI )
+	if( args.filter & (FILTER_PV_SUBTITLE_FILE_TYPE|FILTER_PV_SUBTITLE_FILE_URI) )
 		ret = strcatf(&str, PV_NAMESPACE);
 	strcatf(&str, "&gt;\n");
 
