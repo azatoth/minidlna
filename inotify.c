@@ -592,6 +592,8 @@ inotify_remove_directory(int fd, const char * path)
 	sqlite_int64 detailID = 0;
 	int rows, i, ret = 1;
 
+	/* Invalidate the scanner cache so we don't insert files into non-existent containers */
+	valid_cache = 0;
 	remove_watch(fd, path);
 	sql = sqlite3_mprintf("SELECT ID from DETAILS where PATH glob '%q/*'"
 	                      " UNION ALL SELECT ID from DETAILS where PATH = '%q'", path, path);

@@ -132,7 +132,7 @@ insert_container(const char * item, const char * rootParent, const char * refID,
 static void
 insert_containers(const char * name, const char *path, const char * refID, const char * class, sqlite_int64 detailID)
 {
-	char *sql;
+	char sql[128];
 	char **result;
 	int ret;
 	int cols, row;
@@ -147,9 +147,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 		static struct virtual_item last_camdate;
 		static sqlite_int64 last_all_objectID = 0;
 
-		asprintf(&sql, "SELECT DATE, CREATOR from DETAILS where ID = %lld", detailID);
+		snprintf(sql, sizeof(sql), "SELECT DATE, CREATOR from DETAILS where ID = %lld", detailID);
 		ret = sql_get_table(db, sql, &result, &row, &cols);
-		free(sql);
 		if( ret == SQLITE_OK )
 		{
 			date = result[2];
@@ -231,9 +230,8 @@ insert_containers(const char * name, const char *path, const char * refID, const
 	}
 	else if( strstr(class, "audioItem") )
 	{
-		asprintf(&sql, "SELECT ALBUM, ARTIST, GENRE, ALBUM_ART from DETAILS where ID = %lld", detailID);
+		snprintf(sql, sizeof(sql), "SELECT ALBUM, ARTIST, GENRE, ALBUM_ART from DETAILS where ID = %lld", detailID);
 		ret = sql_get_table(db, sql, &result, &row, &cols);
-		free(sql);
 		if( ret != SQLITE_OK )
 			return;
 		if( !row )
@@ -398,24 +396,26 @@ insert_directory(const char * name, const char * path, const char * base, const 
 	sqlite_int64 detailID = 0;
 	char * refID = NULL;
 	char class[] = "container.storageFolder";
-	char * id_buf = NULL;
-	char * parent_buf = NULL;
-	char *dir_buf, *dir;
 	char *result, *p;
 	static char last_found[256] = "-1";
 
 	if( strcmp(base, BROWSEDIR_ID) != 0 )
-		asprintf(&refID, "%s%s$%X", BROWSEDIR_ID, parentID, objectID);
+	{
+		if( asprintf(&refID, "%s%s$%X", BROWSEDIR_ID, parentID, objectID) == -1 )
+			return 1;
+	}
 
 	if( refID )
 	{
+		char id_buf[64], parent_buf[64];
+		char *dir_buf, *dir;
  		dir_buf = strdup(path);
 		dir = dirname(dir_buf);
-		asprintf(&id_buf, "%s%s$%X", base, parentID, objectID);
-		asprintf(&parent_buf, "%s%s", base, parentID);
+		snprintf(id_buf, sizeof(id_buf), "%s%s$%X", base, parentID, objectID);
+		snprintf(parent_buf, sizeof(parent_buf), "%s%s", base, parentID);
 		while( !found )
 		{
-			if( strcmp(id_buf, last_found) == 0 )
+			if( valid_cache && strcmp(id_buf, last_found) == 0 )
 				break;
 			if( sql_get_int_field(db, "SELECT count(*) from OBJECTS where OBJECT_ID = '%s'", id_buf) > 0 )
 			{
@@ -443,10 +443,8 @@ insert_directory(const char * name, const char * path, const char * base, const 
 			dir = dirname(dir);
 		}
 		free(refID);
-		free(parent_buf);
-		free(id_buf);
 		free(dir_buf);
-		return 1;
+		return 0;
 	}
 
 	detailID = GetFolderMetadata(name, path, NULL, NULL, find_album_art(path, NULL, 0));
@@ -457,7 +455,7 @@ insert_directory(const char * name, const char * path, const char * base, const 
 	             base, parentID, objectID, base, parentID, refID, detailID, class, name);
 	free(refID);
 
-	return -1;
+	return 0;
 }
 
 int
@@ -809,6 +807,7 @@ void
 start_scanner()
 {
 	struct media_dir_s * media_path = media_dirs;
+	char name[MAXPATHLEN];
 
 	if (setpriority(PRIO_PROCESS, 0, 15) == -1)
 		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce scanner thread priority\n");
@@ -821,6 +820,8 @@ start_scanner()
 	freopen("/dev/null", "a", stderr);
 	while( media_path )
 	{
+		strncpy(name, media_path->path, sizeof(name));
+		GetFolderMetadata(basename(name), media_path->path, NULL, NULL, 0);
 		ScanDirectory(media_path->path, NULL, media_path->type);
 		media_path = media_path->next;
 	}
