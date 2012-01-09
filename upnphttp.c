@@ -448,6 +448,17 @@ intervening space) by either an integer or the keyword "infinite". */
 			{
 				h->reqflags |= FLAG_CAPTION;
 			}
+			else if(strncasecmp(line, "FriendlyName", 12)==0)
+			{
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				if(strstrc(p, "LIFETAB", '\r'))
+				{
+					h->req_client = ELifeTab;
+					h->reqflags |= FLAG_MS_PFS;
+				}
+			}
 		}
 next_header:
 		while(!(line[0] == '\r' && line[1] == '\n'))

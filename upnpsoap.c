@@ -165,10 +165,11 @@ GetSortCapabilities(struct upnphttp * h, const char * action)
 		"<u:%sResponse "
 		"xmlns:u=\"%s\">"
 		"<SortCaps>"
-                  "dc:title,"
-                  "dc:date,"
+		  "dc:title,"
+		  "dc:date,"
 		  "upnp:class,"
-                  "upnp:originalTrackNumber"
+		  "upnp:album,"
+		  "upnp:originalTrackNumber"
 		"</SortCaps>"
 		"</u:%sResponse>";
 
@@ -548,6 +549,10 @@ parse_sort_criteria(char *sortCriteria, int *error)
 		else if( strcasecmp(item, "upnp:originalTrackNumber") == 0 )
 		{
 			strcat(order, "d.DISC, d.TRACK");
+		}
+		else if( strcasecmp(item, "upnp:album") == 0 )
+		{
+			strcat(order, "d.ALBUM");
 		}
 		else
 		{

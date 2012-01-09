@@ -3,6 +3,8 @@
 - Add support for other operating systems.
 - Switch to autoconf from our little genconfig.sh.
 - Enable the subtitle menu on some Samsung TV's.
+- Add subtitle support for Panasonic TV's.
+- Add workarounds for LifeTab tablets' bad behavior.
 
 1.0.22 - Released 24-Aug-2011
 --------------------------------
