@@ -89,7 +89,6 @@ sql_get_int_field(sqlite3 *db, const char *fmt, ...)
 			sqlite3_free(sql);
 			return -1;
 	}
-	sqlite3_free(sql);
 
 	for (counter = 0;
 	     ((result = sqlite3_step(stmt)) == SQLITE_BUSY || result == SQLITE_LOCKED) && counter < 2;
@@ -115,11 +114,12 @@ sql_get_int_field(sqlite3 *db, const char *fmt, ...)
 			ret = sqlite3_column_int(stmt, 0);
 			break;
 		default:
-			DPRINTF(E_WARN, L_DB_SQL, "%s: step failed: %s\n", __func__, sqlite3_errmsg(db));
+			DPRINTF(E_WARN, L_DB_SQL, "%s: step failed: %s\n%s\n", __func__, sqlite3_errmsg(db), sql);
 			ret = -1;
 			break;
  	}
 
+	sqlite3_free(sql);
 	sqlite3_finalize(stmt);
 	return ret;
 }
