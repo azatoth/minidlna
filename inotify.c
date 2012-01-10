@@ -145,20 +145,33 @@ int
 inotify_create_watches(int fd)
 {
 	FILE * max_watches;
-	unsigned int num_watches, watch_limit = 8192;
+	unsigned int num_watches = 0, watch_limit;
 	char **result;
 	int i, rows = 0;
 	struct media_dir_s * media_path;
 
-	i = sql_get_int_field(db, "SELECT count(*) from DETAILS where SIZE is NULL and PATH is not NULL");
-	num_watches = (i < 0) ? 0 : i;
+	for( media_path = media_dirs; media_path != NULL; media_path = media_path->next )
+	{
+		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", media_path->path);
+		add_watch(fd, media_path->path);
+		num_watches++;
+	}
+	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
+	for( i=1; i <= rows; i++ )
+	{
+		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", result[i]);
+		add_watch(fd, result[i]);
+		num_watches++;
+	}
+	sqlite3_free_table(result);
 		
 	max_watches = fopen("/proc/sys/fs/inotify/max_user_watches", "r");
 	if( max_watches )
 	{
-		fscanf(max_watches, "%10u", &watch_limit);
+		if( fscanf(max_watches, "%10u", &watch_limit) < 1 )
+			watch_limit = 8192;
 		fclose(max_watches);
-		if( (watch_limit < DESIRED_WATCH_LIMIT) || (watch_limit < (num_watches*3/4)) )
+		if( (watch_limit < DESIRED_WATCH_LIMIT) || (watch_limit < (num_watches*4/3)) )
 		{
 			max_watches = fopen("/proc/sys/fs/inotify/max_user_watches", "w");
 			if( max_watches )
@@ -191,19 +204,6 @@ inotify_create_watches(int fd)
 		                        "Hopefully it is enough to cover %u current directories plus any new ones added.\n", num_watches);
 	}
 
-	for( media_path = media_dirs; media_path != NULL; media_path = media_path->next )
-	{
-		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", media_path->path);
-		add_watch(fd, media_path->path);
-	}
-	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
-	for( i=1; i <= rows; i++ )
-	{
-		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", result[i]);
-		add_watch(fd, result[i]);
-	}
-	sqlite3_free_table(result);
-
 	return rows;
 }
 
@@ -231,26 +231,30 @@ int add_dir_watch(int fd, char * path, char * filename)
 {
 	DIR *ds;
 	struct dirent *e;
-	char *buf;
+	char *dir;
+	char buf[PATH_MAX];
 	int wd;
 	int i = 0;
 
 	if( filename )
-		asprintf(&buf, "%s/%s", path, filename);
+	{
+		snprintf(buf, sizeof(buf), "%s/%s", path, filename);
+		dir = buf;
+	}
 	else
-		buf = strdup(path);
+		dir = path;
 
-	wd = add_watch(fd, buf);
+	wd = add_watch(fd, dir);
 	if( wd == -1 )
 	{
 		DPRINTF(E_ERROR, L_INOTIFY, "add_watch() [%s]\n", strerror(errno));
 	}
 	else
 	{
-		DPRINTF(E_INFO, L_INOTIFY, "Added watch to %s [%d]\n", buf, wd);
+		DPRINTF(E_INFO, L_INOTIFY, "Added watch to %s [%d]\n", dir, wd);
 	}
 
-	ds = opendir(buf);
+	ds = opendir(dir);
 	if( ds != NULL )
 	{
 		while( (e = readdir(ds)) )
@@ -259,8 +263,8 @@ int add_dir_watch(int fd, char * path, char * filename)
 			    strcmp(e->d_name, "..") == 0 )
 				continue;
 			if( (e->d_type == DT_DIR) ||
-			    (e->d_type == DT_UNKNOWN && resolve_unknown_type(buf, NO_MEDIA) == TYPE_DIR) )
-				i += add_dir_watch(fd, buf, e->d_name);
+			    (e->d_type == DT_UNKNOWN && resolve_unknown_type(dir, NO_MEDIA) == TYPE_DIR) )
+				i += add_dir_watch(fd, dir, e->d_name);
 		}
 	}
 	else
@@ -269,7 +273,6 @@ int add_dir_watch(int fd, char * path, char * filename)
 	}
 	closedir(ds);
 	i++;
-	free(buf);
 
 	return(i);
 }
@@ -418,7 +421,8 @@ inotify_insert_directory(int fd, char *name, const char * path)
 {
 	DIR * ds;
 	struct dirent * e;
-	char *id, *path_buf, *parent_buf, *esc_name;
+	char *id, *parent_buf, *esc_name;
+	char path_buf[PATH_MAX];
 	int wd;
 	enum file_types type = TYPE_UNKNOWN;
 	enum media_types dir_type = ALL_MEDIA;
@@ -477,7 +481,7 @@ inotify_insert_directory(int fd, char *name, const char * path)
 		if( e->d_name[0] == '.' )
 			continue;
 		esc_name = escape_tag(e->d_name, 1);
-		asprintf(&path_buf, "%s/%s", path, e->d_name);
+		snprintf(path_buf, sizeof(path_buf), "%s/%s", path, e->d_name);
 		switch( e->d_type )
 		{
 			case DT_DIR:
@@ -500,7 +504,6 @@ inotify_insert_directory(int fd, char *name, const char * path)
 			}
 		}
 		free(esc_name);
-		free(path_buf);
 	}
 	closedir(ds);
 
@@ -510,9 +513,10 @@ inotify_insert_directory(int fd, char *name, const char * path)
 int
 inotify_remove_file(const char * path)
 {
-	char * sql;
-	char * art_cache;
-	char * ptr;
+	char sql[128];
+	char art_cache[PATH_MAX];
+	char *id;
+	char *ptr;
 	char **result;
 	sqlite_int64 detailID;
 	int rows, playlist;
@@ -520,11 +524,11 @@ inotify_remove_file(const char * path)
 	/* Invalidate the scanner cache so we don't insert files into non-existent containers */
 	valid_cache = 0;
 	playlist = is_playlist(path);
-	sql = sql_get_text_field(db, "SELECT ID from %s where PATH = '%q'", playlist?"PLAYLISTS":"DETAILS", path);
-	if( !sql )
+	id = sql_get_text_field(db, "SELECT ID from %s where PATH = '%q'", playlist?"PLAYLISTS":"DETAILS", path);
+	if( !id )
 		return 1;
-	detailID = strtoll(sql, NULL, 10);
-	sqlite3_free(sql);
+	detailID = strtoll(id, NULL, 10);
+	sqlite3_free(id);
 	if( playlist )
 	{
 		sql_exec(db, "DELETE from PLAYLISTS where ID = %lld", detailID);
@@ -537,7 +541,7 @@ inotify_remove_file(const char * path)
 	else
 	{
 		/* Delete the parent containers if we are about to empty them. */
-		asprintf(&sql, "SELECT PARENT_ID from OBJECTS where DETAIL_ID = %lld", detailID);
+		snprintf(sql, sizeof(sql), "SELECT PARENT_ID from OBJECTS where DETAIL_ID = %lld", detailID);
 		if( (sql_get_table(db, sql, &result, &rows, NULL) == SQLITE_OK) )
 		{
 			int i, children;
@@ -572,14 +576,12 @@ inotify_remove_file(const char * path)
 			}
 			sqlite3_free_table(result);
 		}
-		free(sql);
 		/* Now delete the actual objects */
 		sql_exec(db, "DELETE from DETAILS where ID = %lld", detailID);
 		sql_exec(db, "DELETE from OBJECTS where DETAIL_ID = %lld", detailID);
 	}
-	asprintf(&art_cache, "%s/art_cache%s", db_path, path);
+	snprintf(art_cache, sizeof(art_cache), "%s/art_cache%s", db_path, path);
 	remove(art_cache);
-	free(art_cache);
 
 	return 0;
 }
