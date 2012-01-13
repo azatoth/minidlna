@@ -5,6 +5,7 @@
 #
 # Based on the MiniUPnPd script by Thomas Bernard
 # Modified for MiniDLNA by Justin Maggard <jmaggard@users.sourceforge.net>
+# Status function added by Igor Drobot
 #
 ### BEGIN INIT INFO
 # Provides:          minidlna
@@ -18,7 +19,9 @@
 ### END INIT INFO
 
 MINIDLNA=/usr/sbin/minidlna
-ARGS='-f /etc/minidlna.conf'
+PIDFILE=/var/run/minidlna.pid
+CONF=/etc/minidlna.conf
+ARGS="-f $CONF"
 
 test -f $MINIDLNA || exit 0
 
@@ -26,20 +29,23 @@ test -f $MINIDLNA || exit 0
 
 case "$1" in
 start)  log_daemon_msg "Starting minidlna" "minidlna"
-        start-stop-daemon --start --quiet --pidfile /var/run/minidlna.pid --startas $MINIDLNA -- $ARGS $LSBNAMES
+        start-stop-daemon --start --quiet --pidfile $PIDFILE --startas $MINIDLNA -- $ARGS $LSBNAMES
         log_end_msg $?
         ;;
 stop)   log_daemon_msg "Stopping minidlna" "minidlna"
-        start-stop-daemon --stop --quiet --pidfile /var/run/minidlna.pid
+        start-stop-daemon --stop --quiet --pidfile $PIDFILE
         log_end_msg $?
         ;;
 restart|reload|force-reload)
         log_daemon_msg "Restarting minidlna" "minidlna"
-        start-stop-daemon --stop --retry 5 --quiet --pidfile /var/run/minidlna.pid
-        start-stop-daemon --start --quiet --pidfile /var/run/minidlna.pid --startas $MINIDLNA -- $ARGS $LSBNAMES
+        start-stop-daemon --stop --retry 5 --quiet --pidfile $PIDFILE
+        start-stop-daemon --start --quiet --pidfile $PIDFILE --startas $MINIDLNA -- $ARGS $LSBNAMES
         log_end_msg $?
         ;;
-*)      log_action_msg "Usage: /etc/init.d/minidlna {start|stop|restart|reload|force-reload}"
+status)
+        status_of_proc -p $PIDFILE $MINIDLNA minidlna && exit 0 || exit $?
+        ;;
+*)      log_action_msg "Usage: /etc/init.d/minidlna {start|stop|restart|reload|force-reload|status}"
         exit 2
         ;;
 esac
