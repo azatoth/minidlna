@@ -1515,16 +1515,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	int rotation; */
 	sqlite_int64 id;
 	int rows=0, chunked, ret;
-#ifdef __sparc__
-	char *tn;
-	ExifData *ed;
-	ExifLoader *l;
-#endif
 	image_s *imsrc = NULL, *imdst = NULL;
 	int scale = 1;
 
 	id = strtoll(object, NULL, 10);
-	sprintf(str_buf, "SELECT PATH, RESOLUTION, THUMBNAIL from DETAILS where ID = '%lld'", id);
+	sprintf(str_buf, "SELECT PATH, RESOLUTION from DETAILS where ID = '%lld'", id);
 	ret = sql_get_table(db, str_buf, &result, &rows, NULL);
 	if( (ret != SQLITE_OK) )
 	{
@@ -1532,7 +1527,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		Send500(h);
 		return;
 	}
-	if( !rows || (access(result[3], F_OK) != 0) )
+	if( !rows || (access(result[2], F_OK) != 0) )
 	{
 		DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 		sqlite3_free_table(result);
@@ -1545,8 +1540,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	if( newpid )
 		goto resized_error;
 #endif
-	file_path = result[3];
-	resolution = result[4];
+	file_path = result[2];
+	resolution = result[3];
 	srcw = strtol(resolution, &saveptr, 10);
 	srch = strtol(saveptr+1, NULL, 10);
 
@@ -1640,29 +1635,6 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		strcatf(&str, "transferMode.dlna.org: Background\r\n");
 	}
 
-	/* Resizing from a thumbnail is much faster than from a large image */
-#ifdef __sparc__
-	tn = result[5];
-	if( dstw <= 160 && dsth <= 120 && atoi(tn) )
-	{
-		l = exif_loader_new();
-		exif_loader_write_file(l, file_path);
-		ed = exif_loader_get_data(l);
-		exif_loader_unref(l);
-
-		if( !ed || !ed->size )
-		{
-			if( ed )
-				exif_data_unref(ed);
-			DPRINTF(E_WARN, L_HTTP, "Unable to access image thumbnail!\n");
-			Send500(h);
-			goto resized_error;
-		}
-		imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size, 1);
-		exif_data_unref(ed);
-	}
-	else
-#endif
 	if( strcmp(h->HttpVer, "HTTP/1.0") == 0 )
 	{
 		chunked = 0;
