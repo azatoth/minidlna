@@ -695,6 +695,7 @@ SendResp_presentation(struct upnphttp * h)
 #endif
 	BuildResp_upnphttp(h, body, l);
 	SendResp_upnphttp(h);
+	CloseSocket_upnphttp(h);
 }
 
 /* ProcessHTTPPOST_upnphttp()
@@ -949,7 +950,6 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		else if(strncmp(HttpUrl, "/MediaItems/", 12) == 0)
 		{
 			SendResp_dlnafile(h, HttpUrl+12);
-			CloseSocket_upnphttp(h);
 		}
 		else if(strncmp(HttpUrl, "/Thumbnails/", 12) == 0)
 		{
@@ -958,7 +958,6 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		else if(strncmp(HttpUrl, "/AlbumArt/", 10) == 0)
 		{
 			SendResp_albumArt(h, HttpUrl+10);
-			CloseSocket_upnphttp(h);
 		}
 		#ifdef TIVO_SUPPORT
 		else if(strncmp(HttpUrl, "/TiVoConnect", 12) == 0)
@@ -986,22 +985,18 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 		else if(strncmp(HttpUrl, "/Resized/", 9) == 0)
 		{
 			SendResp_resizedimg(h, HttpUrl+9);
-			CloseSocket_upnphttp(h);
 		}
 		else if(strncmp(HttpUrl, "/icons/", 7) == 0)
 		{
 			SendResp_icon(h, HttpUrl+7);
-			CloseSocket_upnphttp(h);
 		}
 		else if(strncmp(HttpUrl, "/Captions/", 10) == 0)
 		{
 			SendResp_caption(h, HttpUrl+10);
-			CloseSocket_upnphttp(h);
 		}
 		else if(strcmp(HttpUrl, "/") == 0)
 		{
 			SendResp_presentation(h);
-			CloseSocket_upnphttp(h);
 		}
 		else
 		{
@@ -1356,6 +1351,7 @@ SendResp_icon(struct upnphttp * h, char * icon)
  		if( h->req_command != EHead )
 			send_data(h, data, size, 0);
 	}
+	CloseSocket_upnphttp(h);
 }
 
 void
@@ -1421,6 +1417,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 			send_file(h, fd, 0, size-1);
 	}
 	close(fd);
+	CloseSocket_upnphttp(h);
 }
 
 void
@@ -1470,6 +1467,7 @@ SendResp_caption(struct upnphttp * h, char * object)
 			send_file(h, fd, 0, size-1);
 	}
 	close(fd);
+	CloseSocket_upnphttp(h);
 }
 
 void
@@ -1588,7 +1586,10 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	pid_t newpid = 0;
 	newpid = fork();
 	if( newpid )
+	{
+		CloseSocket_upnphttp(h);
 		goto resized_error;
+	}
 #endif
 	file_path = result[2];
 	resolution = result[3];
@@ -1739,7 +1740,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		image_free(imsrc);
 	if( imdst )
 		image_free(imdst);
-	resized_error:
+	CloseSocket_upnphttp(h);
+resized_error:
 	sqlite3_free_table(result);
 #if USE_FORK
 	if( !newpid )
@@ -1781,7 +1783,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 			Send500(h);
 			return;
 		}
-		if( !rows )
+		if( !rows || !result[3] )
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 			sqlite3_free_table(result);
@@ -1830,7 +1832,10 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 #if USE_FORK
 	newpid = fork();
 	if( newpid )
-		return;
+	{
+		CloseSocket_upnphttp(h);
+		goto error;
+	}
 #endif
 
 	DPRINTF(E_INFO, L_HTTP, "Serving DetailID: %lld [%s]\n", id, last_file.path);
@@ -1966,10 +1971,10 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	}
 	close(sendfh);
 
-	error:
+	CloseSocket_upnphttp(h);
+error:
 #if USE_FORK
 	if( !newpid )
 		_exit(0);
 #endif
-	return;
 }
