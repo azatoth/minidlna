@@ -2,9 +2,21 @@
 --------------------------------
 - Add support for other operating systems.
 - Switch to autoconf from our little genconfig.sh.
+
+1.0.23 - Released 00-Month-0000
+--------------------------------
 - Enable the subtitle menu on some Samsung TV's.
 - Add subtitle support for Panasonic TV's.
 - Add workarounds for LifeTab tablets' bad behavior.
+- Speed up playlist parsing.
+- Make metadata-based virtual containers case insensitive.
+- Add folder art support (very few clients support this though).
+- Improve trimming of quotation marks.
+- Fix SRT caption support with the latest Samsung Series D firmware.
+- Fix subtitles on LG TV's for items whose titles don't have a dot in them.
+- Add support for the av:mediaClass tag, so some Sony devices can filter items by media type.
+- Fix inotify detection issues on first-level folders.
+- Work around LifeTab's broken DLNA support.
 
 1.0.22 - Released 24-Aug-2011
 --------------------------------

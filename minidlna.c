@@ -825,13 +825,8 @@ init(int argc, char * * argv)
 	}
 	else
 	{
-#ifdef READYNAS
-		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
-		         "http://%s/admin/", lan_addr[0].str);
-#else
 		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
 		         "http://%s:%d/", lan_addr[0].str, runtime_vars.port);
-#endif
 	}
 
 	/* set signal handler */

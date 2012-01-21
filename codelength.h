@@ -1,4 +1,3 @@
-/* $Id$ */
 /* Project : miniupnp
  * Author : Thomas BERNARD
  * copyright (c) 2005-2008 Thomas Bernard

@@ -129,11 +129,22 @@ IsAuthorizedValidated(struct upnphttp * h, const char * action)
 
 	char body[512];
 	int bodylen;
+	struct NameValueParserData data;
+	const char * id;
 
-	bodylen = snprintf(body, sizeof(body), resp,
-		action, "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1",
-		1, action);	
-	BuildSendAndCloseSoapResp(h, body, bodylen);
+	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
+	id = GetValueFromNameValueList(&data, "DeviceID");
+	if(id)
+	{
+		bodylen = snprintf(body, sizeof(body), resp,
+			action, "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1",
+			1, action);	
+		BuildSendAndCloseSoapResp(h, body, bodylen);
+	}
+	else
+		SoapError(h, 402, "Invalid Args");
+
+	ClearNameValueList(&data);	
 }
 
 static void
@@ -246,11 +257,32 @@ GetCurrentConnectionInfo(struct upnphttp * h, const char * action)
 
 	char body[sizeof(resp)+128];
 	int bodylen;
+	struct NameValueParserData data;
+	const char * id_str;
+	int id;
+	char *endptr;
 
-	bodylen = snprintf(body, sizeof(body), resp,
-		action, "urn:schemas-upnp-org:service:ConnectionManager:1",
-		action);	
-	BuildSendAndCloseSoapResp(h, body, bodylen);
+	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
+	id_str = GetValueFromNameValueList(&data, "ConnectionID");
+	DPRINTF(E_INFO, L_HTTP, "GetCurrentConnectionInfo(%s)\n", id_str);
+	if(id_str)
+		id = strtol(id_str, &endptr, 10);
+	if(!id_str || !id_str[0] || endptr[0] || id != 0)
+	{
+		SoapError(h, 402, "Invalid Args");
+	}
+	else if(id != 0)
+	{
+		SoapError(h, 701, "No such object error");
+	}
+	else
+	{
+		bodylen = snprintf(body, sizeof(body), resp,
+			action, "urn:schemas-upnp-org:service:ConnectionManager:1",
+			action);	
+		BuildSendAndCloseSoapResp(h, body, bodylen);
+	}
+	ClearNameValueList(&data);	
 }
 
 static void
@@ -533,6 +565,12 @@ parse_sort_criteria(char *sortCriteria, int *error)
 			reverse = 1;
 			item++;
 		}
+		else
+		{
+			DPRINTF(E_DEBUG, L_HTTP, "No order specified [%s]\n", item);
+			*error = 1;
+			goto unhandled_order;
+		}
 		if( strcasecmp(item, "upnp:class") == 0 )
 		{
 			strcat(order, "o.CLASS");
@@ -556,7 +594,7 @@ parse_sort_criteria(char *sortCriteria, int *error)
 		}
 		else
 		{
-			printf("Unhandled SortCriteria [%s]\n", item);
+			DPRINTF(E_DEBUG, L_HTTP, "Unhandled SortCriteria [%s]\n", item);
 			*error = 1;
 			if( i )
 			{
@@ -1017,6 +1055,10 @@ callback(void *args, int argc, char **argv, char **azColName)
 		                   "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
 		                   "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
 		                   title, class);
+		if( strcmp(class+10, "storageFolder") == 0 ) {
+			/* TODO: Implement real folder size tracking */
+			ret = strcatf(str, "&lt;upnp:storageUsed&gt;%s&lt;/upnp:storageUsed&gt;", (size ? size : "-1"));
+		}
 		if( creator && (passed_args->filter & FILTER_DC_CREATOR) ) {
 			ret = strcatf(str, "&lt;dc:creator&gt;%s&lt;/dc:creator&gt;", creator);
 		}
@@ -1087,10 +1129,20 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 
 	if( (ptr = GetValueFromNameValueList(&data, "RequestedCount")) )
 		RequestedCount = atoi(ptr);
+	if( RequestedCount < 0 )
+	{
+		SoapError(h, 402, "Invalid Args");
+		goto browse_error;
+	}
 	if( !RequestedCount )
 		RequestedCount = -1;
 	if( (ptr = GetValueFromNameValueList(&data, "StartingIndex")) )
 		StartingIndex = atoi(ptr);
+	if( StartingIndex < 0 )
+	{
+		SoapError(h, 402, "Invalid Args");
+		goto browse_error;
+	}
 	if( !BrowseFlag || (strcmp(BrowseFlag, "BrowseDirectChildren") && strcmp(BrowseFlag, "BrowseMetadata")) )
 	{
 		SoapError(h, 402, "Invalid Args");
@@ -1098,7 +1150,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 	}
 	if( !ObjectID && !(ObjectID = GetValueFromNameValueList(&data, "ContainerID")) )
 	{
-		SoapError(h, 701, "No such object error");
+		SoapError(h, 402, "Invalid Args");
 		goto browse_error;
 	}
 
@@ -1293,7 +1345,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	{
 		if( !(ContainerID = GetValueFromNameValueList(&data, "ObjectID")) )
 		{
-			SoapError(h, 701, "No such object error");
+			SoapError(h, 402, "Invalid Args");
 			goto search_error;
 		}
 	}

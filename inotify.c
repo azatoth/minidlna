@@ -156,7 +156,7 @@ inotify_create_watches(int fd)
 		add_watch(fd, media_path->path);
 		num_watches++;
 	}
-	sql_get_table(db, "SELECT PATH from DETAILS where SIZE is NULL and PATH is not NULL", &result, &rows, NULL);
+	sql_get_table(db, "SELECT PATH from DETAILS where MIME is NULL and PATH is not NULL", &result, &rows, NULL);
 	for( i=1; i <= rows; i++ )
 	{
 		DPRINTF(E_DEBUG, L_INOTIFY, "Add watch to %s\n", result[i]);
@@ -646,6 +646,7 @@ start_inotify()
 	inotify_create_watches(pollfds[0].fd);
 	if (setpriority(PRIO_PROCESS, 0, 19) == -1)
 		DPRINTF(E_WARN, L_INOTIFY,  "Failed to reduce inotify thread priority\n");
+	sqlite3_release_memory(1<<31);
         
 	while( !quitting )
 	{

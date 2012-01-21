@@ -1,4 +1,3 @@
-/* $Id$ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  *

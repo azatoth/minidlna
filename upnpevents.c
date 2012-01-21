@@ -54,6 +54,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -73,7 +74,6 @@ struct subscriber {
 	struct upnp_event_notify * notify;
 	time_t timeout;
 	uint32_t seq;
-	/*enum { EWanCFG = 1, EWanIPC, EL3F } service;*/
 	enum subscriber_service_enum service;
 	char uuid[42];
 	char callback[];
@@ -147,12 +147,8 @@ upnpevents_addSubscriber(const char * eventurl,
                          int timeout)
 {
 	struct subscriber * tmp;
-	/*static char uuid[42];*/
-	/* "uuid:00000000-0000-0000-0000-000000000000"; 5+36+1=42bytes */
 	DPRINTF(E_DEBUG, L_HTTP, "addSubscriber(%s, %.*s, %d)\n",
 	       eventurl, callbacklen, callback, timeout);
-	/*strncpy(uuid, uuidvalue, sizeof(uuid));
-	uuid[sizeof(uuid)-1] = '\0';*/
 	tmp = newSubscriber(eventurl, callback, callbacklen);
 	if(!tmp)
 		return NULL;
@@ -198,8 +194,7 @@ upnpevents_removeSubscriber(const char * sid, int sidlen)
 	return -1;
 }
 
-/* notifies all subscriber of a number of port mapping change
- * or external ip address change */
+/* notifies all subscribers of a SystemUpdateID change */
 void
 upnp_event_var_change_notify(enum subscriber_service_enum service)
 {
@@ -265,7 +260,7 @@ upnp_event_notify_connect(struct upnp_event_notify * obj)
 	}
 	p = obj->sub->callback;
 	p += 7;	/* http:// */
-	while(*p != '/' && *p != ':')
+	while(*p != '/' && *p != ':' && i < (sizeof(obj->addrstr)-1))
 		obj->addrstr[i++] = *(p++);
 	obj->addrstr[i] = '\0';
 	if(*p == ':') {
@@ -349,16 +344,15 @@ static void upnp_event_send(struct upnp_event_notify * obj)
 {
 	int i;
 	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "Sending UPnP Event:\n%s", obj->buffer+obj->sent);
-	i = send(obj->s, obj->buffer + obj->sent, obj->tosend - obj->sent, 0);
-	if(i<0) {
-		DPRINTF(E_WARN, L_HTTP, "%s: send(): %s\n", "upnp_event_send", strerror(errno));
-		obj->state = EError;
-		return;
+	while( obj->sent < obj->tosend ) {
+		i = send(obj->s, obj->buffer + obj->sent, obj->tosend - obj->sent, 0);
+		if(i<0) {
+			DPRINTF(E_WARN, L_HTTP, "%s: send(): %s\n", "upnp_event_send", strerror(errno));
+			obj->state = EError;
+			return;
+		}
+		obj->sent += i;
 	}
-	else if(i != (obj->tosend - obj->sent))
-		DPRINTF(E_WARN, L_HTTP, "%s: %d bytes send out of %d\n",
-		       "upnp_event_send", i, obj->tosend - obj->sent);
-	obj->sent += i;
 	if(obj->sent == obj->tosend)
 		obj->state = EWaitingForResponse;
 }
@@ -376,7 +370,11 @@ static void upnp_event_recv(struct upnp_event_notify * obj)
 	       n, n, obj->buffer);
 	obj->state = EFinished;
 	if(obj->sub)
+	{
 		obj->sub->seq++;
+		if (!obj->sub->seq)
+			obj->sub->seq++;
+	}
 }
 
 static void
@@ -421,12 +419,12 @@ void upnpevents_selectfds(fd_set *readset, fd_set *writeset, int * max_fd)
 				if(obj->s > *max_fd)
 					*max_fd = obj->s;
 				break;
-			case EFinished:
-			case EError:
 			case EWaitingForResponse:
 				FD_SET(obj->s, readset);
 				if(obj->s > *max_fd)
 					*max_fd = obj->s;
+				break;
+			default:
 				break;
 			}
 		}
@@ -483,29 +481,3 @@ void upnpevents_processfds(fd_set *readset, fd_set *writeset)
 	}
 }
 
-#ifdef USE_MINIDLNACTL
-void write_events_details(int s) {
-	int n;
-	char buff[80];
-	struct upnp_event_notify * obj;
-	struct subscriber * sub;
-	write(s, "Events details\n", 15);
-	for(obj = notifylist.lh_first; obj != NULL; obj = obj->entries.le_next) {
-		n = snprintf(buff, sizeof(buff), " %p sub=%p state=%d s=%d\n",
-		             obj, obj->sub, obj->state, obj->s);
-		write(s, buff, n);
-	}
-	write(s, "Subscribers :\n", 14);
-	for(sub = subscriberlist.lh_first; sub != NULL; sub = sub->entries.le_next) {
-		n = snprintf(buff, sizeof(buff), " %p timeout=%d seq=%u service=%d\n",
-		             sub, sub->timeout, sub->seq, sub->service);
-		write(s, buff, n);
-		n = snprintf(buff, sizeof(buff), "   notify=%p %s\n",
-		             sub->notify, sub->uuid);
-		write(s, buff, n);
-		n = snprintf(buff, sizeof(buff), "   %s\n",
-		             sub->callback);
-		write(s, buff, n);
-	}
-}
-#endif

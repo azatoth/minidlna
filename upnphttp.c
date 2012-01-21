@@ -209,6 +209,9 @@ ParseHttpHeaders(struct upnphttp * h)
 					n++;
 				h->req_Callback = p + 1;
 				h->req_CallbackLen = MAX(0, n - 1);
+				/* Verify callback validity */
+				if(strncmp(h->req_Callback, "http://", 7) != 0)
+					h->req_Callback = NULL;
 			}
 			else if(strncasecmp(line, "SID", 3)==0)
 			{
@@ -232,6 +235,17 @@ ParseHttpHeaders(struct upnphttp * h)
 					h->req_SID = p;
 					h->req_SIDLen = n;
 				}
+			}
+			else if(strncasecmp(line, "NT", 2)==0)
+			{
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				n = 0;
+				while(!isspace(p[n]))
+					n++;
+				h->req_NT = p;
+				h->req_NTLen = n;
 			}
 			/* Timeout: Seconds-nnnn */
 /* TIMEOUT
@@ -405,6 +419,10 @@ intervening space) by either an integer or the keyword "infinite". */
 				{
 					h->reqflags |= FLAG_CHUNKED;
 				}
+			}
+			else if(strncasecmp(line, "Accept-Language", 15)==0)
+			{
+				h->reqflags |= FLAG_LANGUAGE;
 			}
 			else if(strncasecmp(line, "getcontentFeatures.dlna.org", 27)==0)
 			{
@@ -651,6 +669,34 @@ sendXMLdesc(struct upnphttp * h, char * (f)(int *))
 	free(desc);
 }
 
+static void
+SendResp_presentation(struct upnphttp * h)
+{
+	char body[1024];
+	int l;
+	h->respflags = FLAG_HTML;
+
+#ifdef READYNAS
+	l = snprintf(body, sizeof(body), "<meta http-equiv=\"refresh\" content=\"0; url=https://%s/admin/\">",
+	             lan_addr[h->iface].str);
+#else
+	int a, v, p;
+	a = sql_get_int_field(db, "SELECT count(*) from DETAILS where MIME glob 'a*'");
+	v = sql_get_int_field(db, "SELECT count(*) from DETAILS where MIME glob 'v*'");
+	p = sql_get_int_field(db, "SELECT count(*) from DETAILS where MIME glob 'i*'");
+	l = snprintf(body, sizeof(body),
+		"<HTML><HEAD><TITLE>" SERVER_NAME "</TITLE></HEAD>"
+		"<BODY><div style=\"text-align: center\">"
+                "<h3>" SERVER_NAME " status</h3>"
+                "Audio files: %d<br>"
+                "Video files: %d<br>"
+                "Image files: %d</div>"
+		"</BODY></HTML>\r\n", a, v, p);
+#endif
+	BuildResp_upnphttp(h, body, l);
+	SendResp_upnphttp(h);
+}
+
 /* ProcessHTTPPOST_upnphttp()
  * executes the SOAP query if it is possible */
 static void
@@ -693,7 +739,15 @@ ProcessHTTPSubscribe_upnphttp(struct upnphttp * h, const char * path)
 	DPRINTF(E_DEBUG, L_HTTP, "Callback '%.*s' Timeout=%d\n",
 	       h->req_CallbackLen, h->req_Callback, h->req_Timeout);
 	DPRINTF(E_DEBUG, L_HTTP, "SID '%.*s'\n", h->req_SIDLen, h->req_SID);
-	if(!h->req_Callback && !h->req_SID) {
+	if(!h->req_NT) {
+		static const char err400str[] =
+			"<html><body>Bad request</body></html>";
+		BuildResp2_upnphttp(h, 400, "Bad Request",
+			            err400str, sizeof(err400str) - 1);
+		SendResp_upnphttp(h);
+		CloseSocket_upnphttp(h);
+	} else if((!h->req_Callback && !h->req_SID) ||
+	          strncmp(h->req_NT, "upnp:event", h->req_NTLen) != 0) {
 		/* Missing or invalid CALLBACK : 412 Precondition Failed.
 		 * If CALLBACK header is missing or does not contain a valid HTTP URL,
 		 * the publisher must respond with HTTP error 412 Precondition Failed*/
@@ -944,6 +998,11 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			SendResp_caption(h, HttpUrl+10);
 			CloseSocket_upnphttp(h);
 		}
+		else if(strcmp(HttpUrl, "/") == 0)
+		{
+			SendResp_presentation(h);
+			CloseSocket_upnphttp(h);
+		}
 		else
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", HttpUrl);
@@ -1047,23 +1106,6 @@ Process_upnphttp(struct upnphttp * h)
 	}
 }
 
-static const char httpresphead[] =
-	"%s %d %s\r\n"
-	"Content-Type: %s\r\n"
-	"Connection: close\r\n"
-	"Content-Length: %d\r\n"
-	"Server: " MINIDLNA_SERVER_STRING "\r\n"
-//	"Accept-Ranges: bytes\r\n"
-	;	/*"\r\n";*/
-/*
-		"<?xml version=\"1.0\"?>\n"
-		"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
-		"s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
-		"<s:Body>"
-
-		"</s:Body>"
-		"</s:Envelope>";
-*/
 /* with response code and response message
  * also allocate enough memory */
 
@@ -1072,15 +1114,22 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
                      const char * respmsg,
                      int bodylen)
 {
+	static const char httpresphead[] =
+		"%s %d %s\r\n"
+		"Content-Type: %s\r\n"
+		"Connection: close\r\n"
+		"Content-Length: %d\r\n"
+		"Server: " MINIDLNA_SERVER_STRING "\r\n";
+	time_t curtime = time(NULL);
+	char date[30];
 	int templen;
 	if(!h->res_buf)
 	{
-		templen = sizeof(httpresphead) + 192 + bodylen;
+		templen = sizeof(httpresphead) + 256 + bodylen;
 		h->res_buf = (char *)malloc(templen);
 		h->res_buf_alloclen = templen;
 	}
 	h->res_buflen = snprintf(h->res_buf, h->res_buf_alloclen,
-	                         //httpresphead, h->HttpVer,
 	                         httpresphead, "HTTP/1.1",
 	                         respcode, respmsg,
 	                         (h->respflags&FLAG_HTML)?"text/html":"text/xml; charset=\"utf-8\"",
@@ -1098,7 +1147,6 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 			h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 			                          h->res_buf_alloclen - h->res_buflen,
 			                          "300\r\n");
-			                          //JM DLNA must force to 300 - "infinite\r\n");
 		}
 	}
 	if(h->respflags & FLAG_SID) {
@@ -1106,19 +1154,22 @@ BuildHeader_upnphttp(struct upnphttp * h, int respcode,
 		                          h->res_buf_alloclen - h->res_buflen,
 		                          "SID: %.*s\r\n", h->req_SIDLen, h->req_SID);
 	}
-#if 0 // DLNA
-	char   szTime[30];
-	time_t curtime = time(NULL);
-	strftime(szTime, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
+	if(h->reqflags & FLAG_LANGUAGE) {
+		h->res_buflen += snprintf(h->res_buf + h->res_buflen,
+		                          h->res_buf_alloclen - h->res_buflen,
+		                          "Content-Language: en\r\n");
+	}
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 	                          h->res_buf_alloclen - h->res_buflen,
-	                          "Date: %s\r\n", szTime);
-	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
-	                          h->res_buf_alloclen - h->res_buflen,
-	                          "contentFeatures.dlna.org: \r\n");
+	                          "Date: %s\r\n", date);
 	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
 	                          h->res_buf_alloclen - h->res_buflen,
 	                          "EXT:\r\n");
+#if 0 // DLNA
+	h->res_buflen += snprintf(h->res_buf + h->res_buflen,
+	                          h->res_buf_alloclen - h->res_buflen,
+	                          "contentFeatures.dlna.org: \r\n");
 #endif
 	h->res_buf[h->res_buflen++] = '\r';
 	h->res_buf[h->res_buflen++] = '\n';
@@ -1339,8 +1390,6 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 	}
 	DPRINTF(E_INFO, L_HTTP, "Serving album art ID: %s [%s]\n", object, path);
 
-	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-
 	fd = open(path, O_RDONLY);
 	if( fd < 0 ) {
 		DPRINTF(E_ERROR, L_HTTP, "Error opening %s\n", path);
@@ -1352,6 +1401,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 	size = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_SET);
 
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	ret = snprintf(header, sizeof(header), "HTTP/1.1 200 OK\r\n"
 	                                       "Content-Type: image/jpeg\r\n"
 	                                       "Content-Length: %jd\r\n"
@@ -1403,8 +1453,8 @@ SendResp_caption(struct upnphttp * h, char * object)
 	sqlite3_free(path);
 	size = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_SET);
-	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	ret = snprintf(header, sizeof(header), "HTTP/1.1 200 OK\r\n"
 	                                       "Content-Type: smi/caption\r\n"
 	                                       "Content-Length: %jd\r\n"
@@ -1456,7 +1506,6 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 		sqlite3_free(path);
 		return;
 	}
-	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 
 	l = exif_loader_new();
 	exif_loader_write_file(l, path);
@@ -1471,6 +1520,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 			exif_data_unref(ed);
 		return;
 	}
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	ret = snprintf(header, sizeof(header), "HTTP/1.1 200 OK\r\n"
 	                                       "Content-Type: image/jpeg\r\n"
 	                                       "Content-Length: %d\r\n"
@@ -1611,12 +1661,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	else if( srcw>>1 >= dstw && srch>>1 >= dsth )
 		scale = 2;
 
-	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-
         str.data = header;
         str.size = sizeof(header);
         str.off = 0;
 
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	strcatf(&str, "HTTP/1.1 200 OK\r\n"
 	              "Content-Type: image/jpeg\r\n"
 	              "Connection: close\r\n"
@@ -1816,7 +1865,6 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		}
 	}
 
-	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	offset = h->req_RangeStart;
 	sendfh = open(last_file.path, O_RDONLY);
 	if( sendfh < 0 ) {
@@ -1900,6 +1948,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 		}
 	}
 
+	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
 	strcatf(&str, "Accept-Ranges: bytes\r\n"
 	              "Connection: close\r\n"
 	              "Date: %s\r\n"

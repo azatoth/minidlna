@@ -1,4 +1,3 @@
-/* $Id$ */
 /* minixml.c : the minimum size a xml parser can be ! */
 /* Project : miniupnp
  * webpage: http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
