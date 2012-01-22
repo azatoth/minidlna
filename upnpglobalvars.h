@@ -56,7 +56,7 @@
 
 #include <sqlite3.h>
 
-#define MINIDLNA_VERSION "1.0.22"
+#define MINIDLNA_VERSION "1.1.0-cvs"
 
 #ifdef NETGEAR
 # define SERVER_NAME "ReadyDLNA"
@@ -66,7 +66,7 @@
 
 #define CLIENT_CACHE_SLOTS 20
 #define USE_FORK 1
-#define DB_VERSION 6
+#define DB_VERSION 7
 
 #ifdef ENABLE_NLS
 #define _(string) gettext(string)

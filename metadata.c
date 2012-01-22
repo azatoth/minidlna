@@ -114,6 +114,7 @@
 #define FLAG_FREQUENCY	0x00001000
 #define FLAG_BPS	0x00002000
 #define FLAG_CHANNELS	0x00004000
+#define FLAG_ROTATION	0x00008000
 
 /* Audio profile flags */
 enum audio_profiles {
@@ -281,36 +282,38 @@ parse_nfo(const char * path, metadata_t * m)
 void
 free_metadata(metadata_t * m, uint32_t flags)
 {
-	if( m->title && (flags & FLAG_TITLE) )
+	if( flags & FLAG_TITLE )
 		free(m->title);
-	if( m->artist && (flags & FLAG_ARTIST) )
+	if( flags & FLAG_ARTIST )
 		free(m->artist);
-	if( m->album && (flags & FLAG_ALBUM) )
+	if( flags & FLAG_ALBUM )
 		free(m->album);
-	if( m->genre && (flags & FLAG_GENRE) )
+	if( flags & FLAG_GENRE )
 		free(m->genre);
-	if( m->creator && (flags & FLAG_CREATOR) )
+	if( flags & FLAG_CREATOR )
 		free(m->creator);
-	if( m->date && (flags & FLAG_DATE) )
+	if( flags & FLAG_DATE )
 		free(m->date);
-	if( m->comment && (flags & FLAG_COMMENT) )
+	if( flags & FLAG_COMMENT )
 		free(m->comment);
-	if( m->dlna_pn && (flags & FLAG_DLNA_PN) )
+	if( flags & FLAG_DLNA_PN )
 		free(m->dlna_pn);
-	if( m->mime && (flags & FLAG_MIME) )
+	if( flags & FLAG_MIME )
 		free(m->mime);
-	if( m->duration && (flags & FLAG_DURATION) )
+	if( flags & FLAG_DURATION )
 		free(m->duration);
-	if( m->resolution && (flags & FLAG_RESOLUTION) )
+	if( flags & FLAG_RESOLUTION )
 		free(m->resolution);
-	if( m->bitrate && (flags & FLAG_BITRATE) )
+	if( flags & FLAG_BITRATE )
 		free(m->bitrate);
-	if( m->frequency && (flags & FLAG_FREQUENCY) )
+	if( flags & FLAG_FREQUENCY )
 		free(m->frequency);
-	if( m->bps && (flags & FLAG_BPS) )
+	if( flags & FLAG_BPS )
 		free(m->bps);
-	if( m->channels && (flags & FLAG_CHANNELS) )
+	if( flags & FLAG_CHANNELS )
 		free(m->channels);
+	if( flags & FLAG_ROTATION )
+		free(m->rotation);
 }
 
 sqlite_int64
@@ -562,7 +565,7 @@ GetImageMetadata(const char * path, char * name)
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * size: %jd\n", file.st_size);
 
 	/* MIME hard-coded to JPEG for now, until we add PNG support */
-	asprintf(&m.mime, "image/jpeg");
+	m.mime = strdup("image/jpeg");
 
 	l = exif_loader_new();
 	exif_loader_write_file(l, path);
@@ -572,7 +575,8 @@ GetImageMetadata(const char * path, char * name)
 		goto no_exifdata;
 
 	e = exif_content_get_entry (ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_ORIGINAL);
-	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_DIGITIZED)) ) {
+	if( e || (e = exif_content_get_entry(ed->ifd[EXIF_IFD_EXIF], EXIF_TAG_DATE_TIME_DIGITIZED)) )
+	{
 		m.date = strdup(exif_entry_get_value(e, b, sizeof(b)));
 		if( strlen(m.date) > 10 )
 		{
@@ -591,11 +595,11 @@ GetImageMetadata(const char * path, char * name)
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * date: %s\n", m.date);
 
-	e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MAKE);
+	e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_MAKE);
 	if( e )
 	{
 		strncpyt(make, exif_entry_get_value(e, b, sizeof(b)), sizeof(make));
-		e = exif_content_get_entry (ed->ifd[EXIF_IFD_0], EXIF_TAG_MODEL);
+		e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_MODEL);
 		if( e )
 		{
 			strncpyt(model, exif_entry_get_value(e, b, sizeof(b)), sizeof(model));
@@ -606,12 +610,38 @@ GetImageMetadata(const char * path, char * name)
 	}
 	//DEBUG DPRINTF(E_DEBUG, L_METADATA, " * model: %s\n", model);
 
+	e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_ORIENTATION);
+	if( e )
+	{
+		int rotate;
+		switch( exif_get_short(e->data, exif_data_get_byte_order(ed)) )
+		{
+		case 3:
+			rotate = 180;
+			break;
+		case 6:
+			rotate = 270;
+			break;
+		case 8:
+			rotate = 90;
+			break;
+		default:
+			rotate = 0;
+			break;
+		}
+		if( rotate )
+		{
+			if( asprintf(&m.rotation, "%d", rotate) < 0 )
+				m.rotation = NULL;
+		}
+	}
+
 	if( ed->size )
 	{
 		/* We might need to verify that the thumbnail is 160x160 or smaller */
 		if( ed->size > 12000 )
 		{
-			imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size, 1);
+			imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size, 1, ROTATE_NONE);
 			if( imsrc )
 			{
  				if( (imsrc->width <= 160) && (imsrc->height <= 160) )
@@ -664,10 +694,12 @@ no_exifdata:
 	asprintf(&m.resolution, "%dx%d", width, height);
 
 	ret = sql_exec(db, "INSERT into DETAILS"
-	                   " (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
+	                   " (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION,"
+	                    " ROTATION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 	                   "VALUES"
-	                   " (%Q, '%q', %lld, %ld, %Q, %Q, %d, %Q, %Q, %Q);",
-	                   path, name, file.st_size, file.st_mtime, m.date, m.resolution, thumb, m.creator, m.dlna_pn, m.mime);
+	                   " (%Q, '%q', %lld, %ld, %Q, %Q, %Q, %d, %Q, %Q, %Q);",
+	                   path, name, file.st_size, file.st_mtime, m.date, m.resolution,
+	                   m.rotation, thumb, m.creator, m.dlna_pn, m.mime);
 	if( ret != SQLITE_OK )
 	{
 		fprintf(stderr, "Error inserting details for '%s'!\n", path);

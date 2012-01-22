@@ -216,12 +216,18 @@ db_upgrade(sqlite3 *db)
 		return 5;
 	if (db_vers < 6)
 	{
-		DPRINTF(E_WARN, L_DB_SQL, "Updating DB version to v%d.\n", DB_VERSION);
 		ret = sql_exec(db, "CREATE TABLE BOOKMARKS ("
 		                        "ID INTEGER PRIMARY KEY, "
 					"SEC INTEGER)");
 		if( ret != SQLITE_OK )
 			return 6;
+	}
+	if (db_vers < 7)
+	{
+		DPRINTF(E_WARN, L_DB_SQL, "Updating DB version to v%d.\n", DB_VERSION);
+		ret = sql_exec(db, "ALTER TABLE DETAILS ADD rotation INTEGER");
+		if( ret != SQLITE_OK )
+			return 7;
 	}
 	sql_exec(db, "PRAGMA user_version = %d", DB_VERSION);
 

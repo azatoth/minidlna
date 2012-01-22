@@ -21,9 +21,14 @@
  * You should have received a copy of the GNU General Public License
  * along with MiniDLNA. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <sys/types.h>
+#include <inttypes.h>
 
-typedef u_int32_t pix;
+#define ROTATE_NONE 0x0
+#define ROTATE_90   0x1
+#define ROTATE_180  0x2
+#define ROTATE_270  0x4
+
+typedef uint32_t pix;
 
 typedef struct {
 	int32_t width;
@@ -41,7 +46,7 @@ int
 image_get_jpeg_resolution(const char * path, int * width, int * height);
 
 image_s *
-image_new_from_jpeg(const char * path, int is_file, const char * ptr, int size, int scale);
+image_new_from_jpeg(const char * path, int is_file, const char * ptr, int size, int scale, int resize);
 
 image_s *
 image_resize(image_s * src_image, int32_t width, int32_t height);

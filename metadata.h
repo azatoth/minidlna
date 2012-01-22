@@ -36,6 +36,7 @@ typedef struct metadata_s {
 	char *frequency;
 	char *bps;
 	char *resolution;
+	char *rotation;
 	char *duration;
 	char *date;
 	char *mime;

@@ -900,7 +900,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			return;
 		}
 		/* 7.3.33.4 */
-		else if( ((h->reqflags & FLAG_TIMESEEK) || (h->reqflags & FLAG_PLAYSPEED)) &&
+		else if( (h->reqflags & (FLAG_TIMESEEK|FLAG_PLAYSPEED)) &&
 		         !(h->reqflags & FLAG_RANGE) )
 		{
 			DPRINTF(E_WARN, L_HTTP, "DLNA %s requested, responding ERROR 406\n",
@@ -1366,7 +1366,7 @@ SendResp_albumArt(struct upnphttp * h, char * object)
 	int fd;
 	int ret;
 
-	if( h->reqflags & FLAG_XFERSTREAMING || h->reqflags & FLAG_RANGE )
+	if( h->reqflags & (FLAG_XFERSTREAMING|FLAG_RANGE) )
 	{
 		DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Streaming with an image!\n");
 		Send406(h);
@@ -1481,7 +1481,7 @@ SendResp_thumbnail(struct upnphttp * h, char * object)
 	ExifData *ed;
 	ExifLoader *l;
 
-	if( h->reqflags & FLAG_XFERSTREAMING || h->reqflags & FLAG_RANGE )
+	if( h->reqflags & (FLAG_XFERSTREAMING|FLAG_RANGE) )
 	{
 		DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Streaming with an image!\n");
 		Send406(h);
@@ -1545,7 +1545,7 @@ void
 SendResp_resizedimg(struct upnphttp * h, char * object)
 {
 	char header[512];
-	char str_buf[256];
+	char buf[128];
 	struct string_s str;
 	char **result;
 	char date[30];
@@ -1557,50 +1557,39 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char *path, *file_path;
 	char *resolution;
 	char *key, *val;
-	char *saveptr=NULL, *item=NULL;
+	char *saveptr, *item=NULL;
+	int rotate;
 	/* Not implemented yet *
-	char *pixelshape=NULL;
-	int rotation; */
+	char *pixelshape=NULL; */
 	sqlite_int64 id;
 	int rows=0, chunked, ret;
 	image_s *imsrc = NULL, *imdst = NULL;
 	int scale = 1;
 
-	id = strtoll(object, NULL, 10);
-	sprintf(str_buf, "SELECT PATH, RESOLUTION from DETAILS where ID = '%lld'", id);
-	ret = sql_get_table(db, str_buf, &result, &rows, NULL);
+	id = strtoll(object, &saveptr, 10);
+	snprintf(buf, sizeof(buf), "SELECT PATH, RESOLUTION, ROTATION from DETAILS where ID = '%lld'", id);
+	ret = sql_get_table(db, buf, &result, &rows, NULL);
 	if( (ret != SQLITE_OK) )
 	{
 		DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %lld!\n", id);
 		Send500(h);
 		return;
 	}
-	if( !rows || (access(result[2], F_OK) != 0) )
+	file_path = result[3];
+	resolution = result[4];
+	rotate = result[5] ? atoi(result[5]) : 0;
+	if( !rows || !file_path || !resolution || (access(file_path, F_OK) != 0) )
 	{
 		DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 		sqlite3_free_table(result);
 		Send404(h);
 		return;
 	}
-#if USE_FORK
-	pid_t newpid = 0;
-	newpid = fork();
-	if( newpid )
-	{
-		CloseSocket_upnphttp(h);
-		goto resized_error;
-	}
-#endif
-	file_path = result[2];
-	resolution = result[3];
-	srcw = strtol(resolution, &saveptr, 10);
-	srch = strtol(saveptr+1, NULL, 10);
 
-	path = strdup(object);
-	if( strtok_r(path, "?", &saveptr) )
-	{
-		item = strtok_r(NULL, "&,", &saveptr);
-	}
+	if( saveptr )
+		saveptr = strchr(saveptr, '?');
+	path = saveptr ? saveptr + 1 : object;
+	item = strtok_r(path, "&,", &saveptr);
 	while( item != NULL )
 	{
 #ifdef TIVO_SUPPORT
@@ -1617,35 +1606,66 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		{
 			height = atoi(val);
 		}
-		/* Not implemented yet *
 		else if( strcasecmp(key, "rotation") == 0 )
 		{
-			rotation = atoi(val);
+			rotate = (rotate + atoi(val)) % 360;
+			sql_exec(db, "UPDATE DETAILS set ROTATION = %d where ID = %lld", rotate, id);
 		}
+		/* Not implemented yet *
 		else if( strcasecmp(key, "pixelshape") == 0 )
 		{
 			pixelshape = val;
 		} */
 		item = strtok_r(NULL, "&,", &saveptr);
 	}
-	free(path);
 
-	if( h->reqflags & FLAG_XFERSTREAMING || h->reqflags & FLAG_RANGE )
+#if USE_FORK
+	pid_t newpid = 0;
+	newpid = fork();
+	if( newpid )
 	{
-		DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Streaming with a resized image!\n");
+		CloseSocket_upnphttp(h);
+		goto resized_error;
+	}
+#endif
+	if( h->reqflags & (FLAG_XFERSTREAMING|FLAG_RANGE) )
+	{
+		DPRINTF(E_WARN, L_HTTP, "Client tried to specify transferMode as Streaming with an image!\n");
 		Send406(h);
 		goto resized_error;
 	}
 
 	DPRINTF(E_INFO, L_HTTP, "Serving resized image for ObjectId: %lld [%s]\n", id, file_path);
-
 	/* Figure out the best destination resolution we can use */
+	srcw = strtol(resolution, &saveptr, 10);
+	srch = strtol(saveptr+1, NULL, 10);
 	dstw = width;
 	dsth = ((((width<<10)/srcw)*srch)>>10);
 	if( dsth > height )
 	{
 		dsth = height;
 		dstw = (((height<<10)/srch) * srcw>>10);
+	}
+	switch( rotate )
+	{
+		case 90:
+			rotate = dsth;
+			dsth = dstw;
+			dstw = rotate;
+			rotate = ROTATE_90;
+			break;
+		case 270:
+			rotate = dsth;
+			dsth = dstw;
+			dstw = rotate;
+			rotate = ROTATE_270;
+			break;
+		case 180:
+			rotate = ROTATE_180;
+			break;
+		default:
+			rotate = ROTATE_NONE;
+			break;
 	}
 
 	if( dstw <= 640 && dsth <= 480 )
@@ -1655,11 +1675,11 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	else
 		strcpy(dlna_pn, "LRG");
 
-	if( srcw>>3 >= dstw && srch>>3 >= dsth)
+	if( srcw>>4 >= dstw && srch>>4 >= dsth)
 		scale = 8;
-	else if( srcw>>2 >= dstw && srch>>2 >= dsth )
+	else if( srcw>>3 >= dstw && srch>>3 >= dsth )
 		scale = 4;
-	else if( srcw>>1 >= dstw && srch>>1 >= dsth )
+	else if( srcw>>2 >= dstw && srch>>2 >= dsth )
 		scale = 2;
 
         str.data = header;
@@ -1688,7 +1708,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	if( strcmp(h->HttpVer, "HTTP/1.0") == 0 )
 	{
 		chunked = 0;
-		imsrc = image_new_from_jpeg(file_path, 1, NULL, 0, scale);
+		imsrc = image_new_from_jpeg(file_path, 1, NULL, 0, scale, rotate);
 	}
 	else
 	{
@@ -1715,7 +1735,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	{
 		if( chunked )
 		{
-			imsrc = image_new_from_jpeg(file_path, 1, NULL, 0, scale);
+			imsrc = image_new_from_jpeg(file_path, 1, NULL, 0, scale, rotate);
 			if( !imsrc )
 			{
 				DPRINTF(E_WARN, L_HTTP, "Unable to open image %s!\n", file_path);
@@ -1725,8 +1745,8 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 			imdst = image_resize(imsrc, dstw, dsth);
 			data = image_save_to_jpeg_buf(imdst, &size);
 
-			ret = sprintf(str_buf, "%x\r\n", size);
-			send_data(h, str_buf, ret, MSG_MORE);
+			ret = sprintf(buf, "%x\r\n", size);
+			send_data(h, buf, ret, MSG_MORE);
 			send_data(h, (char *)data, size, MSG_MORE);
 			send_data(h, "\r\n0\r\n\r\n", 7, 0);
 		}
@@ -1754,7 +1774,7 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 {
 	char header[1024];
 	struct string_s str;
-	char sql_buf[256];
+	char buf[128];
 	char **result;
 	int rows, ret;
 	char date[30];
@@ -1775,15 +1795,15 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	id = strtoll(object, NULL, 10);
 	if( id != last_file.id || h->req_client != last_file.client )
 	{
-		sprintf(sql_buf, "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%lld'", id);
-		ret = sql_get_table(db, sql_buf, &result, &rows, NULL);
+		snprintf(buf, sizeof(buf), "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%lld'", id);
+		ret = sql_get_table(db, buf, &result, &rows, NULL);
 		if( (ret != SQLITE_OK) )
 		{
 			DPRINTF(E_ERROR, L_HTTP, "Didn't find valid file for %lld!\n", id);
 			Send500(h);
 			return;
 		}
-		if( !rows || !result[3] )
+		if( !rows || !result[3] || !result[4] )
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 			sqlite3_free_table(result);
@@ -1816,10 +1836,6 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 				    strcmp(last_file.mime+6, "mpeg") == 0 )
 					strcpy(last_file.mime+6, "divx");
 			}
-		}
-		else
-		{
-			last_file.mime[0] = '\0';
 		}
 		if( result[5] )
 			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s", result[5]);
@@ -1935,22 +1951,16 @@ SendResp_dlnafile(struct upnphttp * h, char * object)
 	{
 		if( (strncmp(last_file.mime, "video", 5) == 0) ||
 		    (strncmp(last_file.mime, "audio", 5) == 0) )
-		{
 			strcatf(&str, "transferMode.dlna.org: Streaming\r\n");
-		}
 		else
-		{
 			strcatf(&str, "transferMode.dlna.org: Interactive\r\n");
-		}
 	}
 
 	if( h->reqflags & FLAG_CAPTION )
 	{
 		if( sql_get_int_field(db, "SELECT ID from CAPTIONS where ID = '%lld'", id) > 0 )
-		{
 			strcatf(&str, "CaptionInfo.sec: http://%s:%d/Captions/%lld.srt\r\n",
 			              lan_addr[h->iface].str, runtime_vars.port, id);
-		}
 	}
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));

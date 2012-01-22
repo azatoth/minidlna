@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <setjmp.h>
 #include <jpeglib.h>
 #ifdef HAVE_MACHINE_ENDIAN_H
@@ -240,7 +239,7 @@ image_get_jpeg_resolution(const char * path, int * width, int * height)
 {
 	FILE *img;
 	unsigned char buf[8];
-	u_int16_t offset, h, w;
+	uint16_t offset, h, w;
 	int ret = 1;
 	size_t nread;
 	long size;
@@ -306,7 +305,7 @@ image_get_jpeg_date_xmp(const char * path, char ** date)
 	FILE *img;
 	unsigned char buf[8];
 	char *data = NULL, *newdata;
-	u_int16_t offset;
+	uint16_t offset;
 	struct NameValueParserData xml;
 	char * exif;
 	int ret = 1;
@@ -425,7 +424,7 @@ image_new(int32_t width, int32_t height)
 }
 
 image_s *
-image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, int scale)
+image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, int scale, int rotate)
 {
 	image_s *vimage;
 	FILE  *file = NULL;
@@ -434,7 +433,6 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 	int x, y, i, w, h, ofs;
 	int maxbuf;
 	struct jpeg_error_mgr pub;
-
 
 	cinfo.err = jpeg_std_error(&pub);
 	pub.error_exit = libjpeg_error_handler;
@@ -465,7 +463,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 	jpeg_start_decompress(&cinfo);
 	w = cinfo.output_width;
 	h = cinfo.output_height;
-	vimage = image_new(w, h);
+	vimage = (rotate & (ROTATE_90|ROTATE_270)) ? image_new(h, w) : image_new(w, h);
 	if(!vimage)
 	{
 		jpeg_destroy_decompress(&cinfo);
@@ -498,8 +496,9 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 	maxbuf = vimage->width * vimage->height;
 	if(cinfo.output_components == 3)
 	{
+		int rx, ry;
 		ofs = 0;
-		if((ptr = (unsigned char *)malloc(w * 3 * cinfo.rec_outbuf_height + 16)) == NULL)
+		if((ptr = malloc(w * 3 * cinfo.rec_outbuf_height + 16)) == NULL)
 		{
 			DPRINTF(E_WARN, L_METADATA, "malloc failed\n");
 			image_free(vimage);
@@ -510,6 +509,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 
 		for(y = 0; y < h; y += cinfo.rec_outbuf_height)
 		{
+			ry = (rotate & (ROTATE_90|ROTATE_180)) ? (y - h + 1) * -1 : y;
 			for(i = 0; i < cinfo.rec_outbuf_height; i++)
 			{
 				line[i] = ptr + (w * 3 * i);
@@ -517,11 +517,10 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 			jpeg_read_scanlines(&cinfo, line, cinfo.rec_outbuf_height);
 			for(x = 0; x < w * cinfo.rec_outbuf_height; x++)
 			{
+				rx = (rotate & (ROTATE_180|ROTATE_270)) ? (x - w + 1) * -1 : x;
+				ofs = (rotate & (ROTATE_90|ROTATE_270)) ? ry + (rx * h) : rx + (ry * w);
 				if( ofs < maxbuf )
-				{
 					vimage->buf[ofs] = COL(ptr[x + x + x], ptr[x + x + x + 1], ptr[x + x + x + 2]);
-					ofs++;
-				}
 			}
 		}
 		free(ptr);
@@ -531,7 +530,7 @@ image_new_from_jpeg(const char * path, int is_file, const char * buf, int size, 
 		ofs = 0;
 		for(i = 0; i < cinfo.rec_outbuf_height; i++)
 		{
-			if((line[i] = (unsigned char *)malloc(w)) == NULL)
+			if((line[i] = malloc(w)) == NULL)
 			{
 				int t = 0;
 
@@ -607,19 +606,19 @@ image_upsize(image_s * pdest, image_s * psrc, int32_t width, int32_t height)
 
 			x_dist = rx - ((float)((int32_t)rx));
 			y_dist = ry - ((float)((int32_t)ry));
-			vcol = COL_FULL( (u_int8_t)((COL_RED(vcol1)*(1.0-x_dist)
+			vcol = COL_FULL( (uint8_t)((COL_RED(vcol1)*(1.0-x_dist)
 			                  + COL_RED(vcol2)*(x_dist))*(1.0-y_dist)
 			                  + (COL_RED(vcol3)*(1.0-x_dist)
 			                  + COL_RED(vcol4)*(x_dist))*(y_dist)),
-			                 (u_int8_t)((COL_GREEN(vcol1)*(1.0-x_dist)
+			                 (uint8_t)((COL_GREEN(vcol1)*(1.0-x_dist)
 			                  + COL_GREEN(vcol2)*(x_dist))*(1.0-y_dist)
 			                  + (COL_GREEN(vcol3)*(1.0-x_dist)
 			                  + COL_GREEN(vcol4)*(x_dist))*(y_dist)),
-			                 (u_int8_t)((COL_BLUE(vcol1)*(1.0-x_dist)
+			                 (uint8_t)((COL_BLUE(vcol1)*(1.0-x_dist)
 			                  + COL_BLUE(vcol2)*(x_dist))*(1.0-y_dist)
 			                  + (COL_BLUE(vcol3)*(1.0-x_dist)
 			                  + COL_BLUE(vcol4)*(x_dist))*(y_dist)),
-			                 (u_int8_t)((COL_ALPHA(vcol1)*(1.0-x_dist)
+			                 (uint8_t)((COL_ALPHA(vcol1)*(1.0-x_dist)
 			                  + COL_ALPHA(vcol2)*(x_dist))*(1.0-y_dist)
 			                  + (COL_ALPHA(vcol3)*(1.0-x_dist)
 			                  + COL_ALPHA(vcol4)*(x_dist))*(y_dist))
@@ -769,7 +768,7 @@ image_downsize(image_s * pdest, image_s * psrc, int32_t width, int32_t height)
 			alpha = (alpha > 255.0)? 255.0 : ((alpha < 0.0)? 0.0:alpha);
 #endif
 			put_pix_alpha_replace(pdest, vx, vy,
-					      COL_FULL((u_int8_t)red, (u_int8_t)green, (u_int8_t)blue, (u_int8_t)alpha));
+					      COL_FULL((uint8_t)red, (uint8_t)green, (uint8_t)blue, (uint8_t)alpha));
 		}
 	}
 }
@@ -823,9 +822,9 @@ image_save_to_jpeg_buf(image_s * pimage, int * size)
 	{
 		for(x = 0; x < pimage->width; x++)
 		{
-			data[x + x + x]   = COL_RED(pimage->buf[i]);
-			data[x + x + x + 1] = COL_GREEN(pimage->buf[i]);
-			data[x + x + x + 2] = COL_BLUE(pimage->buf[i]);
+			data[x * 3]     = COL_RED(pimage->buf[i]);
+			data[x * 3 + 1] = COL_GREEN(pimage->buf[i]);
+			data[x * 3 + 2] = COL_BLUE(pimage->buf[i]);
 			i++;
 		}
 		row_pointer[0] = (unsigned char *)data;

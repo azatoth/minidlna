@@ -17,6 +17,7 @@
 - Add support for the av:mediaClass tag, so some Sony devices can filter items by media type.
 - Fix inotify detection issues on first-level folders.
 - Work around LifeTab's broken DLNA support.
+- Add image rotation support during resize. (mostly useful for TiVo)
 
 1.0.22 - Released 24-Aug-2011
 --------------------------------
