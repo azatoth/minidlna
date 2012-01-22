@@ -211,8 +211,7 @@ AC_COMPILE_IFELSE(
              #include <unistd.h>
          ],
          [
-            int ret;
-            ret = daemon(0, 0);
+            return daemon(0, 0);
          ]
      )],
      [
