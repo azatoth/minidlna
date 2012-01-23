@@ -620,10 +620,10 @@ GetImageMetadata(const char * path, char * name)
 			rotate = 180;
 			break;
 		case 6:
-			rotate = 270;
+			rotate = 90;
 			break;
 		case 8:
-			rotate = 90;
+			rotate = 270;
 			break;
 		default:
 			rotate = 0;

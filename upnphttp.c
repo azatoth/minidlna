@@ -1552,7 +1552,7 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	char dlna_pn[4];
 	time_t curtime = time(NULL);
 	int width=640, height=480, dstw, dsth, size;
-	long srcw, srch;
+	int srcw, srch;
 	unsigned char * data = NULL;
 	char *path, *file_path;
 	char *resolution;
@@ -1636,36 +1636,37 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	}
 
 	DPRINTF(E_INFO, L_HTTP, "Serving resized image for ObjectId: %lld [%s]\n", id, file_path);
+	switch( rotate )
+	{
+		case 90:
+			ret = sscanf(resolution, "%dx%d", &srch, &srcw);
+			rotate = ROTATE_90;
+			break;
+		case 270:
+			ret = sscanf(resolution, "%dx%d", &srch, &srcw);
+			rotate = ROTATE_270;
+			break;
+		case 180:
+			ret = sscanf(resolution, "%dx%d", &srcw, &srch);
+			rotate = ROTATE_180;
+			break;
+		default:
+			ret = sscanf(resolution, "%dx%d", &srcw, &srch);
+			rotate = ROTATE_NONE;
+			break;
+	}
+	if( ret != 2 )
+	{
+		Send500(h);
+		return;
+	}
 	/* Figure out the best destination resolution we can use */
-	srcw = strtol(resolution, &saveptr, 10);
-	srch = strtol(saveptr+1, NULL, 10);
 	dstw = width;
 	dsth = ((((width<<10)/srcw)*srch)>>10);
 	if( dsth > height )
 	{
 		dsth = height;
 		dstw = (((height<<10)/srch) * srcw>>10);
-	}
-	switch( rotate )
-	{
-		case 90:
-			rotate = dsth;
-			dsth = dstw;
-			dstw = rotate;
-			rotate = ROTATE_90;
-			break;
-		case 270:
-			rotate = dsth;
-			dsth = dstw;
-			dstw = rotate;
-			rotate = ROTATE_270;
-			break;
-		case 180:
-			rotate = ROTATE_180;
-			break;
-		default:
-			rotate = ROTATE_NONE;
-			break;
 	}
 
 	if( dstw <= 640 && dsth <= 480 )
