@@ -541,6 +541,7 @@ parse_sort_criteria(char *sortCriteria, int *error)
 	char *order = NULL;
 	char *item, *saveptr;
 	int i, ret, reverse, title_sorted = 0;
+	struct string_s str;
 	*error = 0;
 
 	if( !sortCriteria )
@@ -549,13 +550,16 @@ parse_sort_criteria(char *sortCriteria, int *error)
 	if( (item = strtok_r(sortCriteria, ",", &saveptr)) )
 	{
 		order = malloc(4096);
-		strcpy(order, "order by ");
+		str.data = order;
+		str.size = 4096;
+		str.off = 0;
+		strcatf(&str, "order by  ");
 	}
 	for( i=0; item != NULL; i++ )
 	{
 		reverse=0;
 		if( i )
-			strcat(order, ", ");
+			strcatf(&str, ", ");
 		if( *item == '+' )
 		{
 			item++;
@@ -568,34 +572,34 @@ parse_sort_criteria(char *sortCriteria, int *error)
 		else
 		{
 			DPRINTF(E_DEBUG, L_HTTP, "No order specified [%s]\n", item);
-			*error = 1;
+			*error = -1;
 			goto unhandled_order;
 		}
 		if( strcasecmp(item, "upnp:class") == 0 )
 		{
-			strcat(order, "o.CLASS");
+			strcatf(&str, "o.CLASS");
 		}
 		else if( strcasecmp(item, "dc:title") == 0 )
 		{
-			strcat(order, "d.TITLE");
+			strcatf(&str, "d.TITLE");
 			title_sorted = 1;
 		}
 		else if( strcasecmp(item, "dc:date") == 0 )
 		{
-			strcat(order, "d.DATE");
+			strcatf(&str, "d.DATE");
 		}
 		else if( strcasecmp(item, "upnp:originalTrackNumber") == 0 )
 		{
-			strcat(order, "d.DISC, d.TRACK");
+			strcatf(&str, "d.DISC, d.TRACK");
 		}
 		else if( strcasecmp(item, "upnp:album") == 0 )
 		{
-			strcat(order, "d.ALBUM");
+			strcatf(&str, "d.ALBUM");
 		}
 		else
 		{
 			DPRINTF(E_DEBUG, L_HTTP, "Unhandled SortCriteria [%s]\n", item);
-			*error = 1;
+			*error = -1;
 			if( i )
 			{
 				ret = strlen(order);
@@ -606,7 +610,7 @@ parse_sort_criteria(char *sortCriteria, int *error)
 		}
 
 		if( reverse )
-			strcat(order, " DESC");
+			strcatf(&str, " DESC");
 		unhandled_order:
 		item = strtok_r(NULL, ",", &saveptr);
 	}
@@ -617,7 +621,7 @@ parse_sort_criteria(char *sortCriteria, int *error)
 	}
 	/* Add a "tiebreaker" sort order */
 	if( !title_sorted )
-		strcat(order, ", TITLE ASC");
+		strcatf(&str, ", TITLE ASC");
 
 	return order;
 }
@@ -1259,7 +1263,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			}
 		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
-		if( (args.flags & FLAG_DLNA) && ret )
+		if( (args.flags & FLAG_DLNA) && ret < 0 )
 		{
 			SoapError(h, 709, "Unsupported or invalid sort criteria");
 			goto browse_error;
@@ -1490,8 +1494,9 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 #endif
 		orderBy = parse_sort_criteria(SortCriteria, &ret);
 	/* If it's a DLNA client, return an error for bad sort criteria */
-	if( (args.flags & FLAG_DLNA) && ret )
+	if( (args.flags & FLAG_DLNA) && ret < 0 )
 	{
+		free(orderBy);
 		SoapError(h, 709, "Unsupported or invalid sort criteria");
 		goto search_error;
 	}
