@@ -521,6 +521,11 @@ inotify_remove_file(const char * path)
 	sqlite_int64 detailID;
 	int rows, playlist;
 
+	if( ends_with(path, ".srt") )
+	{
+		rows = sql_exec(db, "DELETE from CAPTIONS where PATH = '%q'", path);
+		return rows;
+	}
 	/* Invalidate the scanner cache so we don't insert files into non-existent containers */
 	valid_cache = 0;
 	playlist = is_playlist(path);
