@@ -134,6 +134,8 @@ IsAuthorizedValidated(struct upnphttp * h, const char * action)
 
 	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
 	id = GetValueFromNameValueList(&data, "DeviceID");
+	if (!id)
+		id = strstr(h->req_buf + h->req_contentoff, "<DeviceID>");
 	if(id)
 	{
 		bodylen = snprintf(body, sizeof(body), resp,
