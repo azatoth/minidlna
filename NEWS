@@ -3,7 +3,7 @@
 - Add support for other operating systems.
 - Switch to autoconf from our little genconfig.sh.
 
-1.0.23 - Released 00-Month-0000
+1.0.23 - Released 23-Jan-2012
 --------------------------------
 - Enable the subtitle menu on some Samsung TV's.
 - Add subtitle support for Panasonic TV's.

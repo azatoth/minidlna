@@ -51,6 +51,9 @@ strip_ext(char * name);
 int
 make_dir(char * path, mode_t mode);
 
+unsigned int
+DJBHash(const char *str, int len);
+
 int
 is_video(const char * file);
 

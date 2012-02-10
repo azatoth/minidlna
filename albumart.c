@@ -90,21 +90,6 @@ error:
 	return NULL;
 }
 
-/* Simple, efficient hash function from Daniel J. Bernstein */
-static unsigned int
-DJBHash(const char *str, int len)
-{
-	unsigned int hash = 5381;
-	unsigned int i = 0;
-
-	for(i = 0; i < len; str++, i++)
-	{
-		hash = ((hash << 5) + hash) + (*str);
-	}
-
-	return hash;
-}
-
 /* And our main album art functions */
 void
 update_if_album_art(const char *path)

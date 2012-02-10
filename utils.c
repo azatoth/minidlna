@@ -253,6 +253,21 @@ make_dir(char * path, mode_t mode)
 	} while (1);
 }
 
+/* Simple, efficient hash function from Daniel J. Bernstein */
+unsigned int
+DJBHash(const char *str, int len)
+{
+	unsigned int hash = 5381;
+	unsigned int i = 0;
+
+	for(i = 0; i < len; str++, i++)
+	{
+		hash = ((hash << 5) + hash) + (*str);
+	}
+
+	return hash;
+}
+
 int
 is_video(const char * file)
 {
