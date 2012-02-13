@@ -248,12 +248,12 @@ ParseHttpHeaders(struct upnphttp * h)
 				h->req_NTLen = n;
 			}
 			/* Timeout: Seconds-nnnn */
-/* TIMEOUT
-Recommended. Requested duration until subscription expires,
-either number of seconds or infinite. Recommendation
-by a UPnP Forum working committee. Defined by UPnP vendor.
- Consists of the keyword "Second-" followed (without an
-intervening space) by either an integer or the keyword "infinite". */
+			/* TIMEOUT
+			Recommended. Requested duration until subscription expires,
+			either number of seconds or infinite. Recommendation
+			by a UPnP Forum working committee. Defined by UPnP vendor.
+			Consists of the keyword "Second-" followed (without an
+			intervening space) by either an integer or the keyword "infinite". */
 			else if(strncasecmp(line, "Timeout", 7)==0)
 			{
 				p = colon + 1;
@@ -443,6 +443,14 @@ intervening space) by either an integer or the keyword "infinite". */
 			else if(strncasecmp(line, "realTimeInfo.dlna.org", 21)==0)
 			{
 				h->reqflags |= FLAG_REALTIMEINFO;
+			}
+			else if(strncasecmp(line, "getAvailableSeekRange.dlna.org", 21)==0)
+			{
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				if( (*p != '1') || !isspace(p[1]) )
+					h->reqflags |= FLAG_INVALID_REQ;
 			}
 			else if(strncasecmp(line, "transferMode.dlna.org", 21)==0)
 			{
@@ -685,7 +693,7 @@ SendResp_presentation(struct upnphttp * h)
 	v = sql_get_int_field(db, "SELECT count(*) from DETAILS where MIME glob 'v*'");
 	p = sql_get_int_field(db, "SELECT count(*) from DETAILS where MIME glob 'i*'");
 	l = snprintf(body, sizeof(body),
-		"<HTML><HEAD><TITLE>" SERVER_NAME "</TITLE></HEAD>"
+		"<HTML><HEAD><TITLE>" SERVER_NAME " " MINIDLNA_VERSION "</TITLE></HEAD>"
 		"<BODY><div style=\"text-align: center\">"
                 "<h3>" SERVER_NAME " status</h3>"
                 "Audio files: %d<br>"
@@ -740,15 +748,8 @@ ProcessHTTPSubscribe_upnphttp(struct upnphttp * h, const char * path)
 	DPRINTF(E_DEBUG, L_HTTP, "Callback '%.*s' Timeout=%d\n",
 	       h->req_CallbackLen, h->req_Callback, h->req_Timeout);
 	DPRINTF(E_DEBUG, L_HTTP, "SID '%.*s'\n", h->req_SIDLen, h->req_SID);
-	if(!h->req_NT) {
-		static const char err400str[] =
-			"<html><body>Bad request</body></html>";
-		BuildResp2_upnphttp(h, 400, "Bad Request",
-			            err400str, sizeof(err400str) - 1);
-		SendResp_upnphttp(h);
-		CloseSocket_upnphttp(h);
-	} else if((!h->req_Callback && !h->req_SID) ||
-	          strncmp(h->req_NT, "upnp:event", h->req_NTLen) != 0) {
+	if((!h->req_Callback && !h->req_SID) ||
+	   strncmp(h->req_NT, "upnp:event", h->req_NTLen) != 0) {
 		/* Missing or invalid CALLBACK : 412 Precondition Failed.
 		 * If CALLBACK header is missing or does not contain a valid HTTP URL,
 		 * the publisher must respond with HTTP error 412 Precondition Failed*/
@@ -759,18 +760,23 @@ ProcessHTTPSubscribe_upnphttp(struct upnphttp * h, const char * path)
 	/* - add to the subscriber list
 	 * - respond HTTP/x.x 200 OK 
 	 * - Send the initial event message */
-/* Server:, SID:; Timeout: Second-(xx|infinite) */
+	/* Server:, SID:; Timeout: Second-(xx|infinite) */
 		if(h->req_Callback) {
-			sid = upnpevents_addSubscriber(path, h->req_Callback,
-			                               h->req_CallbackLen, h->req_Timeout);
-			h->respflags = FLAG_TIMEOUT;
-			if(sid) {
-				DPRINTF(E_DEBUG, L_HTTP, "generated sid=%s\n", sid);
-				h->respflags |= FLAG_SID;
-				h->req_SID = sid;
-				h->req_SIDLen = strlen(sid);
+			if(!h->req_NT || strncmp(h->req_NT, "upnp:event", h->req_NTLen) != 0) {
+				BuildResp2_upnphttp(h, 400, "Bad Request",
+					            "<html><body>Bad request</body></html>", 37);
+			} else {
+				sid = upnpevents_addSubscriber(path, h->req_Callback,
+				                               h->req_CallbackLen, h->req_Timeout);
+				h->respflags = FLAG_TIMEOUT;
+				if(sid) {
+					DPRINTF(E_DEBUG, L_HTTP, "generated sid=%s\n", sid);
+					h->respflags |= FLAG_SID;
+					h->req_SID = sid;
+					h->req_SIDLen = strlen(sid);
+				}
+				BuildResp_upnphttp(h, 0, 0);
 			}
-			BuildResp_upnphttp(h, 0, 0);
 		} else {
 			/* subscription renew */
 			/* Invalid SID
@@ -1589,14 +1595,15 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 	if( saveptr )
 		saveptr = strchr(saveptr, '?');
 	path = saveptr ? saveptr + 1 : object;
-	item = strtok_r(path, "&,", &saveptr);
-	while( item != NULL )
+	for( item = strtok_r(path, "&,", &saveptr); item != NULL; item = strtok_r(NULL, "&,", &saveptr) )
 	{
 #ifdef TIVO_SUPPORT
 		decodeString(item, 1);
 #endif
 		val = item;
 		key = strsep(&val, "=");
+		if( !val )
+			continue;
 		DPRINTF(E_DEBUG, L_GENERAL, "%s: %s\n", key, val);
 		if( strcasecmp(key, "width") == 0 )
 		{
@@ -1616,7 +1623,6 @@ SendResp_resizedimg(struct upnphttp * h, char * object)
 		{
 			pixelshape = val;
 		} */
-		item = strtok_r(NULL, "&,", &saveptr);
 	}
 
 #if USE_FORK
