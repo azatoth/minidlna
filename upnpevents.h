@@ -61,11 +61,10 @@ upnpevents_addSubscriber(const char * eventurl,
                          const char * callback, int callbacklen,
                          int timeout);
 
-int
-upnpevents_removeSubscriber(const char * sid, int sidlen);
+int upnpevents_removeSubscriber(const char * sid, int sidlen);
+void upnpevents_removeSubscribers(void);
 
-int
-renewSubscription(const char * sid, int sidlen, int timeout);
+int renewSubscription(const char * sid, int sidlen, int timeout);
 
 void upnpevents_selectfds(fd_set *readset, fd_set *writeset, int * max_fd);
 void upnpevents_processfds(fd_set *readset, fd_set *writeset);

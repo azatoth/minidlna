@@ -211,8 +211,7 @@ getfriendlyname(char * buf, int len)
 
 	if( gethostname(hn, 256) == 0 )
 	{
-		strncpy(buf, hn, len-1);
-		buf[len] = '\0';
+		strncpyt(buf, hn, len);
 		dot = strchr(buf, '.');
 		if( dot )
 			*dot = '\0';
@@ -242,8 +241,7 @@ getfriendlyname(char * buf, int len)
 			key = strchr(val, ' ');
 			if( key )
 			{
-				strncpy(modelnumber, key+1, MODELNUMBER_MAX_LEN);
-				modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
+				strncpyt(modelnumber, key+1, MODELNUMBER_MAX_LEN);
 				*key = '\0';
 			}
 			snprintf(modelname, MODELNAME_MAX_LEN,
@@ -251,8 +249,7 @@ getfriendlyname(char * buf, int len)
 		}
 		else if( strcmp(key, "serial") == 0 )
 		{
-			strncpy(serialnumber, val, SERIALNUMBER_MAX_LEN);
-			serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
+			strncpyt(serialnumber, val, SERIALNUMBER_MAX_LEN);
 			if( serialnumber[0] == '\0' )
 			{
 				char mac_str[13];
@@ -344,8 +341,7 @@ init(int argc, char * * argv)
 	int verbose_flag = 0;
 	int options_flag = 0;
 	struct sigaction sa;
-	/*const char * logfilename = 0;*/
-	const char * presurl = 0;
+	const char * presurl = NULL;
 	const char * optionsfile = "/etc/minidlna.conf";
 	char mac_str[13];
 	char * string, * word;
@@ -437,20 +433,16 @@ init(int argc, char * * argv)
 				runtime_vars.notify_interval = atoi(ary_options[i].value);
 				break;
 			case UPNPSERIAL:
-				strncpy(serialnumber, ary_options[i].value, SERIALNUMBER_MAX_LEN);
-				serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
+				strncpyt(serialnumber, ary_options[i].value, SERIALNUMBER_MAX_LEN);
 				break;				
 			case UPNPMODEL_NAME:
-				strncpy(modelname, ary_options[i].value, MODELNAME_MAX_LEN);
-				modelname[MODELNAME_MAX_LEN-1] = '\0';
+				strncpyt(modelname, ary_options[i].value, MODELNAME_MAX_LEN);
 				break;
 			case UPNPMODEL_NUMBER:
-				strncpy(modelnumber, ary_options[i].value, MODELNUMBER_MAX_LEN);
-				modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
+				strncpyt(modelnumber, ary_options[i].value, MODELNUMBER_MAX_LEN);
 				break;
 			case UPNPFRIENDLYNAME:
-				strncpy(friendly_name, ary_options[i].value, FRIENDLYNAME_MAX_LEN);
-				friendly_name[FRIENDLYNAME_MAX_LEN-1] = '\0';
+				strncpyt(friendly_name, ary_options[i].value, FRIENDLYNAME_MAX_LEN);
 				break;
 			case UPNPMEDIADIR:
 				type = ALL_MEDIA;
@@ -535,7 +527,7 @@ init(int argc, char * * argv)
 					DPRINTF(E_FATAL, L_GENERAL, "Database path not accessible! [%s]\n", path);
 					break;
 				}
-				strncpy(db_path, path, PATH_MAX);
+				strncpyt(db_path, path, PATH_MAX);
 				break;
 			case UPNPLOGDIR:
 				path = realpath(ary_options[i].value, buf);
@@ -547,7 +539,7 @@ init(int argc, char * * argv)
 					DPRINTF(E_FATAL, L_GENERAL, "Log path not accessible! [%s]\n", path);
 					break;
 				}
-				strncpy(log_path, path, PATH_MAX);
+				strncpyt(log_path, path, PATH_MAX);
 				break;
 			case UPNPINOTIFY:
 				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
@@ -601,12 +593,12 @@ init(int argc, char * * argv)
 	if( log_path[0] == '\0' )
 	{
 		if( db_path[0] == '\0' )
-			strncpy(log_path, DEFAULT_LOG_PATH, PATH_MAX);
+			strncpyt(log_path, DEFAULT_LOG_PATH, PATH_MAX);
 		else
-			strncpy(log_path, db_path, PATH_MAX);
+			strncpyt(log_path, db_path, PATH_MAX);
 	}
 	if( db_path[0] == '\0' )
-		strncpy(db_path, DEFAULT_DB_PATH, PATH_MAX);
+		strncpyt(db_path, DEFAULT_DB_PATH, PATH_MAX);
 
 	/* command line arguments processing */
 	for(i=1; i<argc; i++)
@@ -630,21 +622,16 @@ init(int argc, char * * argv)
 			break;
 		case 's':
 			if(i+1 < argc)
-				strncpy(serialnumber, argv[++i], SERIALNUMBER_MAX_LEN);
+				strncpyt(serialnumber, argv[++i], SERIALNUMBER_MAX_LEN);
 			else
 				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
-			serialnumber[SERIALNUMBER_MAX_LEN-1] = '\0';
 			break;
 		case 'm':
 			if(i+1 < argc)
-				strncpy(modelnumber, argv[++i], MODELNUMBER_MAX_LEN);
+				strncpyt(modelnumber, argv[++i], MODELNUMBER_MAX_LEN);
 			else
 				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
-			modelnumber[MODELNUMBER_MAX_LEN-1] = '\0';
 			break;
-		/*case 'l':
-			logfilename = argv[++i];
-			break;*/
 		case 'p':
 			if(i+1 < argc)
 				runtime_vars.port = atoi(argv[++i]);
@@ -819,15 +806,9 @@ init(int argc, char * * argv)
 
 	/* presentation url */
 	if(presurl)
-	{
-		strncpy(presentationurl, presurl, PRESENTATIONURL_MAX_LEN);
-		presentationurl[PRESENTATIONURL_MAX_LEN-1] = '\0';
-	}
+		strncpyt(presentationurl, presurl, PRESENTATIONURL_MAX_LEN);
 	else
-	{
-		snprintf(presentationurl, PRESENTATIONURL_MAX_LEN,
-		         "http://%s:%d/", lan_addr[0].str, runtime_vars.port);
-	}
+		strcpy(presentationurl, "/");
 
 	/* set signal handler */
 	memset(&sa, 0, sizeof(struct sigaction));
@@ -1269,6 +1250,8 @@ shutdown:
 
 	sql_exec(db, "UPDATE SETTINGS set UPDATE_ID = %u", updateID);
 	sqlite3_close(db);
+
+	upnpevents_removeSubscribers();
 
 	media_path = media_dirs;
 	art_names = album_art_names;

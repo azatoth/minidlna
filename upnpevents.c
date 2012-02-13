@@ -194,6 +194,16 @@ upnpevents_removeSubscriber(const char * sid, int sidlen)
 	return -1;
 }
 
+void
+upnpevents_removeSubscribers(void)
+{
+	struct subscriber * sub;
+
+	for(sub = subscriberlist.lh_first; sub != NULL; sub = subscriberlist.lh_first) {
+		upnpevents_removeSubscriber(sub->uuid, sizeof(sub->uuid));
+	}
+}
+
 /* notifies all subscribers of a SystemUpdateID change */
 void
 upnp_event_var_change_notify(enum subscriber_service_enum service)
