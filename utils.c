@@ -182,12 +182,13 @@ escape_tag(const char *tag, int force_alloc)
 {
 	char *esc_tag = NULL;
 
-	if( strchr(tag, '&') || strchr(tag, '<') || strchr(tag, '>') )
+	if( strchr(tag, '&') || strchr(tag, '<') || strchr(tag, '>') || strchr(tag, '"') )
 	{
 		esc_tag = strdup(tag);
 		esc_tag = modifyString(esc_tag, "&", "&amp;amp;", 0);
 		esc_tag = modifyString(esc_tag, "<", "&amp;lt;", 0);
 		esc_tag = modifyString(esc_tag, ">", "&amp;gt;", 0);
+		esc_tag = modifyString(esc_tag, "\"", "&amp;quot;", 0);
 	}
 	else if( force_alloc )
 		esc_tag = strdup(tag);

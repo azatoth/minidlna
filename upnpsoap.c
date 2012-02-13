@@ -1392,20 +1392,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 				args.flags |= FLAG_FREE_OBJECT_ID;
 			}
 		}
-		#if 0 // Looks like the 360 already does this
-		/* Sort by track number for some containers */
-		if( orderBy &&
-		    ((strncmp(ContainerID, MUSIC_GENRE_ID, 3) == 0) ||
-		     (strncmp(ContainerID, MUSIC_ARTIST_ID, 3) == 0) ||
-		     (strncmp(ContainerID, MUSIC_ALBUM_ID, 3) == 0)) )
-		{
-			DPRINTF(E_DEBUG, L_HTTP, "Old sort order: %s\n", orderBy);
-			sprintf(str_buf, "d.TRACK, ");
-			memmove(orderBy+18, orderBy+9, strlen(orderBy)+1);
-			memmove(orderBy+9, &str_buf, 9);
-			DPRINTF(E_DEBUG, L_HTTP, "New sort order: %s\n", orderBy);
-		}
-		#endif
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Searching ContentDirectory:\n"
 	                         " * ObjectID: %s\n"
@@ -1432,7 +1418,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 		SearchCriteria = modifyString(SearchCriteria, "&apos;", "'", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&lt;", "<", 0);
 		SearchCriteria = modifyString(SearchCriteria, "&gt;", ">", 0);
-		SearchCriteria = modifyString(SearchCriteria, "\\\"", "\"\"", 0);
 		SearchCriteria = modifyString(SearchCriteria, "object.", "", 0);
 		SearchCriteria = modifyString(SearchCriteria, "derivedfrom", "like", 1);
 		SearchCriteria = modifyString(SearchCriteria, "contains", "like", 2);
@@ -1458,16 +1443,12 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 				newSearchCriteria = strdup(SearchCriteria);
 			SearchCriteria = newSearchCriteria = modifyString(newSearchCriteria, "res is ", "MIME is ", 0);
 		}
-		#if 0 // Does 360 need this?
-		if( strstr(SearchCriteria, "&amp;") )
+		if( strstr(SearchCriteria, "\\\"") )
 		{
-			if( newSearchCriteria )
-				newSearchCriteria = modifyString(newSearchCriteria, "&amp;", "&amp;amp;", 0);
-			else
-				newSearchCriteria = modifyString(strdup(SearchCriteria), "&amp;", "&amp;amp;", 0);
-			SearchCriteria = newSearchCriteria;
+			if( !newSearchCriteria )
+				newSearchCriteria = strdup(SearchCriteria);
+			SearchCriteria = newSearchCriteria = modifyString(newSearchCriteria, "\\\"", "&amp;quot;", 0);
 		}
-		#endif
 	}
 	DPRINTF(E_DEBUG, L_HTTP, "Translated SearchCriteria: %s\n", SearchCriteria);
 
