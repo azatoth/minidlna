@@ -133,6 +133,7 @@ OpenAndConfSSDPNotifySocket(in_addr_t addr)
 	int s;
 	unsigned char loopchar = 0;
 	int bcast = 1;
+	uint8_t ttl = 4;
 	struct in_addr mc_if;
 	struct sockaddr_in sockname;
 	
@@ -157,6 +158,8 @@ OpenAndConfSSDPNotifySocket(in_addr_t addr)
 		close(s);
 		return -1;
 	}
+
+	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 	
 	if(setsockopt(s, SOL_SOCKET, SO_BROADCAST, &bcast, sizeof(bcast)) < 0)
 	{
