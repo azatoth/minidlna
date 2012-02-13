@@ -1498,7 +1498,6 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 	/* If it's a DLNA client, return an error for bad sort criteria */
 	if( (args.flags & FLAG_DLNA) && ret < 0 )
 	{
-		free(orderBy);
 		SoapError(h, 709, "Unsupported or invalid sort criteria");
 		goto search_error;
 	}
