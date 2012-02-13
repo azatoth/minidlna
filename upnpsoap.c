@@ -381,6 +381,7 @@ mime_to_ext(const char * mime, char * buf)
 #define FILTER_UPNP_GENRE                        0x00040000
 #define FILTER_UPNP_ORIGINALTRACKNUMBER          0x00080000
 #define FILTER_UPNP_SEARCHCLASS                  0x00100000
+#define FILTER_UPNP_STORAGEUSED                  0x00200000
 /* Vendor-specific filter flags */
 #define FILTER_SEC_CAPTION_INFO_EX               0x01000000
 #define FILTER_SEC_DCM_INFO                      0x02000000
@@ -464,6 +465,10 @@ set_filter_flags(char * filter, struct upnphttp *h)
 		else if( strcmp(item, "upnp:searchClass") == 0 )
 		{
 			flags |= FILTER_UPNP_SEARCHCLASS;
+		}
+		else if( strcmp(item, "upnp:storageUsed") == 0 )
+		{
+			flags |= FILTER_UPNP_STORAGEUSED;
 		}
 		else if( strcmp(item, "res") == 0 )
 		{
@@ -1061,7 +1066,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		                   "&lt;dc:title&gt;%s&lt;/dc:title&gt;"
 		                   "&lt;upnp:class&gt;object.%s&lt;/upnp:class&gt;",
 		                   title, class);
-		if( strcmp(class+10, "storageFolder") == 0 ) {
+		if( (passed_args->filter & FILTER_UPNP_STORAGEUSED) && strcmp(class+10, "storageFolder") == 0 ) {
 			/* TODO: Implement real folder size tracking */
 			ret = strcatf(str, "&lt;upnp:storageUsed&gt;%s&lt;/upnp:storageUsed&gt;", (size ? size : "-1"));
 		}
