@@ -417,7 +417,7 @@ GetAudioMetadata(const char * path, char * name)
 	}
 
 	if( song.dlna_pn )
-		asprintf(&m.dlna_pn, "%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", song.dlna_pn);
+		m.dlna_pn = strdup(song.dlna_pn);
 	if( song.year )
 		asprintf(&m.date, "%04d-01-01", song.year);
 	asprintf(&m.duration, "%d:%02d:%02d.%03d",
@@ -511,7 +511,7 @@ GetAudioMetadata(const char * path, char * name)
 	                   "  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 	                   "VALUES"
 	                   " (%Q, %lld, %ld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
-	                   path, file.st_size, file.st_mtime, m.duration, song.channels, song.bitrate, song.samplerate, m.date,
+	                   path, (long long)file.st_size, file.st_mtime, m.duration, song.channels, song.bitrate, song.samplerate, m.date,
 	                   m.title, m.creator, m.artist, m.album, m.genre, m.comment, song.disc, song.track,
 	                   m.dlna_pn, song.mime?song.mime:m.mime, album_art);
 	if( ret != SQLITE_OK )
@@ -686,11 +686,11 @@ no_exifdata:
 		return 0;
 	}
 	if( width <= 640 && height <= 480 )
-		asprintf(&m.dlna_pn, "JPEG_SM;%s", dlna_no_conv);
+		m.dlna_pn = strdup("JPEG_SM");
 	else if( width <= 1024 && height <= 768 )
-		asprintf(&m.dlna_pn, "JPEG_MED;%s", dlna_no_conv);
+		m.dlna_pn = strdup("JPEG_MED");
 	else if( (width <= 4096 && height <= 4096) || !(GETFLAG(DLNA_STRICT_MASK)) )
-		asprintf(&m.dlna_pn, "JPEG_LRG;%s", dlna_no_conv);
+		m.dlna_pn = strdup("JPEG_LRG");
 	asprintf(&m.resolution, "%dx%d", width, height);
 
 	ret = sql_exec(db, "INSERT into DETAILS"
@@ -698,7 +698,7 @@ no_exifdata:
 	                    " ROTATION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 	                   "VALUES"
 	                   " (%Q, '%q', %lld, %ld, %Q, %Q, %Q, %d, %Q, %Q, %Q);",
-	                   path, name, file.st_size, file.st_mtime, m.date, m.resolution,
+	                   path, name, (long long)file.st_size, file.st_mtime, m.date, m.resolution,
 	                   m.rotation, thumb, m.creator, m.dlna_pn, m.mime);
 	if( ret != SQLITE_OK )
 	{
@@ -942,7 +942,7 @@ GetVideoMetadata(const char * path, char * name)
 					if( (vc->width  == 352) &&
 					    (vc->height <= 288) )
 					{
-						asprintf(&m.dlna_pn, "MPEG1;%s", dlna_no_conv);
+						m.dlna_pn = strdup("MPEG1");
 					}
 					asprintf(&m.mime, "video/mpeg");
 				}
@@ -1019,8 +1019,6 @@ GetVideoMetadata(const char * path, char * name)
 					free(m.dlna_pn);
 					m.dlna_pn = NULL;
 				}
-				if( m.dlna_pn )
-					sprintf(m.dlna_pn+off, ";%s", dlna_no_conv);
 				break;
 			case CODEC_ID_H264:
 				m.dlna_pn = malloc(128);
@@ -1325,8 +1323,6 @@ GetVideoMetadata(const char * path, char * name)
 					free(m.dlna_pn);
 					m.dlna_pn = NULL;
 				}
-				if( m.dlna_pn )
-					sprintf(m.dlna_pn+off, ";%s", dlna_no_conv);
 				DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.264\n", video_stream, basepath);
 				break;
 			case CODEC_ID_MPEG4:
@@ -1390,8 +1386,6 @@ GetVideoMetadata(const char * path, char * name)
 							m.dlna_pn = NULL;
 						}
 					}
-					if( m.dlna_pn )
-						sprintf(m.dlna_pn+off, ";%s", dlna_no_conv);
 				}
 				break;
 			case CODEC_ID_WMV3:
@@ -1501,8 +1495,6 @@ GetVideoMetadata(const char * path, char * name)
 							break;
 					}
 				}
-				if( m.dlna_pn )
-					sprintf(m.dlna_pn+off, ";%s", dlna_no_conv);
 				break;
 			case CODEC_ID_MSMPEG4V3:
 				asprintf(&m.mime, "video/x-msvideo");
@@ -1611,7 +1603,7 @@ video_no_dlna:
 	                   "  TITLE, CREATOR, ARTIST, GENRE, COMMENT, DLNA_PN, MIME, ALBUM_ART) "
 	                   "VALUES"
 	                   " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, %Q, %Q, %Q, %Q, '%q', %lld);",
-	                   path, file.st_size, file.st_mtime, m.duration,
+	                   path, (long long)file.st_size, file.st_mtime, m.duration,
 	                   m.date, m.channels, m.bitrate, m.frequency, m.resolution,
 			   m.title, m.creator, m.artist, m.genre, m.comment, m.dlna_pn,
                            m.mime, album_art);

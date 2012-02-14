@@ -1,7 +1,27 @@
-/* MiniUPnP project
- * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
+/* MiniDLNA project
  *
- * Copyright (c) 2006, Thomas Bernard
+ * http://sourceforge.net/projects/minidlna/
+ *
+ * MiniDLNA media server
+ * Copyright (C) 2008-2012  Justin Maggard
+ *
+ * This file is part of MiniDLNA.
+ *
+ * MiniDLNA is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * MiniDLNA is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MiniDLNA. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Portions of the code from the MiniUPnP project:
+ *
+ * Copyright (c) 2006-2007, Thomas Bernard
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +56,7 @@
 #include "config.h"
 
 /* server: HTTP header returned in all HTTP responses : */
-#define MINIDLNA_SERVER_STRING	OS_VERSION " DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.0"
+#define MINIDLNA_SERVER_STRING	OS_VERSION " DLNADOC/1.50 UPnP/1.0 " SERVER_NAME "/" MINIDLNA_VERSION
 
 /*
  states :

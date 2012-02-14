@@ -3,6 +3,16 @@
 - Add support for other operating systems.
 - Switch to autoconf from our little genconfig.sh.
 
+1.0.24 - Released 14-Feb-2012
+--------------------------------
+- Fix playlist browsing with no SortOrder specified.
+- Fix inotify detection of caption file removal.
+- Handle an empty DeviceID from Zyxel media player SOAP request.
+- Fix false positives in playlist caching optimization when we have duplicate file names in different directories.
+- Trim the camera model name extracted from EXIF tags.
+- Add support for user-configurable log level settings.
+- Add DLNA.ORG_FLAGS support.
+
 1.0.23 - Released 23-Jan-2012
 --------------------------------
 - Enable the subtitle menu on some Samsung TV's.

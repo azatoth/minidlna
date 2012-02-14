@@ -654,10 +654,12 @@ add_resized_res(int srcw, int srch, int reqw, int reqh, char *dlna_pn,
 		}
 		strcatf(args->str, "resolution=\"%dx%d\" ", dstw, dsth);
 	}
-	strcatf(args->str, "protocolInfo=\"http-get:*:image/jpeg:DLNA.ORG_PN=%s;DLNA.ORG_CI=1\"&gt;"
+	strcatf(args->str, "protocolInfo=\"http-get:*:image/jpeg:"
+	                          "DLNA.ORG_PN=%s;DLNA.ORG_CI=1;DLNA.ORG_FLAGS=%08X%024X\"&gt;"
 	                          "http://%s:%d/Resized/%s.jpg?width=%d,height=%d"
 	                          "&lt;/res&gt;",
-	                          dlna_pn, lan_addr[args->iface].str, runtime_vars.port,
+	                          dlna_pn, DLNA_FLAG_DLNA_V1_5|DLNA_FLAG_HTTP_STALLING|DLNA_FLAG_TM_B|DLNA_FLAG_TM_I, 0,
+	                          lan_addr[args->iface].str, runtime_vars.port,
 	                          detailID, dstw, dsth);
 }
 
@@ -720,7 +722,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 	     *duration = argv[7], *bitrate = argv[8], *sampleFrequency = argv[9], *artist = argv[10], *album = argv[11],
 	     *genre = argv[12], *comment = argv[13], *nrAudioChannels = argv[14], *track = argv[15], *date = argv[16], *resolution = argv[17],
 	     *tn = argv[18], *creator = argv[19], *dlna_pn = argv[20], *mime = argv[21], *album_art = argv[22];
-	char dlna_buf[96];
+	char dlna_buf[128];
 	char ext[5];
 	struct string_s *str = passed_args->str;
 	int ret = 0;
@@ -755,22 +757,17 @@ callback(void *args, int argc, char **argv, char **azColName)
 	}
 	passed_args->returned++;
 
-	if( dlna_pn )
-		sprintf(dlna_buf, "DLNA.ORG_PN=%s", dlna_pn);
-	else if( passed_args->flags & FLAG_DLNA )
-		strcpy(dlna_buf, dlna_no_conv);
-	else
-		strcpy(dlna_buf, "*");
-
 	if( runtime_vars.root_container && strcmp(parent, runtime_vars.root_container) == 0 )
 		parent = "0";
 
 	if( strncmp(class, "item", 4) == 0 )
 	{
+		uint32_t dlna_flags = DLNA_FLAG_DLNA_V1_5|DLNA_FLAG_HTTP_STALLING|DLNA_FLAG_TM_B;
 		char *alt_title = NULL;
 		/* We may need special handling for certain MIME types */
 		if( *mime == 'v' )
 		{
+			dlna_flags |= DLNA_FLAG_TM_S;
 			if( passed_args->flags & FLAG_MIME_AVI_DIVX )
 			{
 				if( strcmp(mime, "video/x-msvideo") == 0 )
@@ -826,6 +823,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 		}
 		else if( *mime == 'a' )
 		{
+			dlna_flags |= DLNA_FLAG_TM_S;
 			if( strcmp(mime+6, "x-flac") == 0 )
 			{
 				if( passed_args->flags & FLAG_MIME_FLAC_FLAC )
@@ -841,6 +839,22 @@ callback(void *args, int argc, char **argv, char **azColName)
 				}
 			}
 		}
+		else
+			dlna_flags |= DLNA_FLAG_TM_I;
+
+		if( dlna_pn )
+			snprintf(dlna_buf, sizeof(dlna_buf), "DLNA.ORG_PN=%s;"
+			                                     "DLNA.ORG_OP=01;"
+			                                     "DLNA.ORG_CI=0;"
+			                                     "DLNA.ORG_FLAGS=%08X%024X",
+			                                     dlna_pn, dlna_flags, 0);
+		else if( passed_args->flags & FLAG_DLNA )
+			snprintf(dlna_buf, sizeof(dlna_buf), "DLNA.ORG_OP=01;"
+			                                     "DLNA.ORG_CI=0;"
+			                                     "DLNA.ORG_FLAGS=%08X%024X",
+			                                     dlna_flags, 0);
+		else
+			strcpy(dlna_buf, "*");
 
 		ret = strcatf(str, "&lt;item id=\"%s\" parentID=\"%s\" restricted=\"1\"", id, parent);
 		if( refID && (passed_args->filter & FILTER_REFID) ) {
@@ -942,7 +956,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 					ret = strcatf(str, "&lt;res protocolInfo=\"http-get:*:%s:%s\"&gt;"
 					                   "http://%s:%d/Thumbnails/%s.jpg"
 					                   "&lt;/res&gt;",
-					                   mime, "DLNA.ORG_PN=JPEG_TN", lan_addr[passed_args->iface].str,
+					                   mime, "DLNA.ORG_PN=JPEG_TN;DLNA.ORG_CI=1", lan_addr[passed_args->iface].str,
 					                   runtime_vars.port, detailID);
 				}
 			}
@@ -955,7 +969,7 @@ callback(void *args, int argc, char **argv, char **azColName)
 					     strncmp(dlna_pn, "AVC_TS_MP_HD_AC3", 16) == 0 ||
 					     strncmp(dlna_pn, "AVC_TS_HP_HD_AC3", 16) == 0))
 					{
-						sprintf(dlna_buf, "DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+						sprintf(dlna_buf, "DLNA.ORG_PN=%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", "MPEG_PS_NTSC");
 						add_res(size, duration, bitrate, sampleFrequency, nrAudioChannels,
 						        resolution, dlna_buf, mime, detailID, ext, passed_args);
 					}
@@ -967,13 +981,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 					{
 						if( strncmp(dlna_pn, "MPEG_TS_SD_NA", 13) != 0 )
 						{
-							sprintf(dlna_buf, "DLNA.ORG_PN=MPEG_TS_SD_NA;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							sprintf(dlna_buf, "DLNA.ORG_PN=%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", "MPEG_TS_SD_NA");
 							add_res(size, duration, bitrate, sampleFrequency, nrAudioChannels,
 							        resolution, dlna_buf, mime, detailID, ext, passed_args);
 						}
 						if( strncmp(dlna_pn, "MPEG_TS_SD_EU", 13) != 0 )
 						{
-							sprintf(dlna_buf, "DLNA.ORG_PN=MPEG_TS_SD_EU;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							sprintf(dlna_buf, "DLNA.ORG_PN=%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", "MPEG_TS_SD_EU");
 							add_res(size, duration, bitrate, sampleFrequency, nrAudioChannels,
 							        resolution, dlna_buf, mime, detailID, ext, passed_args);
 						}
@@ -988,13 +1002,13 @@ callback(void *args, int argc, char **argv, char **azColName)
 						strcpy(mime+6, "avi");
 						if( !dlna_pn || strncmp(dlna_pn, "MPEG_PS_NTSC", 12) != 0 )
 						{
-							sprintf(dlna_buf, "DLNA.ORG_PN=MPEG_PS_NTSC;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							sprintf(dlna_buf, "DLNA.ORG_PN=%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", "MPEG_PS_NTSC");
 							add_res(size, duration, bitrate, sampleFrequency, nrAudioChannels,
 						        	resolution, dlna_buf, mime, detailID, ext, passed_args);
 						}
 						if( !dlna_pn || strncmp(dlna_pn, "MPEG_PS_PAL", 11) != 0 )
 						{
-							sprintf(dlna_buf, "DLNA.ORG_PN=MPEG_PS_PAL;DLNA.ORG_OP=01;DLNA.ORG_CI=0");
+							sprintf(dlna_buf, "DLNA.ORG_PN=%s;DLNA.ORG_OP=01;DLNA.ORG_CI=0", "MPEG_PS_PAL");
 							add_res(size, duration, bitrate, sampleFrequency, nrAudioChannels,
 						        	resolution, dlna_buf, mime, detailID, ext, passed_args);
 						}
