@@ -516,8 +516,6 @@ close:
  * process SSDP M-SEARCH requests and responds to them */
 void
 ProcessSSDPRequest(int s, unsigned short port)
-/*ProcessSSDPRequest(int s, struct lan_addr_s * lan_addr, int n_lan_addr,
-                   unsigned short port)*/
 {
 	int n;
 	char bufr[1500];
@@ -547,10 +545,8 @@ ProcessSSDPRequest(int s, unsigned short port)
 			if( bufr[i] == '*' )
 				break;
 		}
-		if( !strcasestr(bufr+i, "HTTP/1.1") )
-		{
+		if( !strcasestrc(bufr+i, "HTTP/1.1", '\r') )
 			return;
-		}
 		while(i < n)
 		{
 			while((i < n - 2) && (bufr[i] != '\r' || bufr[i+1] != '\n'))
@@ -601,7 +597,6 @@ ProcessSSDPRequest(int s, unsigned short port)
 			}
 			ParseUPnPClient(loc);
 		}
-		return;
 	}
 	else if(memcmp(bufr, "M-SEARCH", 8) == 0)
 	{
@@ -612,10 +607,8 @@ ProcessSSDPRequest(int s, unsigned short port)
 			if( bufr[i] == '*' )
 				break;
 		}
-		if( !strcasestr(bufr+i, "HTTP/1.1") )
-		{
+		if( !strcasestrc(bufr+i, "HTTP/1.1", '\r') )
 			return;
-		}
 		while(i < n)
 		{
 			while((i < n - 2) && (bufr[i] != '\r' || bufr[i+1] != '\n'))

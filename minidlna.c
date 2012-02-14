@@ -350,6 +350,7 @@ init(int argc, char * * argv)
 	char buf[PATH_MAX];
 	char ip_addr[INET_ADDRSTRLEN + 3] = {'\0'};
 	char log_str[72] = "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn";
+	char *log_level = NULL;
 
 	/* first check if "-f" option is used */
 	for(i=2; i<argc; i++)
@@ -540,6 +541,9 @@ init(int argc, char * * argv)
 					break;
 				}
 				strncpyt(log_path, path, PATH_MAX);
+				break;
+			case UPNPLOGLEVEL:
+				log_level = ary_options[i].value;
 				break;
 			case UPNPINOTIFY:
 				if( (strcmp(ary_options[i].value, "yes") != 0) && !atoi(ary_options[i].value) )
@@ -777,22 +781,29 @@ init(int argc, char * * argv)
 	}
 
 	if( verbose_flag )
+	{
 		strcpy(log_str+65, "debug");
+		log_level = log_str;
+	}
+	else if( !log_level )
+	{
+		log_level = log_str;
+	}
 	if(debug_flag)
 	{
 		pid = getpid();
-		log_init(NULL, log_str);
+		log_init(NULL, log_level);
 	}
 	else
 	{
 		pid = daemonize();
 		#ifdef READYNAS
-		log_init("/var/log/upnp-av.log", log_str);
+		log_init("/var/log/upnp-av.log", log_level);
 		#else
 		if( access(db_path, F_OK) != 0 )
 			make_dir(db_path, S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO);
 		sprintf(buf, "%s/minidlna.log", log_path);
-		log_init(buf, log_str);
+		log_init(buf, log_level);
 		#endif
 	}
 

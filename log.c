@@ -62,11 +62,11 @@ log_init(const char *fname, const char *debug)
 
 	if (debug)
 	{
-		char *rhs, *lhs, *p;
+		const char *rhs, *lhs, *nlhs, *p;
 		int n;
 		int level, facility;
 		memset(&log_level_set, 0, sizeof(log_level_set));
-		rhs = lhs = (char*) debug;
+		rhs = nlhs = debug;
 		while (rhs && (rhs = strchr(rhs, '='))) {
 			rhs++;
 			p = strchr(rhs, ',');
@@ -75,7 +75,8 @@ log_init(const char *fname, const char *debug)
 				if (!(strncasecmp(level_name[level], rhs, n)))
 					break;
 			}
-			rhs = p;
+			lhs = nlhs;
+			rhs = nlhs = p;
 			if (!(level_name[level])) {
 				// unknown level
 				continue;
