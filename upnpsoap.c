@@ -578,7 +578,7 @@ parse_sort_criteria(char *sortCriteria, int *error)
 		}
 		else
 		{
-			DPRINTF(E_DEBUG, L_HTTP, "No order specified [%s]\n", item);
+			DPRINTF(E_ERROR, L_HTTP, "No order specified [%s]\n", item);
 			*error = -1;
 			goto unhandled_order;
 		}
@@ -605,7 +605,7 @@ parse_sort_criteria(char *sortCriteria, int *error)
 		}
 		else
 		{
-			DPRINTF(E_DEBUG, L_HTTP, "Unhandled SortCriteria [%s]\n", item);
+			DPRINTF(E_ERROR, L_HTTP, "Unhandled SortCriteria [%s]\n", item);
 			*error = -1;
 			if( i )
 			{
@@ -1284,7 +1284,7 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 			}
 		}
 		/* If it's a DLNA client, return an error for bad sort criteria */
-		if( (args.flags & FLAG_DLNA) && ret < 0 )
+		if( ret < 0 && ((args.flags & FLAG_DLNA) || GETFLAG(DLNA_STRICT_MASK)) )
 		{
 			SoapError(h, 709, "Unsupported or invalid sort criteria");
 			goto browse_error;
@@ -1297,12 +1297,14 @@ BrowseContentDirectory(struct upnphttp * h, const char * action)
 		DPRINTF(E_DEBUG, L_HTTP, "Browse SQL: %s\n", sql);
 		ret = sqlite3_exec(db, sql, callback, (void *) &args, &zErrMsg);
 	}
-	sqlite3_free(sql);
 	if( (ret != SQLITE_OK) && (zErrMsg != NULL) )
 	{
 		DPRINTF(E_WARN, L_HTTP, "SQL error: %s\nBAD SQL: %s\n", zErrMsg, sql);
 		sqlite3_free(zErrMsg);
+		SoapError(h, 709, "Unsupported or invalid sort criteria");
+		goto browse_error;
 	}
+	sqlite3_free(sql);
 	/* Does the object even exist? */
 	if( !totalMatches )
 	{
@@ -1496,7 +1498,7 @@ SearchContentDirectory(struct upnphttp * h, const char * action)
 #endif
 		orderBy = parse_sort_criteria(SortCriteria, &ret);
 	/* If it's a DLNA client, return an error for bad sort criteria */
-	if( (args.flags & FLAG_DLNA) && ret < 0 )
+	if( ret < 0 && ((args.flags & FLAG_DLNA) || GETFLAG(DLNA_STRICT_MASK)) )
 	{
 		SoapError(h, 709, "Unsupported or invalid sort criteria");
 		goto search_error;
