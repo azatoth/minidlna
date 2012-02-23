@@ -807,7 +807,7 @@ init(int argc, char * * argv)
 		#endif
 	}
 
-	if(checkforrunning(pidfilename) < 0)
+	if (checkforrunning(pidfilename) < 0)
 	{
 		DPRINTF(E_ERROR, L_GENERAL, "MiniDLNA is already running. EXITING.\n");
 		return 1;
@@ -816,7 +816,7 @@ init(int argc, char * * argv)
 	set_startup_time();
 
 	/* presentation url */
-	if(presurl)
+	if (presurl)
 		strncpyt(presentationurl, presurl, PRESENTATIONURL_MAX_LEN);
 	else
 		strcpy(presentationurl, "/");
@@ -825,19 +825,14 @@ init(int argc, char * * argv)
 	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = sigterm;
 	if (sigaction(SIGTERM, &sa, NULL))
-	{
-		DPRINTF(E_FATAL, L_GENERAL, "Failed to set SIGTERM handler. EXITING.\n");
-	}
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to set %s handler. EXITING.\n", SIGTERM);
 	if (sigaction(SIGINT, &sa, NULL))
-	{
-		DPRINTF(E_FATAL, L_GENERAL, "Failed to set SIGINT handler. EXITING.\n");
-	}
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to set %s handler. EXITING.\n", SIGINT);
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		DPRINTF(E_FATAL, L_GENERAL, "Failed to set %s handler. EXITING.\n", SIGPIPE);
 
-	if(signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-		DPRINTF(E_FATAL, L_GENERAL, "Failed to ignore SIGPIPE signals. EXITING.\n");
-	}
-
-	writepidfile(pidfilename, pid);
+	if (writepidfile(pidfilename, pid) != 0)
+		pidfilename = NULL;
 
 	return 0;
 }
@@ -1232,9 +1227,8 @@ main(int argc, char * * argv)
 shutdown:
 	/* kill the scanner */
 	if( scanning && scanner_pid )
-	{
 		kill(scanner_pid, 9);
-	}
+
 	/* close out open sockets */
 	while(upnphttphead.lh_first != NULL)
 	{
@@ -1242,17 +1236,18 @@ shutdown:
 		LIST_REMOVE(e, entries);
 		Delete_upnphttp(e);
 	}
-
-	if (sudp >= 0) close(sudp);
-	if (shttpl >= 0) close(shttpl);
+	if (sudp >= 0)
+		close(sudp);
+	if (shttpl >= 0)
+		close(shttpl);
 	#ifdef TIVO_SUPPORT
-	if (sbeacon >= 0) close(sbeacon);
+	if (sbeacon >= 0)
+		close(sbeacon);
 	#endif
 	
 	if(SendSSDPGoodbye(snotify, n_lan_addr) < 0)
-	{
 		DPRINTF(E_ERROR, L_GENERAL, "Failed to broadcast good-bye notifications\n");
-	}
+
 	for(i=0; i<n_lan_addr; i++)
 		close(snotify[i]);
 
@@ -1281,10 +1276,8 @@ shutdown:
 		free(last_name);
 	}
 
-	if(unlink(pidfilename) < 0)
-	{
+	if(pidfilename && unlink(pidfilename) < 0)
 		DPRINTF(E_ERROR, L_GENERAL, "Failed to remove pidfile %s: %s\n", pidfilename, strerror(errno));
-	}
 
 	freeoptions();
 
