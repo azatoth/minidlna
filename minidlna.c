@@ -644,7 +644,12 @@ init(int argc, char * * argv)
 			break;
 		case 'P':
 			if(i+1 < argc)
-				pidfilename = argv[++i];
+			{
+				if (argv[++i][0] != '/')
+					DPRINTF(E_FATAL, L_GENERAL, "Option -%c requires an absolute filename.\n", argv[i-1][1]);
+				else
+					pidfilename = argv[i];
+			}
 			else
 				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
