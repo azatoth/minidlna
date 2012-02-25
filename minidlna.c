@@ -384,7 +384,7 @@ init(int argc, char * * argv)
 	{
 		/* only error if file exists or using -f */
 		if(access(optionsfile, F_OK) == 0 || options_flag)
-			DPRINTF(E_ERROR, L_GENERAL, "Error reading configuration file %s\n", optionsfile);
+			DPRINTF(E_FATAL, L_GENERAL, "Error reading configuration file %s\n", optionsfile);
 	}
 	else
 	{
@@ -609,7 +609,7 @@ init(int argc, char * * argv)
 	{
 		if(argv[i][0]!='-')
 		{
-			DPRINTF(E_ERROR, L_GENERAL, "Unknown option: %s\n", argv[i]);
+			DPRINTF(E_FATAL, L_GENERAL, "Unknown option: %s\n", argv[i]);
 		}
 		else if(strcmp(argv[i], "--help")==0)
 		{
@@ -622,25 +622,25 @@ init(int argc, char * * argv)
 			if(i+1 < argc)
 				runtime_vars.notify_interval = atoi(argv[++i]);
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 's':
 			if(i+1 < argc)
 				strncpyt(serialnumber, argv[++i], SERIALNUMBER_MAX_LEN);
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'm':
 			if(i+1 < argc)
 				strncpyt(modelnumber, argv[++i], MODELNUMBER_MAX_LEN);
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'p':
 			if(i+1 < argc)
 				runtime_vars.port = atoi(argv[++i]);
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'P':
 			if(i+1 < argc)
@@ -651,7 +651,7 @@ init(int argc, char * * argv)
 					pidfilename = argv[i];
 			}
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'd':
 			debug_flag = 1;
@@ -665,7 +665,7 @@ init(int argc, char * * argv)
 			if(i+1 < argc)
 				presurl = argv[++i];
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'a':
 			if(i+1 < argc)
@@ -694,7 +694,7 @@ init(int argc, char * * argv)
 				}
 			}
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'i':
 			if(i+1 < argc)
@@ -728,7 +728,7 @@ init(int argc, char * * argv)
 				}
 			}
 			else
-				DPRINTF(E_ERROR, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
+				DPRINTF(E_FATAL, L_GENERAL, "Option -%c takes one argument.\n", argv[i][1]);
 			break;
 		case 'f':
 			i++;	/* discarding, the config file is already read */
@@ -739,7 +739,7 @@ init(int argc, char * * argv)
 		case 'R':
 			snprintf(buf, sizeof(buf), "rm -rf %s/files.db %s/art_cache", db_path, db_path);
 			if( system(buf) != 0 )
-				DPRINTF(E_WARN, L_GENERAL, "Failed to clean old file cache.\n");
+				DPRINTF(E_FATAL, L_GENERAL, "Failed to clean old file cache. EXITING\n");
 			break;
 		case 'V':
 			printf("Version " MINIDLNA_VERSION "\n");
@@ -924,7 +924,7 @@ main(int argc, char * * argv)
 			cmd = NULL;
 		if( i != 0 )
 		{
-			DPRINTF(E_WARN, L_GENERAL, "Failed to clean old file cache.\n");
+			DPRINTF(E_FATAL, L_GENERAL, "Failed to clean old file cache!  Exiting...\n");
 		}
 		free(cmd);
 		open_db();
@@ -969,7 +969,7 @@ main(int argc, char * * argv)
 	if( sqlite3_threadsafe() && sqlite3_libversion_number() >= 3005001 &&
 	    GETFLAG(INOTIFY_MASK) && pthread_create(&inotify_thread, NULL, start_inotify, NULL) )
 	{
-		DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify.\n");
+		DPRINTF(E_FATAL, L_GENERAL, "ERROR: pthread_create() failed for start_inotify. EXITING\n");
 	}
 #endif
 	sudp = OpenAndConfSSDPReceiveSocket(n_lan_addr, lan_addr);
