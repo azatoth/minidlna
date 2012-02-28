@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "options.h"
+#include "utils.h"
 #include "upnpglobalvars.h"
 
 struct option * ary_options = NULL;
@@ -169,7 +170,7 @@ readoptionsfile(const char * fname)
 				ary_options = (struct option *)t;
 
 			ary_options[num_options-1].id = id;
-			strncpy(ary_options[num_options-1].value, value, MAX_OPTION_VALUE_LEN);
+			strncpyt(ary_options[num_options-1].value, value, MAX_OPTION_VALUE_LEN);
 		}
 
 	}

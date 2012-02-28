@@ -447,51 +447,50 @@ init(int argc, char * * argv)
 				break;
 			case UPNPMEDIADIR:
 				type = ALL_MEDIA;
-				char * myval = NULL;
-				switch( ary_options[i].value[0] )
+				path = ary_options[i].value;
+				if( *path && (path[1] == ',') && (access(path, F_OK) != 0) )
 				{
-				case 'A':
-				case 'a':
-					if( ary_options[i].value[0] == 'A' || ary_options[i].value[0] == 'a' )
-						type = AUDIO_ONLY;
-				case 'V':
-				case 'v':
-					if( ary_options[i].value[0] == 'V' || ary_options[i].value[0] == 'v' )
-						type = VIDEO_ONLY;
-				case 'P':
-				case 'p':
-					if( ary_options[i].value[0] == 'P' || ary_options[i].value[0] == 'p' )
-						type = IMAGES_ONLY;
-					myval = index(ary_options[i].value, '/');
-				case '/':
-					path = realpath(myval ? myval:ary_options[i].value, buf);
-					if( !path )
-						path = (myval ? myval:ary_options[i].value);
-					if( access(path, F_OK) != 0 )
+					switch( *path )
 					{
-						DPRINTF(E_ERROR, L_GENERAL, "Media directory \"%s\" not accessible! [%s]\n",
-						        path, strerror(errno));
+					case 'A':
+					case 'a':
+						type = AUDIO_ONLY;
+						break;
+					case 'V':
+					case 'v':
+						type = VIDEO_ONLY;
+						break;
+					case 'P':
+					case 'p':
+						type = IMAGES_ONLY;
+						break;
+					default:
+						DPRINTF(E_FATAL, L_GENERAL, "Media directory entry not understood [%s]\n",
+							ary_options[i].value);
 						break;
 					}
-					struct media_dir_s * this_dir = calloc(1, sizeof(struct media_dir_s));
-					this_dir->path = strdup(path);
-					this_dir->type = type;
-					if( !media_dirs )
-					{
-						media_dirs = this_dir;
-					}
-					else
-					{
-						struct media_dir_s * all_dirs = media_dirs;
-						while( all_dirs->next )
-							all_dirs = all_dirs->next;
-						all_dirs->next = this_dir;
-					}
+					path += 2;
+				}
+				path = realpath(path, buf);
+				if( !path || access(path, F_OK) != 0 )
+				{
+					DPRINTF(E_ERROR, L_GENERAL, "Media directory \"%s\" not accessible [%s]\n",
+						ary_options[i].value, strerror(errno));
 					break;
-				default:
-					DPRINTF(E_ERROR, L_GENERAL, "Media directory entry not understood! [%s]\n",
-					        ary_options[i].value);
-					break;
+				}
+				struct media_dir_s * this_dir = calloc(1, sizeof(struct media_dir_s));
+				this_dir->path = strdup(path);
+				this_dir->type = type;
+				if( !media_dirs )
+				{
+					media_dirs = this_dir;
+				}
+				else
+				{
+					struct media_dir_s * all_dirs = media_dirs;
+					while( all_dirs->next )
+						all_dirs = all_dirs->next;
+					all_dirs->next = this_dir;
 				}
 				break;
 			case UPNPALBUMART_NAMES:
@@ -1037,7 +1036,7 @@ main(int argc, char * * argv)
 		}
 		else
 		{
-			/* the comparaison is not very precise but who cares ? */
+			/* the comparison is not very precise but who cares ? */
 			if(timeofday.tv_sec >= (lastnotifytime.tv_sec + runtime_vars.notify_interval))
 			{
 				SendSSDPNotifies2(snotify,

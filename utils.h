@@ -24,6 +24,8 @@
 #ifndef __UTILS_H__
 #define __UTILS_H__
 
+#include "minidlnatypes.h"
+
 int
 strcatf(struct string_s *str, char *fmt, ...);
 
