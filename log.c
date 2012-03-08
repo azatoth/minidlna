@@ -50,6 +50,7 @@ char *level_name[] = {
 	"warn",					// E_WARN
 	"info",					// E_INFO
 	"debug",				// E_DEBUG
+	"maxdebug",				// E_MAXDEBUG
 	0
 };
 
