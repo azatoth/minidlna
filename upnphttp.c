@@ -2006,4 +2006,5 @@ error:
 	if( !newpid )
 		_exit(0);
 #endif
+	return;
 }
