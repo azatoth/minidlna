@@ -52,6 +52,23 @@ strncpyt(char *dst, const char *src, size_t len)
 	dst[len-1] = '\0';
 }
 
+inline int
+xasprintf(char **strp, char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = vasprintf(strp, fmt, args);
+	va_end(args);
+	if( ret < 0 )
+	{
+		DPRINTF(E_WARN, L_GENERAL, "xasprintf: allocation failed\n");
+		*strp = NULL;
+	}
+	return ret;
+}
+
 int
 ends_with(const char * haystack, const char * needle)
 {

@@ -32,6 +32,9 @@ strcatf(struct string_s *str, char *fmt, ...);
 void
 strncpyt(char *dst, const char *src, size_t len);
 
+inline int
+xasprintf(char **strp, char *fmt, ...);
+
 int
 ends_with(const char * haystack, const char * needle);
 

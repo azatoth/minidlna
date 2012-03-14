@@ -770,7 +770,7 @@ _get_mp3fileinfo(char *file, struct song_metadata *psong)
 	//DEBUG DPRINTF(E_INFO, L_SCANNER, "Got fileinfo successfully for file=%s song_length=%d\n", file, psong->song_length);
 
 	psong->blockalignment = 1;
-	asprintf(&(psong->dlna_pn), "MP3");
+	xasprintf(&(psong->dlna_pn), "MP3");
 
 	return 0;
 }

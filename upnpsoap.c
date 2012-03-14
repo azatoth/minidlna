@@ -84,6 +84,12 @@ BuildSendAndCloseSoapResp(struct upnphttp * h,
 		"</s:Body>"
 		"</s:Envelope>\r\n";
 
+	if (!body || bodylen < 0)
+	{
+		Send500(h);
+		return;
+	}
+
 	BuildHeader_upnphttp(h, 200, "OK",  sizeof(beforebody) - 1
 		+ sizeof(afterbody) - 1 + bodylen );
 

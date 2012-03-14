@@ -407,11 +407,11 @@ bad_esds:
 			}
 			/* AAC @ Level 1/2 */
 			if( psong->channels <= 2 && psong->bitrate <= 320000 )
-				asprintf(&(psong->dlna_pn), "AAC_ISO_320");
+				xasprintf(&(psong->dlna_pn), "AAC_ISO_320");
 			else if( psong->channels <= 2 && psong->bitrate <= 576000 )
-				asprintf(&(psong->dlna_pn), "AAC_ISO");
+				xasprintf(&(psong->dlna_pn), "AAC_ISO");
 			else if( psong->channels <= 6 && psong->bitrate <= 1440000 )
-				asprintf(&(psong->dlna_pn), "AAC_MULT5_ISO");
+				xasprintf(&(psong->dlna_pn), "AAC_MULT5_ISO");
 			else
 				DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC: %d channels, %d bitrate\n",
 				                             psong->channels, psong->bitrate);

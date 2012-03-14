@@ -38,7 +38,7 @@ SendRootContainer(struct upnphttp * h)
 	char * resp;
 	int len;
 
-	len = asprintf(&resp, "<?xml version='1.0' encoding='UTF-8' ?>\n"
+	len = xasprintf(&resp, "<?xml version='1.0' encoding='UTF-8' ?>\n"
 			"<TiVoContainer>"
 			 "<Details>"
 			  "<ContentType>x-container/tivo-server</ContentType>"
@@ -291,7 +291,7 @@ SendItemDetails(struct upnphttp * h, sqlite_int64 item)
 	str.off = sprintf(str.data, "<?xml version='1.0' encoding='UTF-8' ?>\n<TiVoItem>");
 	args.str = &str;
 	args.requested = 1;
-	asprintf(&sql, SELECT_COLUMNS
+	xasprintf(&sql, SELECT_COLUMNS
 	               "from OBJECTS o left join DETAILS d on (d.ID = o.DETAIL_ID)"
 		       " where o.DETAIL_ID = %lld group by o.DETAIL_ID", item);
 	DPRINTF(E_DEBUG, L_TIVO, "%s\n", sql);
@@ -364,16 +364,16 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 		switch( *objectID )
 		{
 			case '1':
-				asprintf(&title, "Music on %s", friendly_name);
+				xasprintf(&title, "Music on %s", friendly_name);
 				break;
 			case '2':
-				asprintf(&title, "Videos on %s", friendly_name);
+				xasprintf(&title, "Videos on %s", friendly_name);
 				break;
 			case '3':
-				asprintf(&title, "Pictures on %s", friendly_name);
+				xasprintf(&title, "Pictures on %s", friendly_name);
 				break;
 			default:
-				asprintf(&title, "Unknown on %s", friendly_name);
+				xasprintf(&title, "Unknown on %s", friendly_name);
 				break;
 		}
 	}
@@ -391,12 +391,12 @@ SendContainer(struct upnphttp * h, const char * objectID, int itemStart, int ite
 
 	if( recurse )
 	{
-		asprintf(&which, "OBJECT_ID glob '%s$*'", objectID);
+		xasprintf(&which, "OBJECT_ID glob '%s$*'", objectID);
 		strcpy(groupBy, "group by DETAIL_ID");
 	}
 	else
 	{
-		asprintf(&which, "PARENT_ID = '%s'", objectID);
+		xasprintf(&which, "PARENT_ID = '%s'", objectID);
 	}
 
 	if( sortOrder )

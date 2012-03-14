@@ -46,6 +46,7 @@
 #include "misc.h"
 #include "textutils.h"
 #include "../metadata.h"
+#include "../utils.h"
 #include "../log.h"
 
 struct id3header {

@@ -47,15 +47,15 @@ _pick_dlna_profile(struct song_metadata *psong, uint16_t format)
 	{
 		case WMA:
 			if( psong->max_bitrate < 193000 )
-				asprintf(&(psong->dlna_pn), "WMABASE");
+				xasprintf(&(psong->dlna_pn), "WMABASE");
 			else if( psong->max_bitrate < 385000 )
-				asprintf(&(psong->dlna_pn), "WMAFULL");
+				xasprintf(&(psong->dlna_pn), "WMAFULL");
 			break;
 		case WMAPRO:
-			asprintf(&(psong->dlna_pn), "WMAPRO");
+			xasprintf(&(psong->dlna_pn), "WMAPRO");
 			break;
 		case WMALSL:
-			asprintf(&(psong->dlna_pn), "WMALSL%s",
+			xasprintf(&(psong->dlna_pn), "WMALSL%s",
 				psong->channels > 2 ? "_MULT5" : "");
 		default:
 			break;
