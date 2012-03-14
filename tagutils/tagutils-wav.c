@@ -21,13 +21,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define GET_WAV_INT32(p) ((((uint32_t)((p)[3])) << 24) |   \
-			  (((uint32_t)((p)[2])) << 16) |   \
-			  (((uint32_t)((p)[1])) << 8) |	   \
-			  (((uint32_t)((p)[0]))))
+#define GET_WAV_INT32(p) ((((uint8_t)((p)[3])) << 24) |   \
+			  (((uint8_t)((p)[2])) << 16) |   \
+			  (((uint8_t)((p)[1])) << 8) |	   \
+			  (((uint8_t)((p)[0]))))
 
-#define GET_WAV_INT16(p) ((((uint32_t)((p)[1])) << 8) |	   \
-			  (((uint32_t)((p)[0]))))
+#define GET_WAV_INT16(p) ((((uint8_t)((p)[1])) << 8) |	   \
+			  (((uint8_t)((p)[0]))))
 
 static int
 _get_wavtags(char *filename, struct song_metadata *psong)
@@ -141,7 +141,7 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 			char *tags;
 			char *p;
 			int off;
-			int taglen;
+			uint32_t taglen;
 			char **m;
 
 			len = GET_WAV_INT32(hdr + 4);
@@ -203,6 +203,11 @@ _get_wavtags(char *filename, struct song_metadata *psong)
 
 				p += taglen + 8;
 				off += taglen + 8;
+				/* Handle some common WAV file malformations */
+				while (*p == '\0') {
+					p++;
+					off++;
+				}
 			}
 			free(tags);
 		}
