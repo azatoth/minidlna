@@ -33,4 +33,20 @@ Prerequisites
 - libavformat (the ffmpeg libraries)
 
 
+Example installation on Debian GNU/Linux 7 (wheezy):
+==================
+
+    $  git clone https://github.com/azatoth/minidlna.git
+    $  cd minidlna
+    $  apt-get install libavcodec-dev libavformat-dev libavutil-dev libjpeg-dev libogg-dev libvorbis-dev libFLAC-dev
+    $  ./autogen.sh
+    $  ./configure
+    $  make
+    $  sudo checkinstall  # Make sure you specify a value for version
+
+    $  sudo dpkg -i *.dev
+    $  sudo cp linux/minidlna.init.d.script /etc/init.d/minidlna
+    $  sudo chmod 0755 /etc/init.d/minidlna
+
+
 Justin Maggard
