@@ -748,7 +748,7 @@ GetVideoMetadata(const char * path, char * name)
 		DPRINTF(E_WARN, L_METADATA, "Opening %s failed!\n", path);
 		return 0;
 	}
-	av_find_stream_info(ctx);
+	avformat_find_stream_info(ctx, NULL);
 	//dump_format(ctx, 0, NULL, 0);
 	for( i=0; i<ctx->nb_streams; i++)
 	{
@@ -772,7 +772,7 @@ GetVideoMetadata(const char * path, char * name)
 	if( !vc )
 	{
 		/* This must not be a video file. */
-		av_close_input_file(ctx);
+		avformat_close_input(&ctx);
 		if( !is_audio(path) )
 			DPRINTF(E_DEBUG, L_METADATA, "File %s does not contain a video stream.\n", basepath);
 		free(path_cpy);
@@ -1555,10 +1555,10 @@ GetVideoMetadata(const char * path, char * name)
 	{
 		if( ctx->metadata )
 		{
-			AVMetadataTag *tag = NULL;
+			AVDictionaryEntry *tag = NULL;
 
 			//DEBUG DPRINTF(E_DEBUG, L_METADATA, "Metadata:\n");
-			while( (tag = av_metadata_get(ctx->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX)) )
+			while( (tag = av_dict_get(ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)) )
 			{
 				//DEBUG DPRINTF(E_DEBUG, L_METADATA, "  %-16s: %s\n", tag->key, tag->value);
 				if( strcmp(tag->key, "title") == 0 )
@@ -1575,7 +1575,7 @@ GetVideoMetadata(const char * path, char * name)
 	#endif
 	#endif
 video_no_dlna:
-	av_close_input_file(ctx);
+	avformat_close_input(&ctx);
 
 #ifdef TIVO_SUPPORT
 	if( ends_with(path, ".TiVo") && is_tivo_file(path) )

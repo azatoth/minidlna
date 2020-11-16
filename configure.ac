@@ -381,17 +381,17 @@ for dir in "" /usr/local $SEARCH_DIR; do
     if test -n "$dir"; then
         LDFLAGS="$LDFLAGS -L$dir/lib"
     fi
-    AC_CHECK_LIB([avformat], [av_open_input_file], [LIBAVFORMAT_LIBS="-lavformat"], [unset ac_cv_lib_avformat_av_open_input_file; LDFLAGS="$LDFLAGS_SAVE"; continue])
+    AC_CHECK_LIB([avformat], [avformat_open_input], [LIBAVFORMAT_LIBS="-lavformat"], [unset ac_cv_lib_avformat_avformat_open_input; LDFLAGS="$LDFLAGS_SAVE"; continue])
     AC_SUBST(LIBJPEG_LIBS)
     break
 done
-test x"$ac_cv_lib_avformat_av_open_input_file" = x"yes" || AC_MSG_ERROR([Could not find libavformat - part of ffmpeg])
+test x"$ac_cv_lib_avformat_avformat_open_input" = x"yes" || AC_MSG_ERROR([Could not find libavformat - part of ffmpeg])
 AC_SUBST(LIBAVFORMAT_LIBS)
 
 AC_CHECK_LIB(avutil ,[av_rescale_q], [LIBAVUTIL_LIBS="-lavutil"], [AC_MSG_ERROR([Could not find libavutil - part of ffmpeg])])
 AC_SUBST(LIBAVUTIL_LIBS)
 
-AC_CHECK_LIB(avcodec ,[avcodec_init], [LIBAVCODEC_LIBS="-lavcodec"], [AC_MSG_ERROR([Could not find libavcodec - part of ffmpeg])])
+AC_CHECK_LIB(avcodec ,[avcodec_register], [LIBAVCODEC_LIBS="-lavcodec"], [AC_MSG_ERROR([Could not find libavcodec - part of ffmpeg])])
 AC_SUBST(LIBAVCODEC_LIBS)
 
 AC_CHECK_LIB(pthread, pthread_create)
